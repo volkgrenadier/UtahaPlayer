@@ -1,0 +1,36 @@
+.header_container{
+    height: 100px;
+    // background-color: aqua;
+    position: relative;
+    .header_button{
+        width: 30px;
+        height: 30px;
+        border: none;
+        cursor: pointer;
+        background-position: center center;
+        background-size: 85%;
+        position: absolute;
+        top: 35px;
+        background-color: rgba(255,255,255,0);
+        background-repeat: no-repeat;
+    }
+    #header_button_close{
+        background-image: url('./icon/guanbi_o.png');
+        right: 30px;
+        
+    }
+    #header_button_fullScreen_min{  //  style of window in maximizing
+        background-image: url('./icon/3zuidahua-1.png');
+        right: 80px;
+        background-size: 70%;
+    }
+    #header_button_fullScreen_max{
+        background-image: url('./icon/3zuidahua-3.png');
+        right: 80px;
+        background-size: 70%;
+    }
+    #header_button_minimizeScreen{
+        background-image: url('./icon/zuixiaohua.png');
+        right: 130px;
+    }
+}
