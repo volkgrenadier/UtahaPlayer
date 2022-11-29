@@ -1,4 +1,3 @@
-// const moveWindow = require('./utils/winMove');
 const {app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 
@@ -13,7 +12,7 @@ function minimizeWindow() { //  最小化窗口
 }
 function maximizeWindow() { //  最大化窗口
     if (mainWindow.isMaximized()) {
-        mainWindow.restore();
+        mainWindow.unmaximize();
         return true     //  true means window has been restored, for Header.js
     }
     else{
@@ -48,8 +47,10 @@ function moveWin(e,canMove) {    //  移动窗口，
         //     const winNewPosY = winStartPosition.y + cursorNowPosition.y - cursorStartPosition.y;
         //     mainWindow.setPosition(winNewPosX, winNewPosY, true)
         // }, 5)
+        
         if (!movingInterval) {
             //  新增计时器
+            
             movingInterval = setInterval(() => {
                 // 实时更新位置
                 const cursorNowPosition = screen.getCursorScreenPoint();

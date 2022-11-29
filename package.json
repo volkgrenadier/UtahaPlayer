@@ -15,10 +15,11 @@
   },
   "scripts": {
     "electron": "electron .",
-    "start": "react-scripts start | electron . --deubg",
+    "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron-trace": "electron --trace-warnings ."
   },
   "eslintConfig": {
     "extends": [

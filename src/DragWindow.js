@@ -1,5 +1,4 @@
 import React from 'react'
-// import winControl from './utils/winControl'
 
 const DragWindow = (props) => {
     const { ipcRenderer } = window.require("electron")

@@ -1,9 +1,10 @@
 import React from 'react'
+import Audio from './Audio'
 import styles from './player.module.scss'
 const Player = () => {
   return (
     <div className={styles.player_container}>
-        123
+        <Audio />
     </div>
   )
 }
