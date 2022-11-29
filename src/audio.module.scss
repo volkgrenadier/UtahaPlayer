@@ -1,0 +1,168 @@
+.audio_container{
+    
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: red;
+    .audio_button_container{
+        width: 230px;
+        height: 80px;
+        margin: 0 auto;
+        background-color: palevioletred;
+        text-align: center;
+        position: relative;
+        top: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        //  按钮通用样式
+        .audio_button{
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255,255,255,0);
+            border: none;
+            border-radius: 50%;
+            background-position: center center;
+            background-size: 50%;
+            background-repeat: no-repeat;
+            cursor: pointer;
+            transition: transform 0.3s ease-in-out;
+            
+        }
+        .audio_button:hover{
+            transform: scale(1.2);
+        }
+        //  上一曲图标
+        #audio_button_piror{
+            background-image: url('./icon/48shangyishou.png');
+        }
+        #audio_button_piror:hover{
+            background-image: url('./icon/48shangyishou_h.png');
+        }
+        //  暂停图标
+        #audio_button_pause{
+            background-image: url('./icon/zanting.png');
+            background-size: 85%;
+            
+        }
+        #audio_button_pause:hover{
+            background-image: url('./icon/zanting_h.png');
+        }
+        //  播放图标
+        #audio_button_play{
+            background-image: url('./icon/bofang.png');
+            background-size: 85%;
+        }
+        #audio_button_play:hover{
+            background-image: url('./icon/bofang_h.png');
+        }
+        // 下一曲图标
+        #audio_button_next{
+            background-image: url('./icon/49xiayishou.png');
+        }
+        #audio_button_next:hover{
+            background-image: url('./icon/49xiayishou_h.png');
+        }
+    }
+    .audio_controlPannel_container{
+        width: 200px;
+        height: 60px;
+        background-color: burlywood;
+        position: absolute;
+        right: 40px;
+        top: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        .audio_controlPannel_button{
+            width: 35px;
+            height: 35px;
+            background-color: rgba(255,255,255,1);
+            border: none;
+            border-radius: 50%;
+            background-position: center center;
+            background-size: 50%;
+            background-repeat: no-repeat;
+            cursor: pointer;
+            // transition: transform 0.3s ease-in-out;
+        }
+        .audio_controlPannel_button_volume_mute{
+            background-image: url('./icon/24gl-volumeCross.png');
+        }
+        .audio_controlPannel_button_volume_mute:hover{
+            background-image: url('./icon/24gl-volumeCross_h.png');
+        }
+        
+        .audio_controlPannel_button_volume_low{
+            background-image: url('./icon/24gl-volumeLow.png');
+        }
+        .audio_controlPannel_button_volume_low:hover{
+            background-image: url('./icon/24gl-volumeLow_h.png');
+        }
+        
+        .audio_controlPannel_button_volume_middle{
+            background-image: url('./icon/24gl-volumeMiddle.png');
+        }
+        .audio_controlPannel_button_volume_middle:hover{
+            background-image: url('./icon/24gl-volumeMiddle_h.png');
+        }
+        
+        .audio_controlPannel_button_volume_high{
+            background-image: url('./icon/24gl-volumeHigh.png');
+        }
+        .audio_controlPannel_button_volume_high:hover{
+            background-image: url('./icon/24gl-volumeHigh_h.png');
+        }
+        @keyframes volumeIcon {
+            0%{
+                background-image: url('./icon/24gl-volumeZero_h.png');
+            }
+            33%{
+                background-image: url('./icon/24gl-volumeLow_h.png');
+            }
+            66%{
+                background-image: url('./icon/24gl-volumeMiddle_h.png');
+            }
+            100%{
+                background-image: url('./icon/24gl-volumeHigh_h.png');
+            }
+        }
+        $sliderHeight: 180px;
+        $sliderBgColor: brown;
+        $sliderZIndex: 10;
+        #audio_controlPannel_button_volume:hover{
+            animation-name: volumeIcon;
+            animation-duration: 0.65s;
+            animation-timing-function: linear;
+            animation-iteration-count: 1;
+        }
+        .audio_controlPannel_volumeSlider_container{
+            width: 60px;
+            height: $sliderHeight;
+            background-color: $sliderBgColor;
+            position: absolute;
+            left: -12px;
+            top: -($sliderHeight)+8;
+            display: none;
+            z-index: $sliderZIndex;
+        }
+        .audio_controlPannel_volumeSlider_container:hover{
+            display: block;
+        }
+        .audio_controlPannel_volumeSlider_Triangle{
+            width: 15px;
+            height: 15px;
+            transform: rotate(45deg);
+            background-color: $sliderBgColor;
+            z-index: $sliderZIndex;
+            display: inherit;
+            position: absolute;
+            right: 22.5px;
+            bottom: -7px;
+        }
+        #audio_controlPannel_button_volume:hover~.audio_controlPannel_volumeSlider_container{
+            display: block;
+        }
+        
+    }
+}
