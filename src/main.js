@@ -1,9 +1,16 @@
 const {app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const userLocalConfig = require('./config/user.json')
 
 let mainWindow = null;
 let movingInterval = null;
+let userConfig = userLocalConfig.user;    //  用户配置
+
+
+
 function closeApp() {   //  关闭app
+    updateUserConfigFileBeforeClose()   //  关闭程序前写入文件
     app.quit()
 }
 function minimizeWindow() { //  最小化窗口
@@ -69,7 +76,22 @@ function moveWin(e,canMove) {    //  移动窗口，
         movingInterval = null;
     }
 }
-
+function updateUserConfig(e, dataObj) {     //  更改用户配置，这是临时更改，对于文件修改会在程序关闭前进行修改
+    for (let i = 0; i < dataObj.attrName.length; i++) {
+        userConfig[dataObj.attrName[i]] = dataObj.value[i];
+        
+    }
+}
+function updateUserConfigFileBeforeClose() {     //  更改本地用户配置文件，这是正式的文件更改，在程序关闭前执行
+    let jsonFilePath = path.join(__dirname,'config/user.json')
+    // let writeFlag = fs.accessSync(jsonFilePath, fs.constants.W_OK)
+    let userObj = {
+        user: userConfig
+    }
+    console.log(JSON.stringify(userObj))
+    fs.writeFileSync(jsonFilePath, JSON.stringify(userObj))
+    
+}
 
 
 function listenEvent() {  //  添加事件监听
@@ -77,9 +99,10 @@ function listenEvent() {  //  添加事件监听
     // ipcMain.on('closed',() => {
     //     mainWindow = null;
     // })
-    ipcMain.on('minimize-window',minimizeWindow)    //  listen the event for minimize application window
-    ipcMain.handle('maximize-window',maximizeWindow)//  listen the event for maximize or restore application window
-    ipcMain.on('window-move-open',moveWin) 
+    ipcMain.on('minimize-window', minimizeWindow)    //  listen the event for minimize application window
+    ipcMain.handle('maximize-window', maximizeWindow)//  listen the event for maximize or restore application window
+    ipcMain.on('window-move-open', moveWin) //   listen the event for drag window
+    ipcMain.on('update-userConfig', updateUserConfig)
     
 }
 
