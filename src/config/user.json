@@ -1,8 +1,1 @@
-{
-    "user": {
-        "volume": 80,
-        "themeColor": "red"
-        
-    }
-
-}
+{"user":{"volumeStatus":0,"volume":"0","themeColor":"red"}}

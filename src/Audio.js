@@ -1,24 +1,39 @@
-import React,{ useRef, useState, useEffect} from 'react'
+import React,{ useRef, useState, useEffect } from 'react'
+import { useSelector, useDispatch} from 'react-redux'
+import { changeVolume } from './store/userConfigSlice'
 import styles from './audio.module.scss'
-import userConfigLocal from './config/user.json'    //  读取用户个人数据
 const Audio = () => {
-    let userConfig = userConfigLocal.user;
+
     const audioRef = useRef();      //  audio
     const volumeSlider = useRef();  //  slider
     const volumeSliderContainer = useRef();    //  音量面板
     const [playStatus, setPlayStatus] = useState(false) //  播放状态
-    const [volumeStatus, setVolumeStatus] = useState(0) //  音量状态，用于控制音量图标
     const [volumeStatusBackUp, setVolumeStatusBackUp] = useState(0) //  音量状态备份，用于快速静音时恢复音量
+
+
+    const userConfig = useSelector(state => state.userConfig)   //  获取用户设置参数
+    const dispatch = useDispatch()
+    // console.log(userConfig)
+
+
+
 
     useEffect(() => {
         //  根据用户个人数据改变播放器参数(恢复上一次状态)
         volumeSlider.current.value = userConfig.volume; 
         volumeSlider.current.style.background = `linear-gradient(to right, orange 0%, red ${userConfig.volume}%, rgba(128,128,128,0.5) ${userConfig.volume}%, rgba(128,128,128,0.5) 100%)`
         audioRef.current.volume = userConfig.volume/100;    //  改变播放器音量
-        setVolumeStatus(changeVolumeIconState(userConfig.volume))
-        setVolumeStatusBackUp(userConfig.volume)
+
+        if (userConfig.volume !== 0) {  //  如果用户上一次是静音退出的，那么默认将快速静音的恢复值设为50
+            setVolumeStatusBackUp(userConfig.volume)
+        } else {
+            setVolumeStatusBackUp(50)
+        }
+        
         console.log(userConfig)
     },[])
+    
+    
     // 切换播放状态
     const play = () => {
         if (audioRef.paused) {
@@ -34,18 +49,24 @@ const Audio = () => {
     }
     //  改变音量状态
     const changeVolumeIconState= (value) => {
-        if (value <= 0) {
-            setVolumeStatus(0)
+        // console.log(value)
+        let statusFlag = 0
+        if (value == 0) {
+            statusFlag = 0
         }
         else if (value <= 20) {
-            setVolumeStatus(1)
+            statusFlag = 1
         }
-        else if (value <= 50) {
-            setVolumeStatus(2)
+        else if (value <= 60) {
+            statusFlag = 2
         }
         else{
-            setVolumeStatus(3)
+            statusFlag = 3
         }
+        dispatch(changeVolume({
+            volumeStatus: statusFlag,
+            volume: value
+        }))
     }
     const dotMove= (e) => {
         // 随拖动 改变音量条颜色和音量图标
@@ -56,7 +77,7 @@ const Audio = () => {
         }
         //  改变音量
         audioRef.current.volume = e.target.value/100;
-        console.log("value",e.target.value,audioRef.current.volume)
+        // console.log("value",e.target.value,audioRef.current.volume)
     }
     const fastMute = () => {
         //  快速静音与恢复
@@ -90,11 +111,11 @@ const Audio = () => {
             <div className={styles.audio_controlPannel_container}>
                 <button className={`${styles.audio_controlPannel_button} 
                 ${
-                    volumeStatus < 1 
+                    userConfig.volumeStatus < 1 
                     ? styles.audio_controlPannel_button_volume_mute
-                    : volumeStatus < 2 
+                    : userConfig.volumeStatus < 2 
                     ? styles.audio_controlPannel_button_volume_low 
-                    : volumeStatus < 3 
+                    : userConfig.volumeStatus < 3 
                     ? styles.audio_controlPannel_button_volume_middle 
                     : styles.audio_controlPannel_button_volume_high
                 }`} id={styles.audio_controlPannel_button_volume} title='音量' onClick={fastMute}></button>
