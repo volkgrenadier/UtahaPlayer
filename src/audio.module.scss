@@ -3,7 +3,36 @@
     width: 100%;
     height: 100%;
     position: relative;
-    background-color: red;
+    background: transparent;
+    .audio_progressBar_container{
+        width: 100%;
+        height: 4px;
+        background-color: rgba(128,128,128,0.5);
+        position: absolute;
+        top: 0;
+        .audio_progressBar{
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            outline: none;
+            border: none;
+            position: absolute;
+            top: 0;
+            margin: 0;
+            cursor: pointer;
+        }
+        .audio_progressBar::-webkit-slider-thumb{
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: orange;
+            display: none;
+        }
+        .audio_progressBar:hover::-webkit-slider-thumb{
+            display: block;
+        }
+    }
     .audio_button_container{
         width: 230px;
         height: 80px;
