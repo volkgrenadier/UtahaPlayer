@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const userLocalConfig = require('./config/user.json')
@@ -131,6 +131,16 @@ function createWindow() {   //  创建窗口
     
     
 }
+function createTray() {     //  创建系统通知区图标和菜单----建议最后改为BrowserWindow实现
+    let iconPath = path.join(__dirname,'icon/utaha_min.png')
+    let appTrayIcon = new Tray(iconPath)
+    const contextMenu = Menu.buildFromTemplate([
+        { label: '设置', type: 'normal'},
+        { label: '退出', type: 'normal'}
+    ])
+    appTrayIcon.setToolTip('Utaha Music');
+    appTrayIcon.setContextMenu(contextMenu);
+}
 
 
 
@@ -141,5 +151,6 @@ app.on('ready',() => {
 app.whenReady().then(() => {
     
     console.log('ready')
+    createTray();
     listenEvent();
 })

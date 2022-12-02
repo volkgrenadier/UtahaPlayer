@@ -1,24 +1,29 @@
-import React,{ useRef, useState, useEffect } from 'react'
+import React,{ useRef, useState, useLayoutEffect } from 'react'
 import { useSelector, useDispatch} from 'react-redux'
 import { changeVolume } from './store/userConfigSlice'
 import styles from './audio.module.scss'
+
+import myMusic from './cache/1.mp3'
 const Audio = () => {
 
     const audioRef = useRef();      //  audio
     const volumeSlider = useRef();  //  slider
+    const progressBar = useRef()    //  progressBar
     const volumeSliderContainer = useRef();    //  音量面板
     const [playStatus, setPlayStatus] = useState(false) //  播放状态
     const [volumeStatusBackUp, setVolumeStatusBackUp] = useState(0) //  音量状态备份，用于快速静音时恢复音量
-
-
     const userConfig = useSelector(state => state.userConfig)   //  获取用户设置参数
     const dispatch = useDispatch()
-    // console.log(userConfig)
+    
+    let playTimeInterval = null;        //  播放时更新进度条的计时器
+    // const [playTime, setPlayTime] = useState(0) //  播放时间的状态
+
+    function testMusic(params) {    //  测试用加载音频
+        audioRef.current.src = myMusic
+    }
 
 
-
-
-    useEffect(() => {
+    useLayoutEffect(() => {
         //  根据用户个人数据改变播放器参数(恢复上一次状态)
         volumeSlider.current.value = userConfig.volume; 
         volumeSlider.current.style.background = `linear-gradient(to right, orange 0%, red ${userConfig.volume}%, rgba(128,128,128,0.5) ${userConfig.volume}%, rgba(128,128,128,0.5) 100%)`
@@ -29,21 +34,31 @@ const Audio = () => {
         } else {
             setVolumeStatusBackUp(50)
         }
-        
+        testMusic()
         console.log(userConfig)
     },[])
     
     
     // 切换播放状态
     const play = () => {
-        if (audioRef.paused) {
+        if (audioRef.current.paused) {
+            console.log(audioRef)
+            if (audioRef !==null && playTimeInterval === null) {
+                playTimeInterval = setInterval(() => {  //  updateProgressBar
+                    let now = audioRef.current.currentTime / audioRef.current.duration
+                    progressBar.current.value =  now * 1000
+                    progressBar.current.style.background = `linear-gradient(to right, orange 0%, red ${now*100}%, rgba(128,128,128,0.5) ${now*100}%, rgba(128,128,128,0.5) 100%)`
+                }, 1000)
+            }
             audioRef.current.play()
         }
         else{
+            clearInterval(playTimeInterval)
+            playTimeInterval = null;
             audioRef.current.pause();
         }
         setPlayStatus(!playStatus)
-        console.log(audioRef)
+        // console.log(audioRef)
         console.log(audioRef.current.duration)
         console.log(audioRef.current.currentTime)
     }
@@ -98,11 +113,19 @@ const Audio = () => {
             audioRef.current.volume = volumeStatusBackUp / 100;
         }
     }
-
+    const changePlayTime = (e) => {     //  拖动/点击进度条改变当前播放时间
+        // console.log(e.target.value)
+        let now = e.target.value / 1000 * audioRef.current.duration
+        audioRef.current.currentTime = now
+    }
 
     return (
         <div className={styles.audio_container}>
-            <audio id='audio_audio' ref={audioRef}></audio>
+            <audio id='audio_audio' ref={audioRef} type="audio/mpeg">
+            </audio>
+            <div className={styles.audio_progressBar_container}>
+                <input type="range" min={0} max={1000} className={styles.audio_progressBar} ref={progressBar} onChange={e => {changePlayTime(e)}}/>
+            </div>
             <div className={styles.audio_button_container}>
                 <button className={styles.audio_button} id={styles.audio_button_piror} title='上一首'></button>
                 <button className={styles.audio_button} id={playStatus ? styles.audio_button_pause : styles.audio_button_play} onClick={play} title={playStatus? '暂停' : '开始'}></button>
@@ -123,7 +146,7 @@ const Audio = () => {
                 <div className={styles.audio_controlPannel_volumeSlider_container}>
                     <div className={styles.audio_controlPannel_volumeSlider_Triangle}></div>
                     <div className={styles.audio_controlPannel_volumeSlider_slider_inner_container} ref={volumeSliderContainer}>
-                        <input className={styles.audio_controlPannel_volumeSlider_slider_input} type="range" min={0} max={100} defaultValue={10} onChange={e=> {dotMove(e)}} ref={volumeSlider}/>
+                        <input className={styles.audio_controlPannel_volumeSlider_slider_input} type="range" min={0} max={100} defaultValue={10} onChange={e => {dotMove(e)}} ref={volumeSlider}/>
                     </div>
                     
                 </div>
