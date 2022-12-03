@@ -1,5 +1,7 @@
-.home_container{
+.dashboard_container{
     height: 20px;
     background-color: aquamarine;
     flex-grow: 1;
+    display: flex;
+    flex-direction: row;
 }

@@ -76,9 +76,15 @@ function moveWin(e,canMove) {    //  移动窗口，
         movingInterval = null;
     }
 }
-function updateUserConfig(e, dataObj) {     //  更改用户配置，这是临时更改，对于文件修改会在程序关闭前进行修改
+function updateUserConfig(e, dataObj) {     //  更改用户音量配置，这是临时更改，对于文件修改会在程序关闭前进行修改
     for (let i = 0; i < dataObj.attrName.length; i++) {
         userConfig[dataObj.attrName[i]] = dataObj.value[i];
+        
+    }
+}
+function updateUserConfigMusic(e, dataObj) {        //  监听更改用户关于音乐的一些配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
+    for (let i = 0; i < dataObj.attrName.length; i++) {
+        userConfig.music[dataObj.attrName[i]] = dataObj.value[i];
         
     }
 }
@@ -102,7 +108,8 @@ function listenEvent() {  //  添加事件监听
     ipcMain.on('minimize-window', minimizeWindow)    //  listen the event for minimize application window
     ipcMain.handle('maximize-window', maximizeWindow)//  listen the event for maximize or restore application window
     ipcMain.on('window-move-open', moveWin) //   listen the event for drag window
-    ipcMain.on('update-userConfig', updateUserConfig)
+    ipcMain.on('update-userConfig', updateUserConfig)   //  监听更改用户音量配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
+    ipcMain.on('update-userconfig-music', updateUserConfigMusic)    //  监听更改用户关于音乐的一些配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
     
 }
 
@@ -118,7 +125,7 @@ function createWindow() {   //  创建窗口
             nodeIntegration: true,
             contextIsolation : false,
         },
-        icon:path.join(__dirname,'/icon/utaha_min.png'),
+        icon:path.join(__dirname,'component/icon/utaha_min.png'),
     }
     mainWindow = new BrowserWindow(windowOptions);
     mainWindow.title = 'Utaha Music';
@@ -132,7 +139,7 @@ function createWindow() {   //  创建窗口
     
 }
 function createTray() {     //  创建系统通知区图标和菜单----建议最后改为BrowserWindow实现
-    let iconPath = path.join(__dirname,'icon/utaha_min.png')
+    let iconPath = path.join(__dirname,'/component/icon/utaha_min.png')
     let appTrayIcon = new Tray(iconPath)
     const contextMenu = Menu.buildFromTemplate([
         { label: '设置', type: 'normal'},

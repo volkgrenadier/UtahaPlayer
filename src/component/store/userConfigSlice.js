@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import userLocalConfig from '../config/user.json';
+import userLocalConfig from '../../config/user.json';
 
 const { ipcRenderer } = window.require('electron')
 let userConfig = userLocalConfig.user;
@@ -9,9 +9,12 @@ let userConfig = userLocalConfig.user;
 
 const initialUserConfig = {     //  初始状态
     volume: userConfig.volume,  //  音量值
-    volumeStatus: 0,            //  音量状态，用于控制音量图标
+    volumeStatus: userConfig.volumeStatus,            //  音量状态，用于控制音量图标
     themeColor: userConfig.themeColor,
-    backgroundImg: ''
+    backgroundImg: userConfig.backgroundImg,
+    lastCurrentTime: userConfig.music.lastCurrentTime,
+    lastMusicId: userConfig.music.lastMusicId,
+    lastMusicDuration: userConfig.music.lastMusicDuration
 }
 
 export const userConfigState = createSlice({
@@ -41,11 +44,19 @@ export const userConfigState = createSlice({
             })
             state.backgroundImg = action.payload;
         },
+        changeMusic: (state, action)=> {
+            ipcRenderer.send("update-userconfig-music", {
+                attrName: ['lastMusicId', 'lastCurrentTime', 'lastMusicDuration'],
+                value: [action.payload.lastMusicId, action.payload.lastCurrentTime, action.payload.lastMusicDuration]
+            })
+            state.lastCurrentTime = action.payload.lastCurrentTime;
+            state.lastMusicId = action.payload.lastMusicId;
+        },
     }
 })
 
 
 
-export const { changeVolume, changeThemeColor, changeBackgroundImg} = userConfigState.actions;
+export const { changeVolume, changeThemeColor, changeBackgroundImg, changeMusic } = userConfigState.actions;
 export default userConfigState.reducer;
 

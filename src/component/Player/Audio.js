@@ -1,9 +1,9 @@
 import React,{ useRef, useState, useLayoutEffect } from 'react'
 import { useSelector, useDispatch} from 'react-redux'
-import { changeVolume } from './store/userConfigSlice'
+import { changeVolume, changeMusic } from '../store/userConfigSlice'
 import styles from './audio.module.scss'
 
-import myMusic from './cache/1.mp3'
+import myMusic from '../../cache/1.mp3'
 const Audio = () => {
 
     const audioRef = useRef();      //  audio
@@ -16,7 +16,7 @@ const Audio = () => {
     const dispatch = useDispatch()
     
     let playTimeInterval = null;        //  播放时更新进度条的计时器
-    // const [playTime, setPlayTime] = useState(0) //  播放时间的状态
+    let testMusicId = "utahaId"    //  测试用音乐id
 
     function testMusic(params) {    //  测试用加载音频
         audioRef.current.src = myMusic
@@ -24,21 +24,40 @@ const Audio = () => {
 
 
     useLayoutEffect(() => {
+        testMusic()
+
+
         //  根据用户个人数据改变播放器参数(恢复上一次状态)
         volumeSlider.current.value = userConfig.volume; 
         volumeSlider.current.style.background = `linear-gradient(to right, orange 0%, red ${userConfig.volume}%, rgba(128,128,128,0.5) ${userConfig.volume}%, rgba(128,128,128,0.5) 100%)`
         audioRef.current.volume = userConfig.volume/100;    //  改变播放器音量
 
+        //  恢复上一次播放时间
+        audioRef.current.currentTime = userConfig.lastCurrentTime
+        let lastMusicPlayRate = userConfig.lastCurrentTime / userConfig.lastMusicDuration   //  上次播放结束时已播放进度
+        progressBar.current.value = lastMusicPlayRate * 1000
+        // console.log(userConfig.lastCurrentTime , userConfig.lastMusicDuration )
+        progressBar.current.style.background = `linear-gradient(to right, orange 0%, red ${lastMusicPlayRate * 100}%, rgba(128,128,128,0.5) ${lastMusicPlayRate * 100}%, rgba(128,128,128,0.5) 100%)`
+        
+        
+        
         if (userConfig.volume !== 0) {  //  如果用户上一次是静音退出的，那么默认将快速静音的恢复值设为50
             setVolumeStatusBackUp(userConfig.volume)
         } else {
             setVolumeStatusBackUp(50)
         }
-        testMusic()
+        
         console.log(userConfig)
     },[])
     
-    
+    const changeMusicParams = (dataObj) => { 
+        dispatch(changeMusic({
+                lastMusicId: dataObj.lastMusicId,
+                lastCurrentTime: dataObj.lastCurrentTime,
+                lastMusicDuration: dataObj.lastMusicDuration
+            })
+        )
+    }
     // 切换播放状态
     const play = () => {
         if (audioRef.current.paused) {
@@ -48,6 +67,11 @@ const Audio = () => {
                     let now = audioRef.current.currentTime / audioRef.current.duration
                     progressBar.current.value =  now * 1000
                     progressBar.current.style.background = `linear-gradient(to right, orange 0%, red ${now*100}%, rgba(128,128,128,0.5) ${now*100}%, rgba(128,128,128,0.5) 100%)`
+                    changeMusicParams({
+                        lastMusicId: testMusicId,
+                        lastCurrentTime: audioRef.current.currentTime,
+                        lastMusicDuration: audioRef.current.duration
+                    })
                 }, 1000)
             }
             audioRef.current.play()
@@ -56,6 +80,11 @@ const Audio = () => {
             clearInterval(playTimeInterval)
             playTimeInterval = null;
             audioRef.current.pause();
+            changeMusicParams({
+                lastMusicId: testMusicId,
+                lastCurrentTime: audioRef.current.currentTime,
+                lastMusicDuration: audioRef.current.duration
+            })
         }
         setPlayStatus(!playStatus)
         // console.log(audioRef)
@@ -66,7 +95,7 @@ const Audio = () => {
     const changeVolumeIconState= (value) => {
         // console.log(value)
         let statusFlag = 0
-        if (value == 0) {
+        if (value === 0) {
             statusFlag = 0
         }
         else if (value <= 20) {
@@ -117,6 +146,12 @@ const Audio = () => {
         // console.log(e.target.value)
         let now = e.target.value / 1000 * audioRef.current.duration
         audioRef.current.currentTime = now
+        progressBar.current.style.background = `linear-gradient(to right, orange 0%, red ${e.target.value/10}%, rgba(128,128,128,0.5) ${e.target.value/10}%, rgba(128,128,128,0.5) 100%)`
+        changeMusicParams({
+            lastMusicId: testMusicId,
+            lastCurrentTime: now,
+            lastMusicDuration: audioRef.current.duration
+        })
     }
 
     return (
@@ -124,7 +159,7 @@ const Audio = () => {
             <audio id='audio_audio' ref={audioRef} type="audio/mpeg">
             </audio>
             <div className={styles.audio_progressBar_container}>
-                <input type="range" min={0} max={1000} className={styles.audio_progressBar} ref={progressBar} onChange={e => {changePlayTime(e)}}/>
+                <input type="range" min={0} max={1000} className={styles.audio_progressBar} ref={progressBar} onInput={e => {changePlayTime(e)}}/>
             </div>
             <div className={styles.audio_button_container}>
                 <button className={styles.audio_button} id={styles.audio_button_piror} title='上一首'></button>

@@ -15,34 +15,34 @@
         background-repeat: no-repeat;
     }
     #header_button_close{
-        background-image: url('./icon/guanbi_o.png');
+        background-image: url('../icon/guanbi_o.png');
         right: 30px;
         
     }
     #header_button_close:hover{
-        background-image: url('./icon/guanbi_o_h.png');  
+        background-image: url('../icon/guanbi_o_h.png');  
     }
     #header_button_fullScreen_min{  //  style of window in maximizing
-        background-image: url('./icon/3zuidahua-1.png');
+        background-image: url('../icon/3zuidahua-1.png');
         right: 80px;
         background-size: 70%;
     }
     #header_button_fullScreen_min:hover{  //  style of window in maximizing
-        background-image: url('./icon/3zuidahua-1_h.png');
+        background-image: url('../icon/3zuidahua-1_h.png');
     }
     #header_button_fullScreen_max{
-        background-image: url('./icon/3zuidahua-3.png');
+        background-image: url('../icon/3zuidahua-3.png');
         right: 80px;
         background-size: 70%;
     }
     #header_button_fullScreen_max:hover{
-        background-image: url('./icon/3zuidahua-3_h.png');
+        background-image: url('../icon/3zuidahua-3_h.png');
     }
     #header_button_minimizeScreen{
-        background-image: url('./icon/zuixiaohua.png');
+        background-image: url('../icon/zuixiaohua.png');
         right: 130px;
     }
     #header_button_minimizeScreen:hover{
-        background-image: url('./icon/zuixiaohua_h.png');
+        background-image: url('../icon/zuixiaohua_h.png');
     }
 }

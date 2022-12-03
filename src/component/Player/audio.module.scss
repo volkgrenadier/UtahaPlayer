@@ -63,34 +63,34 @@
         }
         //  上一曲图标
         #audio_button_piror{
-            background-image: url('./icon/48shangyishou.png');
+            background-image: url('../icon/48shangyishou.png');
         }
         #audio_button_piror:hover{
-            background-image: url('./icon/48shangyishou_h.png');
+            background-image: url('../icon/48shangyishou_h.png');
         }
         //  暂停图标
         #audio_button_pause{
-            background-image: url('./icon/zanting.png');
+            background-image: url('../icon/zanting.png');
             background-size: 85%;
             
         }
         #audio_button_pause:hover{
-            background-image: url('./icon/zanting_h.png');
+            background-image: url('../icon/zanting_h.png');
         }
         //  播放图标
         #audio_button_play{
-            background-image: url('./icon/bofang.png');
+            background-image: url('../icon/bofang.png');
             background-size: 85%;
         }
         #audio_button_play:hover{
-            background-image: url('./icon/bofang_h.png');
+            background-image: url('../icon/bofang_h.png');
         }
         // 下一曲图标
         #audio_button_next{
-            background-image: url('./icon/49xiayishou.png');
+            background-image: url('../icon/49xiayishou.png');
         }
         #audio_button_next:hover{
-            background-image: url('./icon/49xiayishou_h.png');
+            background-image: url('../icon/49xiayishou_h.png');
         }
     }
     .audio_controlPannel_container{
@@ -116,44 +116,44 @@
             // transition: transform 0.3s ease-in-out;
         }
         .audio_controlPannel_button_volume_mute{
-            background-image: url('./icon/24gl-volumeCross.png');
+            background-image: url('../icon/24gl-volumeCross.png');
         }
         .audio_controlPannel_button_volume_mute:hover{
-            background-image: url('./icon/24gl-volumeCross_h.png');
+            background-image: url('../icon/24gl-volumeCross_h.png');
         }
         
         .audio_controlPannel_button_volume_low{
-            background-image: url('./icon/24gl-volumeLow.png');
+            background-image: url('../icon/24gl-volumeLow.png');
         }
         .audio_controlPannel_button_volume_low:hover{
-            background-image: url('./icon/24gl-volumeLow_h.png');
+            background-image: url('../icon/24gl-volumeLow_h.png');
         }
         
         .audio_controlPannel_button_volume_middle{
-            background-image: url('./icon/24gl-volumeMiddle.png');
+            background-image: url('../icon/24gl-volumeMiddle.png');
         }
         .audio_controlPannel_button_volume_middle:hover{
-            background-image: url('./icon/24gl-volumeMiddle_h.png');
+            background-image: url('../icon/24gl-volumeMiddle_h.png');
         }
         
         .audio_controlPannel_button_volume_high{
-            background-image: url('./icon/24gl-volumeHigh.png');
+            background-image: url('../icon/24gl-volumeHigh.png');
         }
         .audio_controlPannel_button_volume_high:hover{
-            background-image: url('./icon/24gl-volumeHigh_h.png');
+            background-image: url('../icon/24gl-volumeHigh_h.png');
         }
         @keyframes volumeIcon {
             0%{
-                background-image: url('./icon/24gl-volumeZero_h.png');
+                background-image: url('../icon/24gl-volumeZero_h.png');
             }
             33%{
-                background-image: url('./icon/24gl-volumeLow_h.png');
+                background-image: url('../icon/24gl-volumeLow_h.png');
             }
             66%{
-                background-image: url('./icon/24gl-volumeMiddle_h.png');
+                background-image: url('../icon/24gl-volumeMiddle_h.png');
             }
             100%{
-                background-image: url('./icon/24gl-volumeHigh_h.png');
+                background-image: url('../icon/24gl-volumeHigh_h.png');
             }
         }
         $sliderHeight: 180px;
@@ -201,7 +201,7 @@
             border-radius: 2px;
             background-color: rgba(128,128,128,0.5);
             position: absolute;
-            left: 30 - ($sliderWidth/2);
+            left: 30 - calc( $sliderWidth / 2);
             bottom: 20px;
         }
         .audio_controlPannel_volumeSlider_slider_input{

@@ -1,7 +1,7 @@
-import Home from './Home';
-import Header from './Header';
-import Player from './Player';
-import DragWindow from './DragWindow';
+import Home from './component/Dashboard/Dashboard';
+import Header from './component/Header/Header';
+import Player from './component/Player/Player';
+import DragWindow from './component/DragWindow/DragWindow';
 import styles from './app.module.scss'
 function App() {
   return (
