@@ -9,4 +9,15 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
+    .app_login_Container{
+        width: 350px;
+        height: 350px;
+        background-color: bisque;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        border-radius: 28px;
+        transform: translate(-50%, -50%);
+        display: none;
+    }
 }
