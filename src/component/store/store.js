@@ -7,7 +7,7 @@ import userConfigReducer from './userConfigSlice'
 
 export default configureStore({
     reducer: {
-        loginAndLogout: loginReducer,
+        loginStatus: loginReducer,
         userConfig: userConfigReducer
     }
 })
