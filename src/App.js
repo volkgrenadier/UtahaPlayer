@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux'
-import Home from './component/Dashboard/Dashboard';
+import Dashboard from './component/Dashboard/Dashboard';
 import Header from './component/Header/Header';
 import Player from './component/Player/Player';
 import DragWindow from './component/DragWindow/DragWindow';
@@ -28,7 +28,7 @@ function App() {
       <div className={styles.app_login_Container} ref={loginContainer}>
         <Login />
       </div>
-      <Home />
+      <Dashboard />
       <Player />
     </div>
   );
