@@ -1,0 +1,82 @@
+.display_container{
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    align-items: center;
+}
+.display_container::-webkit-scrollbar{
+    -webkit-appearance: none;
+    width: 10px;
+    background: transparent;
+    display: block;
+}
+// .display_container:hover::-webkit-scrollbar{
+//     background: transparent;
+//     display: inline-block;
+//     position: absolute;
+// }
+.display_container::-webkit-scrollbar-thumb{
+    -webkit-appearance: none;
+    border-radius: 5px;
+    background-color: rgba(21, 19, 116, 0.5);
+}
+
+
+
+
+
+.display_newSongRec_container{
+    width: 80%;
+    list-style: none;
+    background-color: antiquewhite;
+    display: flex;
+    flex-wrap: wrap;
+    .display_newSongRec_song_container{
+        $itemHeight: 65px;
+        $itemImgRadius: 15px;
+        width: 250px;
+        height: $itemHeight;
+        margin: 10px;
+        background-color: aliceblue;
+        border-radius: $itemImgRadius;
+        position: relative;
+        .display_newSongRec_song_img{
+            width: $itemHeight;
+            height: $itemHeight;
+            border-radius: $itemImgRadius;
+            position: absolute;
+            left: 0;
+        }
+        .display_newSongRec_song_text_Container{
+            width: 100px;
+            height: $itemHeight;
+            
+            position: absolute;
+            left: 80px;
+            .display_newSongRec_song_name{
+                $nameSize: 14px;
+                width: 100%;
+                height: $nameSize;
+                line-height: $nameSize;
+                font-size: $nameSize;
+                // background-color: aquamarine;
+                overflow: hidden;
+                cursor: pointer;
+            }
+            .display_newSongRec_song_artists{
+                $artistsSize: 12px;
+                width: 100%;
+                height: $artistsSize;
+                line-height: $artistsSize;
+                font-size: $artistsSize;
+                overflow: hidden;
+                cursor: pointer;
+            }
+        }
+    }
+}
