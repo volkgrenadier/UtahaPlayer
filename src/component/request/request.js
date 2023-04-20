@@ -65,11 +65,11 @@ export const emailLogin_password = ( email, password ) => {      //   手机验�
 }
 
 
-export const getRecommandNewSong = () => {  //  新歌速递，type为地区类型id，0为全部、7为华语、96为欧美、8为日本、16为韩国
+export const getRecommandNewSong = ( type = 0 ) => {  //  新歌速递，type为地区类型id，0为全部、7为华语、96为欧美、8为日本、16为韩国
     let reqOpt = {  //  请求配置
         url: '/top/song',
         params: {
-            type: 0
+            type: type
         }
     }
 
@@ -79,6 +79,16 @@ export const getRecommandNewSong = () => {  //  新歌速递，type为地区类�
 export const getHomeInfo = () => {  //  首页-发现
     let reqOpt = {  //  请求配置
         url: '/homepage/block/page',
+    }
+
+    return instance.request(reqOpt)
+}
+export const search = ( keywords ) => { //  搜索
+    let reqOpt = {  // 请求配置
+        url: '/cloudsearch',
+        params: {
+            keywords: keywords
+        }
     }
 
     return instance.request(reqOpt)

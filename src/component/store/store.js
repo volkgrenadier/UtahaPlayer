@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import loginReducer from './loginSlice'
 import userConfigReducer from './userConfigSlice'
+import searchReducer from './searchSlice'
 
 
 
@@ -8,6 +9,7 @@ import userConfigReducer from './userConfigSlice'
 export default configureStore({
     reducer: {
         loginStatus: loginReducer,
-        userConfig: userConfigReducer
+        userConfig: userConfigReducer,
+        searchState: searchReducer
     }
 })
