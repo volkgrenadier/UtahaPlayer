@@ -41,19 +41,9 @@ function moveWin(e,canMove) {    //  移动窗口，
         winStartPosition = {x: winPosition[0], y: winPosition[1]};
         cursorStartPosition = screen.getCursorScreenPoint();
         
-        //  清除之前的计时器
-        // if (movingInterval) {
-        //     clearInterval(movingInterval)
-        // }
-        // //  新增计时器
-        // movingInterval = setInterval(() => {
-        //     // 实时更新位置
-        //     const cursorNowPosition = screen.getCursorScreenPoint();
-        //     // 窗口移动距离就是窗口起始位置 + 鼠标当前位置和鼠标起始位置之差
-        //     const winNewPosX = winStartPosition.x + cursorNowPosition.x - cursorStartPosition.x;
-        //     const winNewPosY = winStartPosition.y + cursorNowPosition.y - cursorStartPosition.y;
-        //     mainWindow.setPosition(winNewPosX, winNewPosY, true)
-        // }, 5)
+        // for avoiding some unforeseeable bugs, for example changing window size while draging window
+        //  get window size and position
+        const windowBounds = mainWindow.getBounds()
         
         if (!movingInterval) {
             //  新增计时器
@@ -64,8 +54,15 @@ function moveWin(e,canMove) {    //  移动窗口，
                 // 窗口移动距离就是窗口起始位置 + 鼠标当前位置和鼠标起始位置之差
                 const winNewPosX = winStartPosition.x + cursorNowPosition.x - cursorStartPosition.x;
                 const winNewPosY = winStartPosition.y + cursorNowPosition.y - cursorStartPosition.y;
-                mainWindow.setPosition(winNewPosX, winNewPosY, true)
-            }, 5)
+                // 为了防止在拖动过程在中的一系列bug，类似于拖动时窗口大小改变，此处使用setBounds而非setPosition
+                // mainWindow.setPosition(winNewPosX, winNewPosY, true)
+                mainWindow.setBounds({
+                    x: winNewPosX,
+                    y: winNewPosY,
+                    width: windowBounds.width,
+                    height: windowBounds.height
+                })
+            }, 20)
         }
         
         
@@ -117,8 +114,8 @@ function createWindow() {   //  创建窗口
     const windowOptions = {
         width : 1200,
         minWidth: 1200,
-        height: 900,
-        minHeight: 900,
+        height: 700,
+        minHeight: 700,
         show: false,
         frame: false,//  是否创建无边框窗口
         webPreferences: {
