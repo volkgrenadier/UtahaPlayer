@@ -3,20 +3,22 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialSearchState = {
     totalPageCount: 0,
     totalPageList: [],
-    page: 0,
-    searchResultList: []
+    page: 1,
+    searchResultList: [],
+    keywords: ''
 }
 
 export const searchSlice = createSlice({
     name: "searchState",
     initialState: initialSearchState,
     reducers: {
-        pageChange: ( state, action ) => {    //  action中,flag表示页数增减，count表示增减页数
-            if (action.payload.flag) {  //  标志位为true，增加页数
-                state.page += action.payload.count
-            }else {
-                state.page -= action.payload.count
+        pageChange: ( state, action ) => {    //  action.payload表示是否为重置页数
+            if (action.payload) {
+                state.page = 1
+            } else {
+                state.page += 1
             }
+            
 
         },
         setPageCount: ( state, action ) => {    //  设置搜索结果总数和页数
@@ -26,11 +28,14 @@ export const searchSlice = createSlice({
             state.totalPageList = Array.from({length: Math.ceil(action.payload / 30) },( _, index ) => index + 1)
 
         },
-        setSearchResultList: ( state, action ) => {
+        setSearchResultList: ( state, action ) => { //  设置搜索结果列表
             state.searchResultList = action.payload
+        },
+        changeKeyword: ( state, action ) => {
+            state.keywords = action.payload
         }
     }
 })
 
-export const { pageChange, setPageCount, setSearchResultList} = searchSlice.actions
+export const { pageChange, setPageCount, setSearchResultList, changeKeyword} = searchSlice.actions
 export default searchSlice.reducer
