@@ -83,11 +83,13 @@ export const getHomeInfo = () => {  //  首页-发现
 
     return instance.request(reqOpt)
 }
-export const search = ( keywords ) => { //  搜索
+export const search = ( keywords, offset = 0, type = 1  ) => { //  搜索
     let reqOpt = {  // 请求配置
         url: '/cloudsearch',
         params: {
-            keywords: keywords
+            keywords: keywords,
+            offset: offset,
+            type: type
         }
     }
 
