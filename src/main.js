@@ -41,7 +41,7 @@ function moveWin(e,canMove) {    //  移动窗口，
         winStartPosition = {x: winPosition[0], y: winPosition[1]};
         cursorStartPosition = screen.getCursorScreenPoint();
         
-        // for avoiding some unforeseeable bugs, for example changing window size while draging window
+        // To avoid some unforeseeable bugs, for example changing window size while draging window
         //  get window size and position
         const windowBounds = mainWindow.getBounds()
         
