@@ -1,8 +1,7 @@
 import React from 'react'
 
 const DragWindow = (props) => {
-    const { ipcRenderer } = window.require("electron")
-    const windowMove = (canMove) => ipcRenderer.send('window-move-open', canMove)
+    const windowMove = (canMove) => window.electronFeatures.sendMessage('window-move-open', canMove)
     const onMouseDown = (e) => {
         if (e.target instanceof HTMLDivElement) {
             windowMove(true)
