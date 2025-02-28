@@ -1,11 +1,10 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
-const userLocalConfig = require('./config/user.json')
 
 let mainWindow = null;
 let movingInterval = null;
-let userConfig = userLocalConfig.user;    //  用户配置
+let userConfig = {}    //  用户配置
 
 
 
@@ -15,16 +14,13 @@ function closeApp() {   //  关闭app
 }
 function minimizeWindow() { //  最小化窗口
     mainWindow.minimize();
-    console.log("最小化窗口")
 }
 function maximizeWindow() { //  最大化窗口
     if (mainWindow.isMaximized()) {
-        mainWindow.unmaximize();
-        return true     //  true means window has been restored, for Header.js
+        mainWindow.unmaximize(); //  true means window has been restored, for Header.js
     }
     else{
-        mainWindow.maximize();
-        return false    //  false means window has been maximized, for Header.js
+        mainWindow.maximize();   //  false means window has been maximized, for Header.js
     }
 }
 
@@ -103,7 +99,7 @@ function listenEvent() {  //  添加事件监听
     //     mainWindow = null;
     // })
     ipcMain.on('minimize-window', minimizeWindow)    //  listen the event for minimize application window
-    ipcMain.handle('maximize-window', maximizeWindow)//  listen the event for maximize or restore application window
+    ipcMain.on('maximize-window', maximizeWindow)//  listen the event for maximize or restore application window
     ipcMain.on('window-move-open', moveWin) //   listen the event for drag window
     ipcMain.on('update-userConfig', updateUserConfig)   //  监听更改用户音量配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
     ipcMain.on('update-userconfig-music', updateUserConfigMusic)    //  监听更改用户关于音乐的一些配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
@@ -118,9 +114,11 @@ function createWindow() {   //  创建窗口
         minHeight: 700,
         show: false,
         frame: false,//  是否创建无边框窗口
+        devTools: true,
         webPreferences: {
+            preload: path.join(__dirname, 'config/preload.js'),
             nodeIntegration: true,
-            contextIsolation : false,
+            contextIsolation : true,
         },
         icon:path.join(__dirname,'component/icon/utaha_min.png'),
     }
@@ -155,6 +153,6 @@ app.on('ready',() => {
 app.whenReady().then(() => {
     
     console.log('ready')
-    createTray();
+    // createTray();
     listenEvent();
 })

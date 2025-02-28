@@ -1,50 +1,61 @@
-import React,{ useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { showLogin } from '../store/loginSlice'
-import styles from './header.module.scss'
+import React from 'react'
+import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined';
+import FullscreenOutlinedIcon from '@mui/icons-material/FullscreenOutlined';
+import FullscreenExitOutlinedIcon from '@mui/icons-material/FullscreenExitOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import './Header.scss'
+
 const Header = () => {
-    const { ipcRenderer } = window.require('electron');
-    const [winStatus, setWinStatus] = useState(false);//  window status: true or false
-    const dispatch = useDispatch();
-    
-    const myClose =() => {
-        ipcRenderer.send('close-window');
-        console.log("关闭窗口")
-    }
-    const changeWindow = async (flag) => { //  send window events to main process
-      
-      switch (flag) {
-        case 'minimize':      //  minimize window
-          ipcRenderer.send('minimize-window');
-          break;
-      
-        case 'maximize':        //  maximize window or restore window
-          
-          let backImgFlag = await ipcRenderer.invoke('maximize-window');
+    //  功能按钮列表
+    const buttons = [
+        {
+            label: '最小化',
+            value: 'minimize-window',
+            icon: <RemoveOutlinedIcon />
+        },
+        {
+            label: '全屏',
+            value: 'maximize-window',
+            icon: <FullscreenOutlinedIcon />
+        },
+        {
+            label: '关闭',
+            value: 'close-window',
+            icon: <CloseOutlinedIcon />
+        },
+    ]
 
-          backImgFlag ?           //  if backImgFlag === true means that now the window is not max, so the background of button should be maximize, in this case, the value of winStatus should be false
-          setWinStatus(false) : 
-          setWinStatus(true);
-
-          break;
-        default:
-          break;
-      }
+    //  按钮点击事件
+    const handleClick = (type, data) => {
+        if (!type) {
+            return;
+        }
+        window.electronFeatures.sendMessage(type, data)
     }
-
-    const showLoginContainer = () => {   //  显示登录界面
-      dispatch(showLogin(true))
-    }
-  return (
-    <div className={styles.header_container}>
-        <button onClick={() =>{myClose()}} className={styles.header_button} id={styles.header_button_close}></button>
-        <button onClick={() =>{changeWindow('maximize')}} className={styles.header_button} id={winStatus ? styles.header_button_fullScreen_max : styles.header_button_fullScreen_min}></button>
-        <button onClick={() =>{changeWindow('minimize')}} className={styles.header_button} id={styles.header_button_minimizeScreen}></button>
-        <div className={styles.header_user_container}>
-          <button onClick={showLoginContainer}>登录</button>
+    return (
+        <div className='Header_container'>
+            <div className="Header_info_container">
+                <div className="Header_info_logo_container"></div>
+                <div className="Header_info_title_container">Utaha Player</div>
+            </div>
+            <div className="Header_buttons_container">
+                {
+                    buttons.map((it, ind) => (
+                        <div 
+                            className="Header_button"
+                            key={it.value}
+                            onClick={() => {handleClick(it.value)}}
+                        >
+                            {
+                                it.icon
+                            }
+                        </div>
+                    ))
+                }
+            </div>
+            
         </div>
-    </div>
-  )
+    )
 }
 
 export default Header

@@ -1,0 +1,34 @@
+@import '../../style/public.scss';
+.Header_container {
+    @include flexCenter;
+    width: calc(100% - $sidePadding*2);
+    height: 50px;
+    // background-color: red;
+    justify-content: space-between;
+    padding: 0 $sidePadding;
+    .Header_info_container {
+        user-select: none;
+    }
+    $button_margin: 5px;
+    .Header_buttons_container {
+        @include flexCenter;
+        .Header_button {
+            width: 30px;
+            height: 30px;
+            margin: 0 $button_margin;
+            border: none;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: $custom_transition;
+            &:hover {
+                color: $color_main;
+            }
+            &:active {
+                transform: scale(0.85);
+            }
+        }
+    }
+}
