@@ -1,0 +1,48 @@
+.VinylPlayer_container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    user-select: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent; /* 去除移动设备上的点击高亮 */
+    outline: none; /* 去除点击时的轮廓 */
+    overflow: hidden;
+    svg {
+        width: auto; /* 自动宽度 */
+        height: 100%; /* 填充高度 */
+        max-height: 100%;
+        max-width: 100%; /* 避免溢出父容器 */
+        object-fit: contain; /* 保持宽高比 */
+        transition: all 0.3s ease; /* 平滑过渡 */
+    }
+    
+    &:hover {
+        opacity: 1;
+    }
+    
+    &:active {
+        opacity: 1;
+        background-color: transparent; /* 确保点击时背景不会变化 */
+    }
+    
+    /* 去除所有可能的默认交互效果 */
+    &::selection {
+        background: transparent;
+    }
+    
+    &:focus {
+        outline: none;
+    }
+    
+    /* 阻止元素内部可能的选择操作 */
+    * {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+}
