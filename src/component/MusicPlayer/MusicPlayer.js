@@ -10,6 +10,7 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import CloseIcon from '@mui/icons-material/Close';
 import './MusicPlayer.scss';
 import VinylPlayer from './VinylPlayer';
 import defaultCoverImg from '../../assets/1.jpg';
@@ -31,19 +32,30 @@ const MusicPlayer = () => {
     // 播放列表和当前音乐
     const [musicList, setMusicList] = useState([]);
     const [currentMusic, setCurrentMusic] = useState(null);
+    const [isPlaylistOpen, setIsPlaylistOpen] = useState(false); // 新增播放列表显示状态控制
     
     // 引用
     const audioRef = useRef(new Audio());
     const progressBarRef = useRef(null);
     const volumeContainerRef = useRef(null);
+    const playlistRef = useRef(null); // 新增播放列表引用
 
-    // 点击外部关闭音量控制器
+    // 点击外部关闭音量控制器和播放列表
     useEffect(() => {
         function handleClickOutside(event) {
+            // 处理音量控制器
             if (showVolumeSlider && 
                 volumeContainerRef.current && 
                 !volumeContainerRef.current.contains(event.target)) {
                 setShowVolumeSlider(false);
+            }
+            
+            // 处理播放列表点击外部关闭
+            if (isPlaylistOpen && 
+                playlistRef.current && 
+                !playlistRef.current.contains(event.target) &&
+                !event.target.closest('.MusicPlayer_playlist_button')) {
+                setIsPlaylistOpen(false);
             }
         }
 
@@ -51,7 +63,7 @@ const MusicPlayer = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showVolumeSlider]);
+    }, [showVolumeSlider, isPlaylistOpen]);
     
     // 添加拖动进度条相关事件监听
     useEffect(() => {
@@ -104,6 +116,7 @@ const MusicPlayer = () => {
         
         // 监听音乐列表更新事件
         const removeListener = window.electronFeatures.onMessage('music-list-updated', (newList) => {
+            console.log('执行了', newList)
             if (newList && Array.isArray(newList)) {
                 setMusicList(newList);
                 if (newList.length > 0 && !currentMusic) {
@@ -191,16 +204,18 @@ const MusicPlayer = () => {
     // 当前音乐改变时，加载并播放
     useEffect(() => {
         if (currentMusic) {
+            console.log('musicObj发生了改变')
             const audio = audioRef.current;
             audio.src = currentMusic.path;
+            audio.addEventListener('loadeddata', () => {
+                if (!isPlaying) {
+                    audio.play().catch(err => {
+                        console.error('播放失败:', err);
+                        setIsPlaying(false);
+                    });
+                }
+            })
             audio.load();
-            
-            if (isPlaying) {
-                audio.play().catch(err => {
-                    console.error('播放失败:', err);
-                    setIsPlaying(false);
-                });
-            }
         }
     }, [currentMusic]);
     
@@ -288,19 +303,17 @@ const MusicPlayer = () => {
     };
     
     // 添加选择本地音乐文件的功能
-    const handleSelectAudioFile = async () => {
+    const handleSelectAudioFiles = async () => {
         try {
-            const filePath = await window.electronFeatures.selectAudioFile();
-            if (filePath) {
+            const filePaths = await window.electronFeatures.selectAudioFiles();
+            if (filePaths && filePaths.length > 0) {
                 // 获取音频信息
-                const info = await window.electronFeatures.getAudioInfo(filePath);
-                if (info) {
-                    
+                console.log('获取的音频路径', filePaths)
+                // 从此处可以获取到所有信息
+                const info = await window.electronFeatures.getAudioInfo(filePaths);
+                if (info && info.length > 0) {
                     const newMusic = {
-                        id: filePath,
-                        path: filePath,
-                        title: info.title,
-                        artist: info.artist
+                        ...info[0]
                     };
                     
                     setCurrentMusic(newMusic);
@@ -309,8 +322,9 @@ const MusicPlayer = () => {
                     // 可以选择添加到播放列表
                     // setMusicList(prev => [...prev, newMusic]);
                     
+
                     // 或者通知主进程添加到音乐库
-                    window.electronFeatures.sendMessage('add-music-to-library', filePath);
+                    window.electronFeatures.sendMessage('add-music-to-library', info);
                 }
             }
         } catch (error) {
@@ -339,9 +353,15 @@ const MusicPlayer = () => {
         if (musicList.length > 1 && currentMusic) {
             const currentIndex = musicList.findIndex(music => music.id === currentMusic.id);
             if (currentIndex !== -1) {
-                const nextIndex = (currentIndex + 1) % musicList.length;
-                setCurrentMusic(musicList[nextIndex]);
-                animateButton('next');
+                if (currentMode === 'sequential play') {
+                    // 顺序播放
+                    const nextIndex = (currentIndex + 1) % musicList.length;
+                    setCurrentMusic(musicList[nextIndex]);
+                    animateButton('next');
+                } else if (currentMode === 'shuffle') {
+                    // 随机播放
+                    playRandomSong();
+                }
             } else if (musicList.length > 0) {
                 // 当前歌曲不在列表中时，播放第一首
                 setCurrentMusic(musicList[0]);
@@ -385,6 +405,31 @@ const MusicPlayer = () => {
     // 显示/隐藏音量滑块
     const handleVolumeHover = (isHovering) => {
         setShowVolumeSlider(isHovering);
+    }
+    
+    // 切换播放列表显示状态
+    const togglePlaylist = () => {
+        setIsPlaylistOpen(!isPlaylistOpen);
+        animateButton('playlist');
+    }
+
+    // 播放选中的歌曲
+    const playSelectedSong = (song) => {
+        setCurrentMusic(song);
+        setIsPlaying(true);
+    }
+    // 从播放列表中删除歌曲
+    const removeFromPlaylist = (e, song) => {
+        e.stopPropagation(); // 阻止事件冒泡，避免触发歌曲播放
+        if (window.confirm(`确定要从播放列表中移除"${song.title}"吗？`)) {
+            // 通知主进程从列表中删除歌曲
+            window.electronFeatures.sendMessage('remove-from-playlist', song.id);
+            
+            // 如果当前播放的就是要删除的歌曲，则尝试播放下一首
+            if (currentMusic && (currentMusic.id === song.id || currentMusic.path === song.path)) {
+                handleNext();
+            }
+        }
     }
     
     // 按钮点击动画
@@ -449,7 +494,7 @@ const MusicPlayer = () => {
             <div className='MusicPlayer_controller_container'>
                 <div className="MusicPlayer_info_container">
                     <div className="MusicPlayer_info_cover_container">
-                        <img src={defaultCoverImg} alt="专辑封面" />
+                        <img src={currentMusic?.coverUrl || defaultCoverImg} alt="专辑封面" />
                     </div>
                     <div className="MusicPlayer_info_title_container">
                         {currentMusic ? currentMusic.title : '未选择音乐'}
@@ -524,17 +569,92 @@ const MusicPlayer = () => {
                 </div>
                 <div className="MusicPlayer_buttons_container">
                     <div 
-                        className={`MusicPlayer_playlist_button ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`} 
-                        onClick={() => {
-                            handleSelectAudioFile();
-                            animateButton('playlist');
-                        }}>
+                        className={`MusicPlayer_playlist_button ${isPlaylistOpen ? 'active' : ''} ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`} 
+                        onClick={togglePlaylist}>
                         <QueueMusicIcon />
                     </div>
                 </div>
             </div>
+            
+            {/* 播放列表面板 */}
+            <div 
+                className={`MusicPlayer_playlist ${isPlaylistOpen ? 'MusicPlayer_playlist_open' : ''}`}
+                ref={playlistRef}
+            >
+                <div className="MusicPlayer_playlist_header">
+                    <h3 className="MusicPlayer_playlist_title">
+                        播放列表 <span>({musicList.length}首)</span>
+                    </h3>
+                    <button 
+                        className="MusicPlayer_playlist_close_btn" 
+                        onClick={togglePlaylist}
+                    >
+                        <CloseIcon fontSize="small" />
+                    </button>
+                </div>
+                
+                <div className="MusicPlayer_playlist_items">
+                    {musicList.length === 0 ? (
+                        <div className="MusicPlayer_playlist_empty">
+                            <div className="MusicPlayer_playlist_empty_text">暂无音乐</div>
+                            <button 
+                                className="MusicPlayer_playlist_add_btn"
+                                onClick={handleSelectAudioFiles}
+                            >
+                                添加音乐文件
+                            </button>
+                        </div>
+                    ) : (
+                        musicList.map((song) => (
+                            <div 
+                                key={song.path || song.id} 
+                                className={`MusicPlayer_playlist_item ${currentMusic && (currentMusic.path === song.path || currentMusic.id === song.id) ? 'MusicPlayer_playlist_item_playing' : ''}`}
+                                onClick={() => playSelectedSong(song)}
+                            >
+                                <div className="MusicPlayer_playlist_item_cover">
+                                    {song.coverUrl ? (
+                                        <img src={song.coverUrl} alt={song.title} />
+                                    ) : (
+                                        <MusicNoteIcon />
+                                    )}
+                                </div>
+                                <div className="MusicPlayer_playlist_item_info">
+                                    <div className="MusicPlayer_playlist_item_title">
+                                        {song.title}
+                                    </div>
+                                    <div className="MusicPlayer_playlist_item_artist">
+                                        {song.artist} {song.album ? `- ${song.album}` : ''}
+                                    </div>
+                                </div>
+                                {currentMusic && (currentMusic.path === song.path || currentMusic.id === song.id) && (
+                                    <div className="MusicPlayer_playlist_item_playing_indicator">
+                                        <span>♪</span>
+                                    </div>
+                                )}
+                                <button 
+                                    className="MusicPlayer_playlist_remove_btn" 
+                                    onClick={(e) => removeFromPlaylist(e, song)}
+                                    title="从播放列表中移除"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+                
+                {musicList.length > 0 && (
+                    <div className="MusicPlayer_playlist_footer">
+                        <button
+                            className="MusicPlayer_playlist_add_btn"
+                            onClick={handleSelectAudioFiles}
+                        >
+                            添加更多音乐
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
-        
     )
 }
 
