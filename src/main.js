@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = require('electron');
+const { parseFile } = require('music-metadata')
 const path = require('path');
 const fs = require('fs');
 
@@ -134,7 +135,7 @@ async function chooseMusicFile() {
 // 选择多个音乐文件
 async function chooseMusicFiles() {
     const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openFile', 'multiSelections'],
+        properties: ['openFile', 'multiSelections', 'showHiddenFiles'],
         filters: [
             { name: '音频文件', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] }
         ]
@@ -147,64 +148,84 @@ async function chooseMusicFiles() {
 }
 
 // 获取音频文件信息
-async function getAudioInfo(event, filePath) {
+async function getMusicInfo(event, filePaths) {
     try {
-        // 获取文件基本信息
-        const stats = fs.statSync(filePath);
-        const fileName = path.basename(filePath);
-        
-        // 尝试从文件名提取艺术家和标题信息
-        let title = fileName;
-        let artist = '未知艺术家';
-        
-        // 假设格式为 "艺术家 - 标题.扩展名"
-        const match = fileName.match(/(.+)\s-\s(.+)\..+$/);
-        if (match) {
-            artist = match[1].trim();
-            title = match[2].trim();
+        let musicArr = []
+        for (let i = 0; i < filePaths.length; i++) {
+            // 获取文件基本信息
+            const stats = fs.statSync(filePaths[i]);
+            const fileName = path.basename(filePaths[i]);
+            const info = await parseFile(filePaths[i]);
+            console.log('歌曲meta data', info);
+            // 尝试从文件名提取艺术家和标题信息
+            let title = fileName;
+            let artist = '未知艺术家';
+            // 假设格式为 "艺术家 - 标题.扩展名"
+            const match = fileName.match(/(.+)\s-\s(.+)\..+$/);
+            if (match) {
+                artist = match[1].trim();
+                title = match[2].trim();
+            }
+            if(Object.hasOwn(info.common, 'title')) {
+                title = info.common.title
+            }
+            if(Object.hasOwn(info.common, 'artist')) {
+                artist = info.common.artist
+            }
+            // 处理封面图片
+            let coverUrl = null;
+            if (info.common.picture && info.common.picture.length > 0) {
+                const picture = info.common.picture[0];
+                const format = picture.format || 'jpeg';
+                const base64Data = Buffer.from(picture.data).toString('base64');
+                coverUrl = `data:image/${format};base64,${base64Data}`;
+            }
+            let musicInfoObj = {
+                id: filePaths[i],
+                path: filePaths[i],
+                title: title,
+                artist: artist,
+                ...info.common,
+                size: stats.size,
+                modified: stats.mtime,
+                coverUrl
+            }
+            musicArr.push(musicInfoObj)
         }
-        
-        return {
-            path: filePath,
-            title: title,
-            artist: artist,
-            size: stats.size,
-            modified: stats.mtime
-        };
+        return musicArr
     } catch (error) {
         console.error('获取音频信息失败:', error);
-        return null;
+        return [];
     }
 }
 
 // 添加音乐到播放列表
-function addMusicToLibrary(filePath) {
+function addMusicToLibrary(event, MusicList) {
     try {
-        const info = getAudioInfo(null, filePath);
-        if (info) {
-            const musicId = `music-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            const musicItem = {
-                id: musicId,
-                path: filePath,
-                title: info.title,
-                artist: info.artist
-            };
             
-            musicLibrary.musicList.push(musicItem);
+            musicLibrary.musicList = [...MusicList]
             
             // 通知渲染进程
             if (mainWindow) {
                 mainWindow.webContents.send('music-list-updated', musicLibrary.musicList);
             }
-            
-            return musicItem;
-        }
     } catch (error) {
         console.error('添加音乐到播放列表失败:', error);
     }
     return null;
 }
-
+// 从播放列表中移除歌曲
+function removeFromPlaylist(event, songId) {
+    const index = musicLibrary.musicList.findIndex(song => song.id === songId);
+    if (index !== -1) {
+        musicLibrary.musicList.splice(index, 1);
+        
+        // 通知渲染进程
+        if (mainWindow) {
+            mainWindow.webContents.send('music-list-updated', musicLibrary.musicList);
+        }
+    }
+}
 //  添加事件监听
 function listenEvent() {  
     ipcMain.on('close-window', closeApp) //  shutdown application
@@ -214,21 +235,16 @@ function listenEvent() {
     ipcMain.on('update-userConfig', updateUserConfig)   //  监听更改用户音量配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
     ipcMain.on('update-userconfig-music', updateUserConfigMusic)    //  监听更改用户关于音乐的一些配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
     
-    // 处理渲染进程错误
-    ipcMain.on('renderer-error', (event, errorInfo) => {
-        console.error('渲染进程错误:', errorInfo);
-    });
-    
-    ipcMain.on('renderer-unhandled-rejection', (event, rejectionInfo) => {
-        console.error('渲染进程未处理的Promise拒绝:', rejectionInfo);
-    });
-    
     // 添加音频相关处理程序
     ipcMain.handle('get-music-list', getMusicList)  //  获取播放列表
     ipcMain.handle('get-music-file-path', getMusicPath) // 获取音乐文件路径
     ipcMain.handle('select-audio-file', chooseMusicFile); // 选择单个音频文件
     ipcMain.handle('select-music-files', chooseMusicFiles); // 选择多个音频文件
-    ipcMain.handle('get-audio-info', getAudioInfo); // 获取音频信息
+    ipcMain.handle('get-music-info', getMusicInfo); // 获取音频信息
+    ipcMain.on('remove-from-playlist', (event, songId) => {
+        removeFromPlaylist(event, songId);
+    });
+    ipcMain.on('add-music-to-library', addMusicToLibrary)
 }
 
 function createWindow() {   //  创建窗口
