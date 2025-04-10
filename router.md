@@ -2,12 +2,13 @@
 
 ## 首页
 
-|          | path         | 组件名称        |
-| -------- | ------------ | --------------- |
-| 首页     | /            | <Home/>         |
-| 音乐     | /musicplayer | <MusicPlayer /> |
-| 收藏     | /collect     | <Collect />     |
-| 最近播放 | /resently    | <Resrntly />    |
+|          | path      | 组件名称     |
+| -------- | --------- | ------------ |
+| 首页     | /         | <Home/>      |
+| 音乐     | /music    | <Music />    |
+| 收藏     | /collect  | <Collect />  |
+| 最近播放 | /resently | <Resrntly /> |
+| 照片     | /picture  | <Picture/>   |
 
 ## 我的收藏
 
