@@ -5,6 +5,7 @@ import DragWindow from './component/DragWindow/DragWindow';
 // import Home from './component/Home/Home';
 // import MusicPlayer from './component/MusicPlayer/MusicPlayer';
 import Header from './component/Header/Header';
+import LeftNav from './component/LeftNav/LeftNav';
 // import Music from './component/Music/Music';
 // import Vedio from './component/Vedio/Vedio';
 // import Collect from './component/Collect/Collect';
@@ -24,6 +25,7 @@ function App() {
 			</DragWindow>
 			<BrowserRouter>
 				{/* 设置样式，路由有问题！！！ */}
+				<LeftNav />
 				<div>
 					<Routes />
 				</div>

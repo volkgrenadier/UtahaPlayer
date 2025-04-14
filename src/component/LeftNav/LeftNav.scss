@@ -1,3 +1,27 @@
 @import '../../style/public.scss';
 
-.sideBar {}
+.sideBar {
+	width: 200px;
+	height: 100vh;
+	background-color: #1e1e2f;
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.Link_style {
+	padding: 10px 15px;
+	border-radius: 8px;
+	color: #ffffff;
+	text-decoration: none;
+	transition: background-color 0.3s;
+
+	&:hover {
+		background-color: #2a2a40;
+	}
+}
+
+.active {
+	background-color: #3b82f6; // 蓝色高亮
+}
