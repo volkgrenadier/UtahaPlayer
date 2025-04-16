@@ -4,12 +4,16 @@ import './LeftNav.scss'
 
 const LeftNav = () => {
 	return (
+		
 		<div className='sideBar'>
-			<NavLink to="/" className={({ isActive }) =>
+			{/* <NavLink to="/" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
 				Home
-			</NavLink>
+			</NavLink> */}
+			<div className='sideTitle'>
+				媒体库
+			</div>
 			<NavLink to="/music" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
@@ -23,6 +27,9 @@ const LeftNav = () => {
 			<NavLink to="/collect" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
+				<span class="material-symbols-outlined">
+					favorite
+				</span>
 				收藏
 			</NavLink>
 			<NavLink to="/resently" className={({ isActive }) =>
