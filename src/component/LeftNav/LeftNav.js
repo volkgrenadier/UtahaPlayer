@@ -1,6 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import './LeftNav.scss'
-
+import './LeftNav.scss';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';//最近播放
+import FavoriteIcon from '@mui/icons-material/Favorite';//收藏
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import VideocamIcon from '@mui/icons-material/Videocam';
 
 const LeftNav = () => {
 	return (
@@ -17,25 +20,26 @@ const LeftNav = () => {
 			<NavLink to="/music" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
-				音乐
+				<MusicNoteIcon className='nav-icon'/>
+				<div className='nav-txt'>音乐</div>
 			</NavLink>
-			<NavLink to="/vedio" className={({ isActive }) =>
+			<NavLink to="/video" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
-				视频
+				<VideocamIcon className='nav-icon'/>
+				<div className='nav-txt'>视频</div>
 			</NavLink>
 			<NavLink to="/collect" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
-				<span class="material-symbols-outlined">
-					favorite
-				</span>
-				收藏
+				<FavoriteIcon className='nav-icon'/>
+				<div className='nav-txt'>收藏</div>
 			</NavLink>
 			<NavLink to="/resently" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
 			}>
-				最近播放
+				<AccessTimeIcon className='nav-icon'/>
+				<div className='nav-txt'>最近播放</div>
 			</NavLink>
 
 		</div>

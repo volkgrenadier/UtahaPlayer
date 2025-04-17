@@ -1,33 +1,50 @@
 @import '../../style/public.scss';
 
 .sideBar {
-	width: 200px;
+	width: 240px;
 	height: 100vh;
 	background-color: #f2f2f5;
-	padding: 20px;
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
 	.sideTitle{
 		font-family: 'Microsoft YaHei';
 		font-size: 16px;
 		font-weight:700;
+		padding: 15px 20px;
 	}
 	.nav-item {
 		font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-		padding: 10px 15px;
-		border-radius: 8px;
+		padding: 10px 35px;
+		height: 40px;
 		color: #252020;
 		text-decoration: none;
 		transition: background-color 0.3s;
+		display: inline-flex;
 		&:hover {
 			background-color: #ffc58b57;;
 		}
+		.nav-icon{
+			color: gray;
+			position: relative;
+			margin-top: 5px;
+		}
+		.nav-txt{
+			display: inline-block;
+			position: relative;
+			margin-top: 5px;
+			margin-bottom: 5px;
+			padding-left: 20px;
+		}
 	}
-	.active {
-		background-color: #ffc58b57; // 蓝色高亮
-		color: #ffb265; // 蓝色高亮
-		
+	
+	.active { // 点击之后背景色和图标颜色设置
+		background-color: #ffc58b57; 
+		color: #ffb265; 
+		.nav-icon{
+			color: #ffb265;
+			position: relative;
+			margin-top: 5px;
+		}
 	}
 }
 
