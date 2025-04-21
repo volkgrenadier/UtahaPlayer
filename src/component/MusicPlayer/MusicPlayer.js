@@ -26,7 +26,7 @@ const MusicPlayer = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [temporaryProgress, setTemporaryProgress] = useState(null);
     const [isButtonAnimating, setIsButtonAnimating] = useState(null);
-    const [volumeLevel, setVolumeLevel] = useState(75);
+    const [volumeLevel, setVolumeLevel] = useState(25);
     const [showVolumeSlider, setShowVolumeSlider] = useState(false);
     
     // 播放列表和当前音乐
@@ -116,7 +116,6 @@ const MusicPlayer = () => {
         
         // 监听音乐列表更新事件
         const removeListener = window.electronFeatures.onMessage('music-list-updated', (newList) => {
-            console.log('执行了', newList)
             if (newList && Array.isArray(newList)) {
                 setMusicList(newList);
                 if (newList.length > 0 && !currentMusic) {
@@ -199,23 +198,18 @@ const MusicPlayer = () => {
             audio.pause();
             audio.src = '';
         };
-    }, [currentMode]);
+    }, [musicList]);
 
     // 当前音乐改变时，加载并播放
     useEffect(() => {
         if (currentMusic) {
-            console.log('musicObj发生了改变')
             const audio = audioRef.current;
             audio.src = currentMusic.path;
-            audio.addEventListener('loadeddata', () => {
-                if (!isPlaying) {
-                    audio.play().catch(err => {
-                        console.error('播放失败:', err);
-                        setIsPlaying(false);
-                    });
-                }
-            })
             audio.load();
+            audio.play().catch(err => {
+                console.error('播放失败:', err);
+                setIsPlaying(false);
+            })
         }
     }, [currentMusic]);
     
@@ -609,7 +603,7 @@ const MusicPlayer = () => {
                             <div 
                                 key={song.path || song.id} 
                                 className={`MusicPlayer_playlist_item ${currentMusic && (currentMusic.path === song.path || currentMusic.id === song.id) ? 'MusicPlayer_playlist_item_playing' : ''}`}
-                                onClick={() => playSelectedSong(song)}
+                                onDoubleClick={() => playSelectedSong(song)}
                             >
                                 <div className="MusicPlayer_playlist_item_cover">
                                     {song.coverUrl ? (

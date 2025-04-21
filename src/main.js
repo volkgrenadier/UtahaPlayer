@@ -5,7 +5,9 @@ const fs = require('fs');
 
 let mainWindow = null;
 let movingInterval = null;
-let userConfig = {}    //  用户配置
+let userConfig = {
+    music: {}
+}    //  用户配置
 // 存储音乐文件信息的对象
 let musicLibrary = {
     musicList: [],
@@ -156,20 +158,23 @@ async function getMusicInfo(event, filePaths) {
             const stats = fs.statSync(filePaths[i]);
             const fileName = path.basename(filePaths[i]);
             const info = await parseFile(filePaths[i]);
-            console.log('歌曲meta data', info);
+            // console.log('歌曲meta data', info);
             // 尝试从文件名提取艺术家和标题信息
             let title = fileName;
             let artist = '未知艺术家';
             // 假设格式为 "艺术家 - 标题.扩展名"
             const match = fileName.match(/(.+)\s-\s(.+)\..+$/);
             if (match) {
+                console.log('branch')
                 artist = match[1].trim();
                 title = match[2].trim();
             }
-            if(Object.hasOwn(info.common, 'title')) {
+            console.log(`信息：${artist} ${title}`)
+            if(Object.hasOwn(info.common, 'title') && info.common.title ) {
+                console.log(info)
                 title = info.common.title
             }
-            if(Object.hasOwn(info.common, 'artist')) {
+            if(Object.hasOwn(info.common, 'artist') && info.common.artist) {
                 artist = info.common.artist
             }
             // 处理封面图片
@@ -181,11 +186,11 @@ async function getMusicInfo(event, filePaths) {
                 coverUrl = `data:image/${format};base64,${base64Data}`;
             }
             let musicInfoObj = {
+                ...info.common,
                 id: filePaths[i],
                 path: filePaths[i],
                 title: title,
                 artist: artist,
-                ...info.common,
                 size: stats.size,
                 modified: stats.mtime,
                 coverUrl
@@ -202,8 +207,8 @@ async function getMusicInfo(event, filePaths) {
 // 添加音乐到播放列表
 function addMusicToLibrary(event, MusicList) {
     try {
-            
-            musicLibrary.musicList = [...MusicList]
+            // console.log(MusicList)
+            musicLibrary.musicList = [...musicLibrary.musicList, ...MusicList]
             
             // 通知渲染进程
             if (mainWindow) {

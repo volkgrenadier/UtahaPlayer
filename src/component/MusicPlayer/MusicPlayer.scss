@@ -440,32 +440,6 @@
                 background-color: rgba(0, 0, 0, 0.05);
             }
         }
-        .MusicPlayer_playlist_remove_btn {
-            background: none;
-            border: none;
-            color: #ccc;
-            font-size: 14px;
-            cursor: pointer;
-            opacity: 0;
-            transition: all 0.2s ease;
-            padding: 4px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 5px;
-            
-            &:hover {
-                color: #ff4d4f;
-                background-color: rgba(#ff4d4f, 0.1);
-            }
-        }
-        
-        .MusicPlayer_playlist_item:hover {
-            .MusicPlayer_playlist_remove_btn {
-                opacity: 1;
-            }
-        }
     }
     
     // 列表项容器
@@ -584,7 +558,36 @@
                     100% { opacity: 0.5; }
                 }
             }
+            //  歌曲移除按钮
+            .MusicPlayer_playlist_remove_btn {
+                $remove_btn_size: 24px;
+                width: $remove_btn_size;
+                height: $remove_btn_size;
+                background: none;
+                border: none;
+                color: #ccc;
+                font-size: 14px;
+                cursor: pointer;
+                opacity: 0;
+                transition: all 0.2s ease;
+                padding: 10px;
+                border-radius: 50%;
+                display: flex;
+                flex: 0 0 auto;
+                align-items: center;
+                justify-content: center;
+                margin-left: 5px;
+            }
+            
+            &:hover {
+                .MusicPlayer_playlist_remove_btn {
+                    color: #ff4d4f;
+                    background-color: rgba(#ff4d4f, 0.1);
+                    opacity: 1;
+                }
+            }
         }
+        
     }
     
     // 底部操作区
