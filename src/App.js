@@ -19,17 +19,19 @@ function App() {
 
 	}, [])
 	return (
+		
 		<div className='app_container'>
 			<DragWindow>
 				<Header />
 			</DragWindow>
-			<BrowserRouter>
-				{/* 设置样式，路由有问题！！！ */}
-				<LeftNav />
-				<div>
-					<Routes />
-				</div>
-			</BrowserRouter>
+			<div className='main_container'>
+				<BrowserRouter>
+					<LeftNav />
+					<div className='right_container'>
+						<Routes />
+					</div>
+				</BrowserRouter>
+			</div>
 		</div>
 	);
 }

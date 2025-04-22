@@ -1,8 +1,11 @@
-import React from 'react'
+import React from 'react';
+import "./Music.scss"
 
 const Music = () => {
 	return (
-		<div>Music</div>
+		<div className='Music_container'>
+			<div className='header'>音乐库</div>
+		</div>
 	)
 }
 
