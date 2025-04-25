@@ -76,9 +76,9 @@ const VinylPlayer = ({
                     
                     // 唱臂完全放到唱片上后再添加振动
                     setTimeout(() => {
-                    if (armVibration) {
-                        armVibration.beginElement();
-                    }
+                        if (armVibration) {
+                            armVibration.beginElement();
+                        }
                     }, 400);
                 }, 850);
             } else {

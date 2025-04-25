@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import RepeatOneIcon from '@mui/icons-material/RepeatOne';
@@ -13,9 +16,27 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import CloseIcon from '@mui/icons-material/Close';
 import './MusicPlayer.scss';
 import VinylPlayer from './VinylPlayer';
+import ImmersiveLyricsView from './ImmersiveLyricsView';
 import defaultCoverImg from '../../assets/1.jpg';
 
 const MusicPlayer = () => {
+    // 引用
+    const audioRef = useRef(new Audio());
+    const progressBarRef = useRef(null);
+    const volumeContainerRef = useRef(null);
+    const playlistRef = useRef(null); // 新增播放列表引用
+
+    //  播放效果列表
+    const playerEffectListRef = useRef([
+        {
+            id: 'ImmersiveLyrics',
+            label: '沉浸式歌词'
+        },
+        {
+            id: 'VinylPlayer',
+            label: '唱片播放'
+        }
+    ])
     // 音频状态管理
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
@@ -28,17 +49,18 @@ const MusicPlayer = () => {
     const [isButtonAnimating, setIsButtonAnimating] = useState(null);
     const [volumeLevel, setVolumeLevel] = useState(25);
     const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+    const [currentPlayerEffect, setCurrentPlayerEffect] = useState(playerEffectListRef.current[0].id)  //  播放效果
+    // 添加歌词相关状态
+    const [lyrics, setLyrics] = useState([]);
+    const [hasLyrics, setHasLyrics] = useState(false);
+    const [isSelectingLyrics, setIsSelectingLyrics] = useState(false);
     
     // 播放列表和当前音乐
     const [musicList, setMusicList] = useState([]);
+    
     const [currentMusic, setCurrentMusic] = useState(null);
     const [isPlaylistOpen, setIsPlaylistOpen] = useState(false); // 新增播放列表显示状态控制
     
-    // 引用
-    const audioRef = useRef(new Audio());
-    const progressBarRef = useRef(null);
-    const volumeContainerRef = useRef(null);
-    const playlistRef = useRef(null); // 新增播放列表引用
 
     // 点击外部关闭音量控制器和播放列表
     useEffect(() => {
@@ -104,7 +126,12 @@ const MusicPlayer = () => {
                 if (list && Array.isArray(list)) {
                     setMusicList(list);
                     if (list.length > 0) {
-                        setCurrentMusic(list[0]);
+                        let index = list.findIndex(it => it.id === currentMusic?.id)
+                        if (index === -1) { // 当前音乐不在列表中
+                            index = 0;
+                        }
+                        console.log('index', index)
+                        setCurrentMusic(list[index]);
                     }
                 }
             } catch (error) {
@@ -115,18 +142,16 @@ const MusicPlayer = () => {
         loadMusicList();
         
         // 监听音乐列表更新事件
-        const removeListener = window.electronFeatures.onMessage('music-list-updated', (newList) => {
+        const musicListUpdateListener = window.electronFeatures.onMessage('music-list-updated', (newList) => {
+            console.log('列表更新')
             if (newList && Array.isArray(newList)) {
                 setMusicList(newList);
-                if (newList.length > 0 && !currentMusic) {
-                    setCurrentMusic(newList[0]);
-                }
             }
         });
         
         return () => {
-            if (typeof removeListener === 'function') {
-                removeListener();
+            if (typeof musicListUpdateListener === 'function') {
+                musicListUpdateListener();
             }
         };
     }, []);
@@ -148,21 +173,6 @@ const MusicPlayer = () => {
             }
         };
         
-        const handleEnded = () => {
-            // 根据当前播放模式决定下一步操作
-            if (currentMode === 'single loop') {
-                // 单曲循环
-                audio.currentTime = 0;
-                audio.play().catch(err => console.error('重新播放失败:', err));
-            } else if (currentMode === 'sequential play') {
-                // 顺序播放
-                handleNext();
-            } else if (currentMode === 'shuffle') {
-                // 随机播放
-                playRandomSong();
-            }
-        };
-        
         const handleError = (e) => {
             console.error('音频播放错误:', e);
             setIsPlaying(false);
@@ -178,7 +188,6 @@ const MusicPlayer = () => {
         
         // 添加事件监听
         audio.addEventListener('timeupdate', updateProgress);
-        audio.addEventListener('ended', handleEnded);
         audio.addEventListener('error', handleError);
         audio.addEventListener('play', handlePlay);
         audio.addEventListener('pause', handlePause);
@@ -189,7 +198,6 @@ const MusicPlayer = () => {
         // 清理函数
         return () => {
             audio.removeEventListener('timeupdate', updateProgress);
-            audio.removeEventListener('ended', handleEnded);
             audio.removeEventListener('error', handleError);
             audio.removeEventListener('play', handlePlay);
             audio.removeEventListener('pause', handlePause);
@@ -198,7 +206,34 @@ const MusicPlayer = () => {
             audio.pause();
             audio.src = '';
         };
-    }, [musicList]);
+    }, []);
+    
+    // 为了防止依赖问题导致的切换播放模式后导致的useEffect重新执行导致的暂停播放且无法继续播放的问题，单独处理handleEnded事件
+    useEffect(() => {
+        const audio = audioRef.current;
+        
+        const handleEnded = () => {
+            console.log('handleEnded', currentMode);
+            // 根据当前播放模式决定下一步操作
+            if (currentMode === 'single loop') {
+                // 单曲循环
+                audio.currentTime = 0;
+                audio.play().catch(err => console.error('重新播放失败:', err));
+            } else if (currentMode === 'sequential play') {
+                // 顺序播放
+                handleNext();
+            } else if (currentMode === 'shuffle') {
+                // 随机播放
+                playRandomSong();
+            }
+        };
+        
+        audio.addEventListener('ended', handleEnded);
+        
+        return () => {
+            audio.removeEventListener('ended', handleEnded);
+        };
+    }, [currentMode, currentMusic, musicList]);
 
     // 当前音乐改变时，加载并播放
     useEffect(() => {
@@ -210,8 +245,67 @@ const MusicPlayer = () => {
                 console.error('播放失败:', err);
                 setIsPlaying(false);
             })
+            // 尝试加载歌词
+            loadLyricsForCurrentMusic();
         }
     }, [currentMusic]);
+    // 首次加载时设置第一首歌曲
+    useEffect(() => {
+        if (musicList.length > 0 && !currentMusic) {
+            setCurrentMusic(musicList[0]);
+        }
+    }, [musicList, currentMusic]);
+
+    // 加载当前音乐的歌词
+    const loadLyricsForCurrentMusic = async () => {
+        if (!currentMusic || !currentMusic.path) return;
+        console.log(currentMusic, '当前音乐')
+        try {
+            const lyricData = await window.electronFeatures.loadLyrics(currentMusic.path);
+            console.log(lyricData, '歌词数据')
+            if (lyricData && lyricData.length > 0) {
+                setLyrics(lyricData);
+                setHasLyrics(true);
+            } else {
+                setLyrics([]);
+                setHasLyrics(false);
+            }
+        } catch (error) {
+            console.error('加载歌词失败:', error);
+            setLyrics([]);
+            setHasLyrics(false);
+        }
+    };
+    
+    // 手动选择歌词文件
+    const handleSelectLyricsFile = async () => {
+        if (!currentMusic) {
+            alert('请先选择一首歌曲');
+            return;
+        }
+        
+        setIsSelectingLyrics(true);
+        
+        try {
+            const lyricData = await window.electronFeatures.selectLyricsFile();
+            if (lyricData && lyricData.length > 0) {
+                setLyrics(lyricData);
+                setHasLyrics(true);
+                
+                // 保存歌词关联
+                if (currentMusic.id) {
+                    await window.electronFeatures.saveLyricsAssociation(currentMusic.id, lyricData.path);
+                }
+            } else {
+                alert('未选择歌词文件或歌词格式不正确');
+            }
+        } catch (error) {
+            console.error('选择歌词文件失败:', error);
+            alert('选择歌词文件失败: ' + error.message);
+        } finally {
+            setIsSelectingLyrics(false);
+        }
+    };
     
     // 主要播放功能按钮列表
     const mainControlButtons = [
@@ -344,17 +438,21 @@ const MusicPlayer = () => {
     
     // 播放下一首歌
     const handleNext = () => {
+        console.log(musicList.length, currentMusic)
         if (musicList.length > 1 && currentMusic) {
             const currentIndex = musicList.findIndex(music => music.id === currentMusic.id);
             if (currentIndex !== -1) {
                 if (currentMode === 'sequential play') {
                     // 顺序播放
                     const nextIndex = (currentIndex + 1) % musicList.length;
+                    console.log('currentMode === sequential play', currentIndex)
                     setCurrentMusic(musicList[nextIndex]);
                     animateButton('next');
                 } else if (currentMode === 'shuffle') {
                     // 随机播放
                     playRandomSong();
+                } else if(currentMode === 'single loop') {
+                    audioRef.current.currentTime = 0
                 }
             } else if (musicList.length > 0) {
                 // 当前歌曲不在列表中时，播放第一首
@@ -477,15 +575,37 @@ const MusicPlayer = () => {
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // 切换播放效果
+    const handlePlayerEffectChange = (e) => {
+        setCurrentPlayerEffect(e.target.value)
+    }
     return (
         <div className='MusicPlayer_container'>
             <div className='MusicPlayer_display_container'>
-                <VinylPlayer 
-                    isPlaying={isPlaying}
-                    labelColor="#1982FC"
-                />
+                {
+                    currentPlayerEffect === 'VinylPlayer'
+                    ? <VinylPlayer 
+                        isPlaying={isPlaying}
+                        labelColor="#1982FC"
+                    />
+                    : currentPlayerEffect === 'ImmersiveLyrics'
+                    ? <ImmersiveLyricsView 
+                        albumColor={currentMusic?.color || "#FFFFFF"}
+                        secondaryColor={currentMusic?.secondaryColor || "#F2F2F6"}
+                        title={currentMusic?.title || "未选择音乐"}
+                        artist={currentMusic?.artist || "未知艺术家"}
+                        lyrics={lyrics}
+                        currentTime={currentTime}
+                        onSeek={(time) => {
+                            if (audioRef.current) {
+                                audioRef.current.currentTime = time;
+                            }
+                        }}
+                    />
+                    : <></>
+                }
             </div>
-            <div className='MusicPlayer_controller_container'>
+            <div className='MusicPlayer_controller_outer_container'>
                 <div className="MusicPlayer_info_container">
                     <div className="MusicPlayer_info_cover_container">
                         <img src={currentMusic?.coverUrl || defaultCoverImg} alt="专辑封面" />
@@ -494,7 +614,7 @@ const MusicPlayer = () => {
                         {currentMusic ? currentMusic.title : '未选择音乐'}
                     </div>
                     <div className="MusicPlayer_info_artist_container">
-                        {currentMusic ? currentMusic.artist : '点击下方按钮选择音频文件'}
+                        {currentMusic ? currentMusic.artist : '未知艺术家'}
                     </div>
                 </div>
                 <div className="MusicPlayer_controller_container">
@@ -542,6 +662,35 @@ const MusicPlayer = () => {
                                 />
                             </div>
                         </div>
+                        <FormControl variant="standard" sx={{ m: 1, minWidth: 120 }} size={'small'}>
+                            {/* <InputLabel 
+                                id="MusicPlayer_control_button_playerPerformance_label"
+                                style={{
+                                    fontSize: '0.8rem'
+                                }}
+                            >播放效果</InputLabel> */}
+                            <Select
+                                labelId="MusicPlayer_control_button_playerPerformance_label"
+                                className="MusicPlayer_control_button_playerPerformance_select"
+                                value={currentPlayerEffect}
+                                onChange={handlePlayerEffectChange}
+                                label="Age"
+                            >
+                                {
+                                    playerEffectListRef.current.map((it, id) => (
+                                        <MenuItem 
+                                            value={it.id}
+                                            className="MusicPlayer_control_button_playerPerformance_select_item"
+                                            style={{
+                                                fontSize: '0.8rem'
+                                            }}
+                                        >
+                                            {it.label}
+                                        </MenuItem>
+                                    ))
+                                }
+                            </Select>
+                        </FormControl>
                     </div>
                     <div className="MusicPlayer_progress_container">
                         <div className="MusicPlayer_time_current">{formatTime(currentTime)}</div>

@@ -31,6 +31,13 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     
     // 获取音乐列表
     getMusicList: () => ipcRenderer.invoke('get-music-list'),
+
+    // 加载歌词
+    loadLyrics: (filePath) => ipcRenderer.invoke('load-lyrics', filePath),
+    // 手动选择歌词文件
+    selectLyricsFile: () => ipcRenderer.invoke('select-lyrics-file'),
+    // 保存歌词关联
+    saveLyricsAssociation: (musicId, lyricsPath) => ipcRenderer.invoke('save-lyrics-association', { musicId, lyricsPath }),
 });
 
 console.log('Preload script has been loaded');
