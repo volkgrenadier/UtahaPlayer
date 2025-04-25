@@ -13,8 +13,7 @@
     overflow: hidden;
     svg {
         width: auto; /* 自动宽度 */
-        height: 100%; /* 填充高度 */
-        max-height: 100%;
+        height: calc(100% - 20px);  // 留出一些内边距
         max-width: 100%; /* 避免溢出父容器 */
         object-fit: contain; /* 保持宽高比 */
         transition: all 0.3s ease; /* 平滑过渡 */

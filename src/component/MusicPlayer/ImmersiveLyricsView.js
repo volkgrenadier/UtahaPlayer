@@ -12,7 +12,6 @@ import './ImmersiveLyricsView.scss';
  * @param {string} props.artist - 歌手名称
  * @param {Array} props.lyrics - 歌词数组 [{time: 时间秒数, text: "歌词文本"}, ...]
  * @param {number} props.currentTime - 当前播放时间(秒)
- * @param {function} props.onClose - 关闭歌词模式的回调函数
  * @param {function} props.onSeek - (可选) 当用户点击特定歌词时的回调函数
  */
 const ImmersiveLyricsView = ({
@@ -22,7 +21,6 @@ const ImmersiveLyricsView = ({
     artist = "未知艺术家",
     lyrics = [],
     currentTime = 0,
-    onClose = () => {},
     onSeek = null
 }) => {
     // 当前高亮歌词的索引
@@ -67,7 +65,7 @@ const ImmersiveLyricsView = ({
         const visibleLyrics = [];
         
         // 前两句歌词
-        for (let i = Math.max(0, activeLyricIndex - 2); i < activeLyricIndex; i++) {
+        for (let i = Math.max(0, activeLyricIndex - 2); i < activeLyricIndex && i < lyrics.length; i++) {
             visibleLyrics.push({
                 text: lyrics[i].text,
                 type: 'previous',
@@ -111,11 +109,7 @@ const ImmersiveLyricsView = ({
         ));
     };
     
-    // 处理点击关闭事件
-    const handleClose = (e) => {
-        e.stopPropagation();
-        onClose();
-    };
+
     
     // 处理歌词点击事件 - 如果提供了onSeek回调，则跳转到对应时间
     const handleLyricClick = (time) => {
@@ -162,13 +156,6 @@ const ImmersiveLyricsView = ({
                     )}
                 </div>
                 
-                {/* 关闭按钮 */}
-                <button className="close_button" onClick={handleClose} aria-label="关闭歌词">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                              fill="currentColor" />
-                    </svg>
-                </button>
             </div>
         </div>
     );

@@ -5,6 +5,10 @@ const fs = require('fs');
 
 let mainWindow = null;
 let movingInterval = null;
+let winStartPosition = {x: 0, y: 0};
+let cursorStartPosition = {x: 0, y: 0};
+let lastUpdateTime = 0;
+const UPDATE_INTERVAL = 16; // 约等于 60fps (1000/60 ≈ 16.67ms)
 let userConfig = {
     music: {}
 }    //  用户配置
@@ -55,20 +59,32 @@ function moveWin(e,canMove) {
             //  新增计时器
             
             movingInterval = setInterval(() => {
-                // 实时更新位置
+                const currentTime = Date.now();
+                
+                // 节流处理，确保不会更新太频繁
+                if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
+                    return;
+                }
+                lastUpdateTime = currentTime;
+                
+                // 获取当前鼠标位置
                 const cursorNowPosition = screen.getCursorScreenPoint();
-                // 窗口移动距离就是窗口起始位置 + 鼠标当前位置和鼠标起始位置之差
+                
+                // 计算新的窗口位置
                 const winNewPosX = winStartPosition.x + cursorNowPosition.x - cursorStartPosition.x;
                 const winNewPosY = winStartPosition.y + cursorNowPosition.y - cursorStartPosition.y;
-                // 为了防止在拖动过程在中的一系列bug，类似于拖动时窗口大小改变，此处使用setBounds而非setPosition
-                // mainWindow.setPosition(winNewPosX, winNewPosY, true)
-                mainWindow.setBounds({
-                    x: winNewPosX,
-                    y: winNewPosY,
-                    width: windowBounds.width,
-                    height: windowBounds.height
-                })
-            }, 20)
+                
+                // 检查位置是否真的发生变化，避免不必要的更新
+                if (windowBounds.x !== winNewPosX || windowBounds.y !== winNewPosY) {
+                    // 为了防止拖动过程中的bug，使用setBounds
+                    mainWindow.setBounds({
+                        x: winNewPosX,
+                        y: winNewPosY,
+                        width: windowBounds.width,
+                        height: windowBounds.height
+                    })
+                }
+            }, 8)
         }
     }
     else{
@@ -219,6 +235,7 @@ function addMusicToLibrary(event, MusicList) {
     }
     return null;
 }
+
 // 从播放列表中移除歌曲
 function removeFromPlaylist(event, songId) {
     const index = musicLibrary.musicList.findIndex(song => song.id === songId);
@@ -231,6 +248,126 @@ function removeFromPlaylist(event, songId) {
         }
     }
 }
+
+// 加载歌词文件
+async function loadLyricsFile(event, filePath) {
+    try {
+        // 尝试查找同名的.lrc文件
+        const audioDir = path.dirname(filePath);
+        const audioName = path.basename(filePath, path.extname(filePath));
+        console.log(audioDir, audioName, 'audioName')
+        const possibleLrcPaths = [
+            path.join(audioDir, `${audioName}.lrc`),  // 同名同目录
+            path.join(audioDir, `${audioName}.LRC`),  // 大写扩展名
+            // 其他可能的路径模式
+        ];
+        
+        for (const lrcPath of possibleLrcPaths) {
+            try {
+                const stats = fs.statSync(lrcPath);
+                console.log('stats', stats.isFile())
+                if (stats.isFile()) {
+                    const content = fs.readFileSync(lrcPath, 'utf8');
+                    return parseLyrics(content);
+                }
+            } catch (err) {
+                // 文件不存在，继续检查下一个可能路径
+                console.log('歌词文件不存在:', lrcPath);
+                continue;
+            }
+        }
+        
+        // 检查歌曲是否有关联的歌词文件路径
+        const musicDb = musicLibrary.musicList
+        const musicEntry = musicDb.find(m => m.path === filePath);
+        if (musicEntry && musicEntry.lyricsPath) {
+            try {
+                const content = await fs.readFileSync(musicEntry.lyricsPath, 'utf8');
+                return parseLyrics(content);
+            } catch (err) {
+                console.error('读取关联歌词文件失败:', err);
+            }
+        }
+        
+        return []; // 未找到歌词文件
+    } catch (error) {
+        console.error('加载歌词文件失败:', error);
+        return [];
+    }
+}
+
+// 解析LRC格式歌词
+function parseLyrics(lrcContent) {
+    if (!lrcContent) return [];
+    const lines = lrcContent.split('\n');
+    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+    const lyrics = [];
+    
+    lines.forEach(line => {
+        // 跳过空行和不含时间标签的行
+        if (!line.trim() || !timeRegex.test(line)) return;
+        
+        // 提取所有时间标签及文本
+        const timeMatches = line.match(/\[\d{2}:\d{2}\.\d{2,3}\]/g);
+        const text = line.replace(/\[\d{2}:\d{2}\.\d{2,3}\]/g, '').trim();
+        
+        if (text && timeMatches) {
+            timeMatches.forEach(timeStr => {
+            const match = timeStr.match(timeRegex);
+            if (match) {
+                const min = parseInt(match[1]);
+                const sec = parseInt(match[2]);
+                const ms = parseInt(match[3].padEnd(3, '0'));
+                // 转换为秒数
+                const timeInSeconds = min * 60 + sec + ms / 1000;
+                lyrics.push({
+                    time: timeInSeconds,
+                    text: text
+                });
+            }
+            });
+        }
+    });
+    
+    // 按时间排序
+    return lyrics.sort((a, b) => a.time - b.time);
+}
+
+// 选择歌词文件
+async function selectLyricsFile() {
+    const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [{ name: '歌词文件', extensions: ['lrc', 'LRC', 'txt'] }]
+    });
+    
+    if (!result.canceled && result.filePaths.length > 0) {
+        try {
+            const filePath = result.filePaths[0];
+            const content = await fs.readFile(filePath, 'utf8');
+            return parseLyrics(content);
+        } catch (error) {
+            console.error('读取歌词文件失败:', error);
+            return [];
+        }
+    }
+    return [];
+}
+
+// 保存歌词关联
+async function saveLyricsAssociation(event, { musicId, lyricsPath }) {
+    try {
+        const index = musicLibrary.musicList.findIndex(m => m.id === musicId);
+        if (index !== -1) {
+            musicLibrary.musicList[index].lyricsPath = lyricsPath;
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('保存歌词关联失败:', error);
+        return false;
+    }
+  }
+
 //  添加事件监听
 function listenEvent() {  
     ipcMain.on('close-window', closeApp) //  shutdown application
@@ -250,6 +387,10 @@ function listenEvent() {
         removeFromPlaylist(event, songId);
     });
     ipcMain.on('add-music-to-library', addMusicToLibrary)
+
+    ipcMain.handle('load-lyrics', loadLyricsFile); // 加载歌词文件
+    ipcMain.handle('select-lyrics-file', selectLyricsFile); // 选择歌词文件
+    ipcMain.handle('save-lyrics-association', saveLyricsAssociation); // 保存歌词关联
 }
 
 function createWindow() {   //  创建窗口
