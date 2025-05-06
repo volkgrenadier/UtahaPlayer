@@ -2,28 +2,41 @@ const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = re
 const { parseFile } = require('music-metadata')
 const path = require('path');
 const fs = require('fs');
+const { lyricFileType } = require('./config/config.js')
+const { musicFileType } = require('./config/config.js')
+let ElectronStore;
+let store;
+let userSavedConfig;
+let userConfig = {}
+async function initStore() {
+    ElectronStore = await import('electron-store').then(module => module.default)
+    store = new ElectronStore()
+    userSavedConfig = store.get('userConfig', {
+        music: {
+            // 存储音乐文件信息的对象
+            musicLibrary: {
+                musicList: [],
+                musicFolders: []
+            },
+            volume: 25, // 音量范围 0-100
+            playerEffect: 'ImmersiveLyrics' // 播放器效果
+        }
+    }) // 读取用户配置文件
+    userConfig = userSavedConfig
+}
 
 let mainWindow = null;
 let movingInterval = null;
-let winStartPosition = {x: 0, y: 0};
-let cursorStartPosition = {x: 0, y: 0};
 let lastUpdateTime = 0;
 const UPDATE_INTERVAL = 16; // 约等于 60fps (1000/60 ≈ 16.67ms)
-let userConfig = {
-    music: {}
-}    //  用户配置
-// 存储音乐文件信息的对象
-let musicLibrary = {
-    musicList: [],
-    musicFolders: []
-};
+//  歌词文件类型列表
+const lyricFileTypeList = lyricFileType.map(item => item.type)
 
 /**
  * 应用级系统型事件处理函数
  */
 //  关闭app
-function closeApp() {   
-    updateUserConfigFileBeforeClose()   //  关闭程序前写入文件
+function closeApp() {
     app.quit()
 }
 //  最小化窗口
@@ -92,29 +105,79 @@ function moveWin(e,canMove) {
         movingInterval = null;
     }
 }
-//  更改用户音量配置，这是临时更改，对于文件修改会在程序关闭前进行修改
-function updateUserConfig(e, dataObj) {     
-    for (let i = 0; i < dataObj.attrName.length; i++) {
-        userConfig[dataObj.attrName[i]] = dataObj.value[i];
-        
+//  更改用户配置
+function updateUserConfig(_, dataObj) {
+    /**  
+     *  逻辑：没有找到对应的属性就添加进去，找到就直接覆盖
+     *  dataObj.attrName是一个字符串，表示要更新的属性名，例如 "music.volume"，可以利用这样的写法来修改对象的嵌套属性，
+     *  dataObj.value是对应的值，例如 80
+    */
+    let attrArr = dataObj.attrName.split('.')
+    let newConfig = {
+        ...userConfig
     }
+    // 创建层级指示
+    let current = newConfig
+    let parent = null
+    // 遍历并逐层深入对象
+    for (let i = 0; i < attrArr.length - 1; i++) {
+        const key = attrArr[i]
+        parent = current
+        // 如果没有这个属性，则创建一个空对象
+        if(current[key] === undefined) {
+            current[key] = {}
+        } else if(typeof current[key] !== 'object' || current[key] === null) {
+            // 如果不是对象，则将其替换为对象
+            current[key] = {}
+        }
+        current = current[key]
+    }
+    const finalKey = attrArr[attrArr.length - 1]
+    if(current && finalKey) {
+        current[finalKey] = dataObj.value
+    }
+    userConfig = {
+        ...userConfig,
+        ...newConfig
+    }
+    // console.log('更新后的配置', JSON.stringify(userConfig), dataObj)
+    //  更新配置文件
+    store.set('userConfig', userConfig)
 }
-//  监听更改用户关于音乐的一些配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
-function updateUserConfigMusic(e, dataObj) {        
-    for (let i = 0; i < dataObj.attrName.length; i++) {
-        userConfig.music[dataObj.attrName[i]] = dataObj.value[i];
-        
+/**
+ * 
+ * @description  获取用户配置
+ * @attrName {string} attrName 属性名称
+ * @returns {any} 返回对应的属性值，如果没有传入属性名称，则返回整个配置对象
+ * 
+ */
+function getUserConfig(e, attrName) {     
+    let attrArr = attrName.split('.')
+    let obj = {
+        ...userConfig
     }
-}
-//  更改本地用户配置文件，这是正式的文件更改，在程序关闭前执行
-function updateUserConfigFileBeforeClose() {     
-    let jsonFilePath = path.join(__dirname,'config/user.json')
-    // let writeFlag = fs.accessSync(jsonFilePath, fs.constants.W_OK)
-    let userObj = {
-        user: userConfig
+    // console.log('属性数组和obj', attrArr, obj)
+    //  如果没有传入属性名称，直接返回整个配置对象
+    if (!attrName) {
+        return userConfig
     }
-    console.log(JSON.stringify(userObj))
-    fs.writeFileSync(jsonFilePath, JSON.stringify(userObj))
+    //  如果传入了属性名称，返回对应的属性值
+    for (let i = 0; i < attrArr.length; i++) {
+        for (const key in obj) {
+            if (key === attrArr[i]) {
+                if(i === attrArr.length - 1) {
+                    // 如果是最后一个属性，且成功获取到值，直接返回
+                    return obj[attrArr[i]]
+
+                } else {
+                    // 如果不是最后一个属性，继续深入对象
+                    obj = obj[attrArr[i]]
+                }
+            }
+        }
+        // 如果没有这个属性，则返回undefined
+        return undefined
+    }
     
 }
 
@@ -123,11 +186,11 @@ function updateUserConfigFileBeforeClose() {
  */
 // 获取音乐播放列表
 function getMusicList() {
-    return musicLibrary.musicList;
+    return userConfig.music?.musicLibrary?.musicList || [];
 }
 // 查找音乐文件的完整路径
 async function getMusicPath(event, filename) {
-    for (const folder of musicLibrary.musicFolders) {
+    for (const folder of userConfig.music.musicLibrary.musicFolders) {
         const filePath = path.join(folder, filename);
         if (fs.existsSync(filePath)) {
             return filePath;
@@ -140,7 +203,7 @@ async function chooseMusicFile() {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
-            { name: '音频文件', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] }
+            { name: '音频文件', extensions: musicFileType }
         ]
     });
     
@@ -155,7 +218,7 @@ async function chooseMusicFiles() {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile', 'multiSelections', 'showHiddenFiles'],
         filters: [
-            { name: '音频文件', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] }
+            { name: '音频文件', extensions: musicFileType }
         ]
     });
     
@@ -181,13 +244,10 @@ async function getMusicInfo(event, filePaths) {
             // 假设格式为 "艺术家 - 标题.扩展名"
             const match = fileName.match(/(.+)\s-\s(.+)\..+$/);
             if (match) {
-                console.log('branch')
                 artist = match[1].trim();
                 title = match[2].trim();
             }
-            console.log(`信息：${artist} ${title}`)
             if(Object.hasOwn(info.common, 'title') && info.common.title ) {
-                console.log(info)
                 title = info.common.title
             }
             if(Object.hasOwn(info.common, 'artist') && info.common.artist) {
@@ -224,11 +284,11 @@ async function getMusicInfo(event, filePaths) {
 function addMusicToLibrary(event, MusicList) {
     try {
             // console.log(MusicList)
-            musicLibrary.musicList = [...musicLibrary.musicList, ...MusicList]
+            userConfig.music.musicLibrary.musicList = [...userConfig.music.musicLibrary.musicList, ...MusicList]
             
             // 通知渲染进程
             if (mainWindow) {
-                mainWindow.webContents.send('music-list-updated', musicLibrary.musicList);
+                mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
             }
     } catch (error) {
         console.error('添加音乐到播放列表失败:', error);
@@ -238,13 +298,13 @@ function addMusicToLibrary(event, MusicList) {
 
 // 从播放列表中移除歌曲
 function removeFromPlaylist(event, songId) {
-    const index = musicLibrary.musicList.findIndex(song => song.id === songId);
+    const index = userConfig.music.musicLibrary.musicList.findIndex(song => song.id === songId);
     if (index !== -1) {
-        musicLibrary.musicList.splice(index, 1);
+        userConfig.music.musicLibrary.musicList.splice(index, 1);
         
         // 通知渲染进程
         if (mainWindow) {
-            mainWindow.webContents.send('music-list-updated', musicLibrary.musicList);
+            mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
         }
     }
 }
@@ -255,30 +315,59 @@ async function loadLyricsFile(event, filePath) {
         // 尝试查找同名的.lrc文件
         const audioDir = path.dirname(filePath);
         const audioName = path.basename(filePath, path.extname(filePath));
-        console.log(audioDir, audioName, 'audioName')
-        const possibleLrcPaths = [
-            path.join(audioDir, `${audioName}.lrc`),  // 同名同目录
-            path.join(audioDir, `${audioName}.LRC`),  // 大写扩展名
-            // 其他可能的路径模式
-        ];
+        const possibleLrcPaths = [];
+        for (const extName of lyricFileTypeList) {
+            possibleLrcPaths.push(path.join(audioDir, `${audioName}.${extName}`)); // 同目录下的歌词
+        }
         
-        for (const lrcPath of possibleLrcPaths) {
+        for (const index in possibleLrcPaths) {
             try {
-                const stats = fs.statSync(lrcPath);
-                console.log('stats', stats.isFile())
+                const stats = fs.statSync(possibleLrcPaths[index]);
                 if (stats.isFile()) {
-                    const content = fs.readFileSync(lrcPath, 'utf8');
-                    return parseLyrics(content);
+                    let content;
+                    let handlerRes = {}
+                    if (lyricFileType[index].handler) {
+                        /**
+                         * handlerRes应为以下格式：
+                         * {
+                                success: {boolean} 是否成功,
+                                error: {string} 错误信息,
+                                lyricPath: {string} 歌词文件路径,
+                                info: {object} 解析后的歌词信息,
+                                lyricStrData: {string} 歌词字符串数据,
+                                extName: {string} 歌词文件扩展名,
+                            }
+                         */
+                        handlerRes = lyricFileType[index].handler(possibleLrcPaths[index]);// 按照handler处理文件的结果
+                        handlerRes.extName = lyricFileTypeList[index]; // 添加扩展名
+                        if (handlerRes.success) {
+                            content = handlerRes.lyricStrData; 
+                        } else {
+                            console.error('歌词解析失败:', handlerRes.error);
+                            return {
+                                lyricPath: possibleLrcPaths[index],
+                                lyricData: [],
+                            };
+                        }
+                    } else {
+                        content = fs.readFileSync(possibleLrcPaths[index], 'utf8');
+                    }
+                    
+                    return {
+                        ...handlerRes,
+                        lyricPath: possibleLrcPaths[index],
+                        lyricData: parseLyrics(content),
+                    }
                 }
             } catch (err) {
                 // 文件不存在，继续检查下一个可能路径
-                console.log('歌词文件不存在:', lrcPath);
+                console.log('歌词文件不存在:', possibleLrcPaths[index]);
                 continue;
             }
         }
         
         // 检查歌曲是否有关联的歌词文件路径
-        const musicDb = musicLibrary.musicList
+        const musicDb = userConfig.music.musicLibrary.musicList
         const musicEntry = musicDb.find(m => m.path === filePath);
         if (musicEntry && musicEntry.lyricsPath) {
             try {
@@ -289,10 +378,16 @@ async function loadLyricsFile(event, filePath) {
             }
         }
         
-        return []; // 未找到歌词文件
+        return {
+            lyricPath: '',
+            lyricData: [],
+        } // 未找到歌词文件
     } catch (error) {
         console.error('加载歌词文件失败:', error);
-        return [];
+        return {
+            lyricPath: '',
+            lyricData: [],
+        }
     }
 }
 
@@ -337,34 +432,99 @@ function parseLyrics(lrcContent) {
 async function selectLyricsFile() {
     const result = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: [{ name: '歌词文件', extensions: ['lrc', 'LRC', 'txt'] }]
+        filters: [{ name: '歌词文件', extensions: lyricFileTypeList }]
     });
     
     if (!result.canceled && result.filePaths.length > 0) {
         try {
-            const filePath = result.filePaths[0];
-            const content = await fs.readFile(filePath, 'utf8');
-            return parseLyrics(content);
+            const filePath = result.filePaths[0]
+            let content;
+            let handlerRes = {}
+            let index = -1 // 当前歌词文件类型的索引
+            for (let i = 0; i < lyricFileTypeList.length; i++) {
+                let extNameRegStr = `\.(${lyricFileTypeList[i]})$`
+                let extNameReg = new RegExp(extNameRegStr, 'i')
+                if (extNameReg.test(filePath)) {
+                    index = i
+                    break
+                }
+            }
+            if (index !== -1 && lyricFileType[index].handler) {
+                /**
+                 * handlerRes应为以下格式：
+                 * {
+                        success: {boolean} 是否成功,
+                        error: {string} 错误信息,
+                        lyricPath: {string} 歌词文件路径,
+                        info: {object} 解析后的歌词信息,
+                        lyricStrData: {string} 歌词字符串数据,
+                        extName: {string} 歌词文件扩展名,
+                    }
+                    */
+                console.log('得到的index',index, lyricFileType[index].handler)
+                handlerRes = await lyricFileType[index].handler(filePath);// 按照handler处理文件的结果
+                handlerRes.extName = lyricFileTypeList[index]; // 添加扩展名
+                console.log('处理结果', JSON.stringify(handlerRes))
+                if (handlerRes.success) {
+                    content = handlerRes.lyricStrData; 
+                } else {
+                    console.error('歌词解析失败:', handlerRes.error);
+                    return {
+                        lyricPath: filePath,
+                        lyricData: [],
+                    };
+                }
+            } else {
+                content = fs.readFileSync(filePath, 'utf8');
+                console.log(content)
+            }
+            
+            return {
+                handlerRes: {
+                    ...handlerRes
+                },
+                lyricPath: filePath,
+                lyricData: parseLyrics(content),
+            }
         } catch (error) {
             console.error('读取歌词文件失败:', error);
-            return [];
+            return {
+                lyricPath: '',
+                lyricData: [],
+            }
         }
     }
-    return [];
+    return {
+        lyricPath: '',
+        lyricData: [],
+    }
 }
 
 // 保存歌词关联
-async function saveLyricsAssociation(event, { musicId, lyricsPath }) {
+async function saveLyricsAssociation(event, { musicId, lyricPath }) {
     try {
-        const index = musicLibrary.musicList.findIndex(m => m.id === musicId);
+        const index = userConfig.music.musicLibrary.musicList.findIndex(m => m.id === musicId);
         if (index !== -1) {
-            musicLibrary.musicList[index].lyricsPath = lyricsPath;
-            return true;
+            userConfig.music.musicLibrary.musicList[index].lyricPath = lyricPath;
+            // 通知渲染进程
+            if (mainWindow) {
+                await mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
+            }
+            return {
+                success: true,
+                message: '歌词关联保存成功'
+            }
         }
-        return false;
+        return {
+            success: false,
+            message: '未找到对应的音乐文件'
+        };
     } catch (error) {
         console.error('保存歌词关联失败:', error);
-        return false;
+        return {
+            success: false,
+            message: '保存歌词关联失败'
+        };
     }
   }
 
@@ -374,9 +534,12 @@ function listenEvent() {
     ipcMain.on('minimize-window', minimizeWindow)    //  listen the event for minimize application window
     ipcMain.on('maximize-window', maximizeWindow)//  listen the event for maximize or restore application window
     ipcMain.on('window-move-open', moveWin) //   listen the event for drag window
-    ipcMain.on('update-userConfig', updateUserConfig)   //  监听更改用户音量配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
-    ipcMain.on('update-userconfig-music', updateUserConfigMusic)    //  监听更改用户关于音乐的一些配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
     
+
+    // 用户配置相关处理程序
+    ipcMain.on('update-userConfig', updateUserConfig)   //  监听更改用户配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
+    ipcMain.handle('get-userConfig', getUserConfig); // 获取用户配置
+
     // 添加音频相关处理程序
     ipcMain.handle('get-music-list', getMusicList)  //  获取播放列表
     ipcMain.handle('get-music-file-path', getMusicPath) // 获取音乐文件路径
@@ -388,6 +551,7 @@ function listenEvent() {
     });
     ipcMain.on('add-music-to-library', addMusicToLibrary)
 
+    // 添加歌词相关处理程序
     ipcMain.handle('load-lyrics', loadLyricsFile); // 加载歌词文件
     ipcMain.handle('select-lyrics-file', selectLyricsFile); // 选择歌词文件
     ipcMain.handle('save-lyrics-association', saveLyricsAssociation); // 保存歌词关联
@@ -435,7 +599,8 @@ function createTray() {     //  创建系统通知区图标和菜单
 }
 
 // 应用启动时创建窗口
-app.on('ready', () => {
+app.on('ready', async () => {
+    await initStore(); // 初始化配置存储
     createWindow();
 });
 
