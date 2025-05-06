@@ -3,8 +3,11 @@ const path = require('path');
 
 // 将electron API暴露给渲染进程
 contextBridge.exposeInMainWorld('electronFeatures', {
+    // 获取用户配置
+    getUserConfig: (attrName) => ipcRenderer.invoke('get-userConfig', attrName),
+    // 更新用户配置
+    updateUserConfig: (attrName, value) => ipcRenderer.send('update-userConfig', { attrName, value }),
     // 选择音频文件
-    // selectAudioFile: () => ipcRenderer.invoke('select-audio-file'),
     selectAudioFiles: () => ipcRenderer.invoke('select-music-files'),
     
     // 获取音频信息
@@ -37,7 +40,7 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     // 手动选择歌词文件
     selectLyricsFile: () => ipcRenderer.invoke('select-lyrics-file'),
     // 保存歌词关联
-    saveLyricsAssociation: (musicId, lyricsPath) => ipcRenderer.invoke('save-lyrics-association', { musicId, lyricsPath }),
+    saveLyricsAssociation: (musicId, lyricPath) => ipcRenderer.invoke('save-lyrics-association', { musicId, lyricPath }),
 });
 
 console.log('Preload script has been loaded');

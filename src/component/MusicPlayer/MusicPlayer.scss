@@ -566,6 +566,36 @@
                     100% { opacity: 0.5; }
                 }
             }
+            //  歌词关联按钮
+            .MusicPlayer_playlist_item_lyrics_indicator {
+                $lyrics_link_btn_size: 24px;
+                width: $lyrics_link_btn_size;
+                height: $lyrics_link_btn_size;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: 8px;
+                cursor: pointer;
+                opacity: 0.5;
+                transition: all 0.2s ease;
+                border-radius: 50%;
+                flex-shrink: 0;
+                
+                &:hover {
+                    background-color: rgba($color_main, 0.1);
+                    opacity: 1;
+                }
+                
+                svg {
+                    color: #999;
+                    transition: color 0.2s ease;
+                    
+                    &.has-lyrics {
+                        color: $color_main;
+                        opacity: 1;
+                    }
+                }
+            }
             //  歌曲移除按钮
             .MusicPlayer_playlist_remove_btn {
                 $remove_btn_size: 24px;
@@ -585,13 +615,20 @@
                 align-items: center;
                 justify-content: center;
                 margin-left: 5px;
+                &:hover {
+                    color: #ff4d4f;
+                    background-color: rgba(#ff4d4f, 0.1);
+                }
             }
             
             &:hover {
                 .MusicPlayer_playlist_remove_btn {
-                    color: #ff4d4f;
-                    background-color: rgba(#ff4d4f, 0.1);
                     opacity: 1;
+                }
+                .MusicPlayer_playlist_item_lyrics_indicator {
+                    svg.has-lyrics {
+                        opacity: 1;
+                    }
                 }
             }
         }
