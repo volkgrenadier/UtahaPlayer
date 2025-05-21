@@ -1,0 +1,33 @@
+@import '../../style/public.scss';
+@mixin textEllipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ScrollTitle_container {
+    --scroll-distance: 10px;
+    --scroll-duration: 1s;
+    @keyframes titleScroll {
+        0%{
+            transform: translateX(0);
+        }
+        100%{
+            transform: translateX(var(--scroll-distance));
+        }
+    }
+    
+    @include forbiddenSelect;
+    cursor: pointer;
+    overflow: hidden;
+    .ScrollTitle_content {
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        // transition: transform var(--scroll-duration) linear;
+    }
+    .ScrollTitle_content_scrolling,
+    .ScrollTitle_content_hoverScroll:hover {
+        animation: titleScroll var(--scroll-duration) linear 0s 1 forwards;
+        // transform: translateX(var(--scroll-distance));     
+    }
+}

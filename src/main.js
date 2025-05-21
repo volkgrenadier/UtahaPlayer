@@ -105,42 +105,68 @@ function moveWin(e,canMove) {
         movingInterval = null;
     }
 }
-//  更改用户配置
+/**
+ * @description 更新用户配置
+ * @param {*} _ 
+ * @param {*} dataObj 传入的对象，包含要更新的属性名称和对应的值，例如 { attrName: 'music.volume', value: 80 }
+ */
 function updateUserConfig(_, dataObj) {
     /**  
      *  逻辑：没有找到对应的属性就添加进去，找到就直接覆盖
      *  dataObj.attrName是一个字符串，表示要更新的属性名，例如 "music.volume"，可以利用这样的写法来修改对象的嵌套属性，
      *  dataObj.value是对应的值，例如 80
+     *  如果传入的属性名称是数组，且值也是数组，则对修改的属性进行遍历修改
+     *  例如 { attrName: ['music.volume', 'music.playerEffect'], value: [80, 'ImmersiveLyrics'] }
     */
-    let attrArr = dataObj.attrName.split('.')
+
+    // 如果传入的属性名称是数组，且值也是数组，则对修改的属性进行遍历
+    let needUpdateAttrArr = []
+    let needUpdateValueArr = []
+    if (Array.isArray(dataObj.attrName)) {
+        for (const element of dataObj.attrName) {
+            needUpdateAttrArr.push(element.split('.'))
+        }
+        for (let i = 0; i < needUpdateAttrArr.length; i++) {
+            if (Array.isArray(dataObj.value)) {
+                needUpdateValueArr.push(i > dataObj.value.length - 1? null: dataObj.value[i])
+            } else {
+                needUpdateValueArr.push(i > 0? null: dataObj.value)
+            }
+        }
+    } else {
+        needUpdateAttrArr.push(dataObj.attrName.split('.'))
+        needUpdateValueArr.push(dataObj.value)
+    }
     let newConfig = {
         ...userConfig
     }
-    // 创建层级指示
-    let current = newConfig
-    let parent = null
-    // 遍历并逐层深入对象
-    for (let i = 0; i < attrArr.length - 1; i++) {
-        const key = attrArr[i]
-        parent = current
-        // 如果没有这个属性，则创建一个空对象
-        if(current[key] === undefined) {
-            current[key] = {}
-        } else if(typeof current[key] !== 'object' || current[key] === null) {
-            // 如果不是对象，则将其替换为对象
-            current[key] = {}
+    for (const key in needUpdateAttrArr) {
+        let attrArr = needUpdateAttrArr[key]
+        // 创建层级指示
+        let current = newConfig
+        // 遍历并逐层深入对象
+        for (let i = 0; i < attrArr.length - 1; i++) {
+            const key = attrArr[i]
+            // 如果没有这个属性，则创建一个空对象
+            if(current[key] === undefined) {
+                current[key] = {}
+            } else if(typeof current[key] !== 'object' || current[key] === null) {
+                // 如果不是对象，则将其替换为对象
+                current[key] = {}
+            }
+            current = current[key]
         }
-        current = current[key]
+        const finalKey = attrArr[attrArr.length - 1]
+        if(current && finalKey) {
+            
+            current[finalKey] = needUpdateValueArr[key]
+        }
+        userConfig = {
+            ...userConfig,
+            ...newConfig
+        }
     }
-    const finalKey = attrArr[attrArr.length - 1]
-    if(current && finalKey) {
-        current[finalKey] = dataObj.value
-    }
-    userConfig = {
-        ...userConfig,
-        ...newConfig
-    }
-    // console.log('更新后的配置', JSON.stringify(userConfig), dataObj)
+    // console.log('更新后的配置', JSON.stringify(userConfig.music.volume))
     //  更新配置文件
     store.set('userConfig', userConfig)
 }
@@ -279,13 +305,18 @@ async function getMusicInfo(event, filePaths) {
         return [];
     }
 }
-
+/**
+ * @description 更新配置文件
+ */
+function updateSavedUserConfig() {
+    store.set('userConfig', userConfig)
+}
 // 添加音乐到播放列表
 function addMusicToLibrary(event, MusicList) {
     try {
             // console.log(MusicList)
             userConfig.music.musicLibrary.musicList = [...userConfig.music.musicLibrary.musicList, ...MusicList]
-            
+            updateSavedUserConfig()
             // 通知渲染进程
             if (mainWindow) {
                 mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
@@ -301,7 +332,7 @@ function removeFromPlaylist(event, songId) {
     const index = userConfig.music.musicLibrary.musicList.findIndex(song => song.id === songId);
     if (index !== -1) {
         userConfig.music.musicLibrary.musicList.splice(index, 1);
-        
+        updateSavedUserConfig()
         // 通知渲染进程
         if (mainWindow) {
             mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
@@ -506,6 +537,7 @@ async function saveLyricsAssociation(event, { musicId, lyricPath }) {
         const index = userConfig.music.musicLibrary.musicList.findIndex(m => m.id === musicId);
         if (index !== -1) {
             userConfig.music.musicLibrary.musicList[index].lyricPath = lyricPath;
+            updateSavedUserConfig()
             // 通知渲染进程
             if (mainWindow) {
                 await mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
