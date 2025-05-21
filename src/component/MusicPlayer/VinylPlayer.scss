@@ -1,3 +1,4 @@
+@import '../../style/public.scss';
 .VinylPlayer_container {
     position: relative;
     width: 100%;
@@ -8,6 +9,7 @@
     overflow: hidden;
     user-select: none;
     cursor: pointer;
+    background-color: $color_main_bg;
     -webkit-tap-highlight-color: transparent; /* 去除移动设备上的点击高亮 */
     outline: none; /* 去除点击时的轮廓 */
     overflow: hidden;

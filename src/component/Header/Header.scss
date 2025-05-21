@@ -3,7 +3,7 @@
     @include flexCenter;
     width: calc(100% - $sidePadding*2);
     height: 50px;
-    background-color: #F9F9FC;
+    background-color: $color_main_bg;
     justify-content: space-between;
     padding: 0 $sidePadding;
     .Header_info_container {

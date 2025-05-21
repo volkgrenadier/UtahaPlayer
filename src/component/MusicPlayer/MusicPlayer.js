@@ -20,7 +20,11 @@ import MovieIcon from '@mui/icons-material/Movie';
 import './MusicPlayer.scss';
 import VinylPlayer from './VinylPlayer';
 import ImmersiveLyricsView from './ImmersiveLyricsView';
+import { clickCopy } from '../../utils/toolsFunction';
+import { MAXVOLUME } from '../../config/reactConfig';
+import { useNotification } from '../../utils/NotificationProvider';
 import defaultCoverImg from '../../assets/1.jpg';
+import ScrollTitle from './ScrollTitle';
 
 const MusicPlayer = () => {
     // 引用
@@ -64,8 +68,8 @@ const MusicPlayer = () => {
     
     const [currentMusic, setCurrentMusic] = useState(null);
     const [isPlaylistOpen, setIsPlaylistOpen] = useState(false); // 新增播放列表显示状态控制
-    
 
+    const notifyContext = useNotification()
     // 点击外部关闭音量控制器和播放列表
     useEffect(() => {
         function handleClickOutside(event) {
@@ -75,10 +79,10 @@ const MusicPlayer = () => {
                 !volumeContainerRef.current.contains(event.target)) {
                 setShowVolumeSlider(false);
             }
-            
             // 处理播放列表点击外部关闭
             if (isPlaylistOpen && 
                 playlistRef.current && 
+                notifyContext.currentNoficationType !== 'popover' &&
                 !playlistRef.current.contains(event.target) &&
                 !event.target.closest('.MusicPlayer_playlist_button')) {
                 setIsPlaylistOpen(false);
@@ -89,7 +93,7 @@ const MusicPlayer = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showVolumeSlider, isPlaylistOpen]);
+    }, [showVolumeSlider, isPlaylistOpen, notifyContext]);
     
     // 添加拖动进度条相关事件监听
     useEffect(() => {
@@ -106,7 +110,7 @@ const MusicPlayer = () => {
         };
         
         const handleMouseUp = () => {
-            if (isDragging && temporaryProgress !== null && currentMusic) {
+            if (isDragging && temporaryProgress !== null) {
                 handleDragEnd();
             }
         };
@@ -195,7 +199,7 @@ const MusicPlayer = () => {
         audio.addEventListener('pause', handlePause);
         
         // 初始化音量
-        audio.volume = volumeLevel / 100;
+        audio.volume = ((volumeLevel / 100) * MAXVOLUME) / 100;
         
         // 清理函数
         return () => {
@@ -252,17 +256,27 @@ const MusicPlayer = () => {
     }, [currentMusic]);
     // 播放列表发生变化时，若当前没有音乐正在播放，则播放第一首歌曲
     useEffect(() => {
+        // 更新配置文件中的音乐列表和当前音乐
         if (musicList.length > 0 && !currentMusic) {
             setCurrentMusic(musicList[0]);
+        } else if(musicList.length === 0) {
+            audioRef.current.pause()
+            audioRef.current.src = ''
+            setCurrentMusic(null)
+            setCurrentTime(0)
+            setTotalTime(0)
+            setProgress(0)
+            setIsPlaying(false)
         }
-    }, [musicList, currentMusic]);
-
+    }, [musicList, currentMusic])
     useLayoutEffect(() => {
         const getUserConfig = async () => {
             let config = await window.electronFeatures.getUserConfig('music')
             setCurrentPlayerEffect(config.playerEffect || playerEffectListRef.current[0].id)
+            setMusicList(config.musicLibrary.musicList || [])
             setVolumeLevel(config.volume || 25)
         }
+        console.log('useLayoutEffect')
         getUserConfig()
     }, [])
     // 加载当前音乐的歌词
@@ -291,7 +305,8 @@ const MusicPlayer = () => {
     // 手动选择歌词文件
     const handleSelectLyricsFile = async () => {
         if (!currentMusic) {
-            alert('请先选择一首歌曲');
+            // alert('请先选择一首歌曲');
+            notifyContext.notify.regularNotify.info('请先选择一首歌曲')
             return;
         }
         
@@ -303,15 +318,15 @@ const MusicPlayer = () => {
                 let lyricsLinkRes = await saveLyricsAssociation(currentMusic.id, lyricDataObj.lyricPath)
                 if (lyricsLinkRes && lyricsLinkRes.success) {
                     setLyrics(lyricDataObj.lyricData);
-                    console.log('歌词', lyricDataObj.lyricData)
+                    // console.log('歌词', lyricDataObj.lyricData)
                     setHasLyrics(true);
                 }
             } else {
-                alert('未选择歌词文件或歌词格式不正确');
+                notifyContext.notify.regularNotify.info('未选择歌词文件或歌词格式不正确')
             }
         } catch (error) {
             console.error('选择歌词文件失败:', error);
-            alert('选择歌词文件失败: ' + error.message);
+            notifyContext.notify.regularNotify.info('选择歌词文件失败')
         } finally {
             setIsSelectingLyrics(false);
         }
@@ -373,7 +388,7 @@ const MusicPlayer = () => {
     const handleVolumeChange = (e) => {
         const newVolume = parseInt(e.target.value);
         setVolumeLevel(newVolume);
-        audioRef.current.volume = newVolume / 100;
+        audioRef.current.volume = ((newVolume / 100) * MAXVOLUME) / 100;
         
         if (newVolume === 0) {
             setIsMuted(true);
@@ -384,10 +399,14 @@ const MusicPlayer = () => {
         }
 
         //  更新配置文件
-        console.log('更新音量', newVolume)
-        window.electronFeatures.updateUserConfig('music.volume', newVolume);
+        // console.log('更新音量', newVolume)
+        // window.electronFeatures.updateUserConfig('music.volume', newVolume);
     };
-    
+    // 保存更新音量
+    const updateVolumeSave = (e) => {
+        const newVolume = parseInt(e.target.value);
+        window.electronFeatures.updateUserConfig('music.volume', newVolume);
+    }
     // 切换静音状态
     const toggleMute = () => {
         let lastVolume = volumeLevel;
@@ -431,7 +450,7 @@ const MusicPlayer = () => {
                     
 
                     // 或者通知主进程添加到音乐库
-                    window.electronFeatures.sendMessage('add-music-to-library', info);
+                    await window.electronFeatures.sendMessage('add-music-to-library', info);
                 }
             }
         } catch (error) {
@@ -527,17 +546,24 @@ const MusicPlayer = () => {
         setCurrentMusic(song);
         setIsPlaying(true);
     }
+    // 显示移除歌曲的提示
+    const showRemoveSonePopover = (e, song) => {
+        e.stopPropagation(); // 阻止事件冒泡，避免触发歌曲播放
+        notifyContext.notify.popoverNotify.info(e, '确定要从播放列表中移除歌曲吗？', {
+            confirmText: '确定',
+            cancelText: '取消',
+            onConfirm: () => removeFromPlaylist(e, song),
+            onCancel: () => {}
+        })
+    }
     // 从播放列表中删除歌曲
     const removeFromPlaylist = (e, song) => {
-        e.stopPropagation(); // 阻止事件冒泡，避免触发歌曲播放
-        if (window.confirm(`确定要从播放列表中移除"${song.title}"吗？`)) {
-            // 通知主进程从列表中删除歌曲
-            window.electronFeatures.sendMessage('remove-from-playlist', song.id);
-            
-            // 如果当前播放的就是要删除的歌曲，则尝试播放下一首
-            if (currentMusic && (currentMusic.id === song.id || currentMusic.path === song.path)) {
-                handleNext();
-            }
+        // 通知主进程从列表中删除歌曲
+        window.electronFeatures.sendMessage('remove-from-playlist', song.id);
+        
+        // 如果当前播放的就是要删除的歌曲，则尝试播放下一首
+        if (currentMusic && (currentMusic.id === song.id || currentMusic.path === song.path)) {
+            handleNext();
         }
     }
     
@@ -550,6 +576,9 @@ const MusicPlayer = () => {
     // 处理进度条点击开始拖动
     const handleProgressMouseDown = (event) => {
         event.preventDefault();
+        if(!currentMusic || !currentMusic.id) {
+            return;
+        }
         setIsDragging(true);
         
         const rect = progressBarRef.current.getBoundingClientRect();
@@ -575,7 +604,6 @@ const MusicPlayer = () => {
             setProgress(clampedProgress);
         }
     };
-    
     // 更新显示时间
     const updateDisplayTime = (progressPercent) => {
         if (audioRef.current.duration) {
@@ -597,6 +625,8 @@ const MusicPlayer = () => {
         setCurrentPlayerEffect(e.target.value)
         window.electronFeatures.updateUserConfig('music.playerEffect', e.target.value)
     }
+
+    
     return (
         <div className='MusicPlayer_container'>
             <div className='MusicPlayer_display_container'>
@@ -608,8 +638,8 @@ const MusicPlayer = () => {
                     />
                     : currentPlayerEffect === 'ImmersiveLyrics'
                     ? <ImmersiveLyricsView 
-                        albumColor={currentMusic?.color || "#FFFFFF"}
-                        secondaryColor={currentMusic?.secondaryColor || "#F2F2F6"}
+                        albumColor={currentMusic?.color || "#F5F7FA"}
+                        secondaryColor={currentMusic?.secondaryColor || "#E4E8F0"}
                         title={currentMusic?.title || "未选择音乐"}
                         artist={currentMusic?.artist || "未知艺术家"}
                         lyrics={lyrics}
@@ -628,12 +658,32 @@ const MusicPlayer = () => {
                     <div className="MusicPlayer_info_cover_container">
                         <img src={currentMusic?.coverUrl || defaultCoverImg} alt="专辑封面" />
                     </div>
-                    <div className="MusicPlayer_info_title_container">
+                    <ScrollTitle 
+                        itemClassName="MusicPlayer_info_title_container"
+                        title={currentMusic ? currentMusic.title : '未选择音乐'}
+                        hoverScroll={true}
+                        handleClick={e => {clickCopy(e, notifyContext.notify.regularNotify.info)}}
+                        speed={60}
+                    />
+                    <ScrollTitle 
+                        itemClassName="MusicPlayer_info_artist_container"
+                        title={currentMusic ? currentMusic.artist : '未知艺术家'}
+                        hoverScroll={true}
+                        handleClick={e => {clickCopy(e, notifyContext.notify.regularNotify.info)}}
+                        speed={60}
+                    />
+                    {/* <div 
+                        className="MusicPlayer_info_title_container"
+                        onClick={e => {clickCopy(e, notifyContext.notify.regularNotify.info)}}
+                    >
                         {currentMusic ? currentMusic.title : '未选择音乐'}
                     </div>
-                    <div className="MusicPlayer_info_artist_container">
+                    <div 
+                        className="MusicPlayer_info_artist_container"
+                        onClick={e => {clickCopy(e, notifyContext.notify.regularNotify.info)}}
+                    >
                         {currentMusic ? currentMusic.artist : '未知艺术家'}
-                    </div>
+                    </div> */}
                 </div>
                 <div className="MusicPlayer_controller_container">
                     <div className="MusicPlayer_controller_buttons">
@@ -675,6 +725,7 @@ const MusicPlayer = () => {
                                     max="100" 
                                     value={volumeLevel} 
                                     onChange={handleVolumeChange} 
+                                    onMouseUp={updateVolumeSave}
                                     className="MusicPlayer_volume_slider"
                                     style={{"--volume-percentage": `${volumeLevel}%`}}
                                 />
@@ -805,7 +856,7 @@ const MusicPlayer = () => {
                                 </div>
                                 <button 
                                     className="MusicPlayer_playlist_remove_btn" 
-                                    onClick={(e) => removeFromPlaylist(e, song)}
+                                    onClick={(e) => showRemoveSonePopover(e, song)}
                                     title="从播放列表中移除"
                                 >
                                     ✕

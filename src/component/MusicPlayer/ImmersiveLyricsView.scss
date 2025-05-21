@@ -1,3 +1,4 @@
+@import '../../style/public.scss';
 .immersiveLyrics_container {
     position: relative;
     // top: 0;
@@ -58,6 +59,10 @@
         .song_info {
             margin-bottom: 3rem;
             
+            .title,
+            .artist{
+                @include forbiddenSelect;
+            }
             .title {
                 font-size: 1.5rem;
                 font-weight: 500;
@@ -101,7 +106,7 @@
                 transition: all 0.3s ease;
                 max-width: 80%;
                 border-radius: 8px; // 苹果风格圆角
-                
+                user-select: none; // 禁止选中歌词
                 // 可点击的歌词项 (当提供onSeek回调时)
                 &.clickable {
                     cursor: pointer;
