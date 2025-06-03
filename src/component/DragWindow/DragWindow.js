@@ -1,23 +1,32 @@
-import React from 'react'
+import React, { useCallback, useRef } from 'react'
 
 const DragWindow = (props) => {
-    const windowMove = (canMove) => window.electronFeatures.sendMessage('window-move-open', canMove)
-    const onMouseDown = (e) => {
+    const isDragging = useRef(false);
+    
+    const windowMove = useCallback((canMove) => {
+        if (isDragging.current !== canMove) {
+            isDragging.current = canMove;
+            window.electronFeatures.sendMessage('window-move-open', canMove);
+        }
+    }, []);
+    
+    const onMouseDown = useCallback((e) => {
         if (e.target instanceof HTMLDivElement) {
-            windowMove(true)
+            windowMove(true);
         }
-        else{
-            windowMove(false)
-        }
-    }
-
+    }, [windowMove]);
+    
+    const onMouseUp = useCallback(() => {
+        windowMove(false);
+    }, [windowMove]);
     return (
         <div 
-            onMouseDown={ onMouseDown }
-            onMouseUp = {() => windowMove(false)}
-        >
-            {props.children}
-        </div>
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        style={{ WebkitAppRegion: 'no-drag' }} // 禁用默认拖动
+    >
+        {props.children}
+    </div>
     )
 }
 

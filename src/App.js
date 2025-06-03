@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react';
+<<<<<<< HEAD
 import { useSelector } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
+=======
+import { useSelector } from 'react-redux'
+import { NotificationProvider } from './utils/NotificationProvider';
+>>>>>>> utaha
 import DragWindow from './component/DragWindow/DragWindow';
 // import Home from './component/Home/Home';
 // import MusicPlayer from './component/MusicPlayer/MusicPlayer';
@@ -14,6 +19,7 @@ import Routes from './component/Routes/Routes';
 import './app.scss';
 
 function App() {
+<<<<<<< HEAD
 	const loginStatus = useSelector(state => state.loginStatus)
 	useEffect(() => { //  是否显示登录页
 
@@ -35,5 +41,23 @@ function App() {
 		</div>
 	);
 }
+=======
+	// const loginStatus = useSelector(state => state.loginStatus)
+	// useEffect(() => { //  是否显示登录页
+		
+	// }, [])
+	return (
+		<NotificationProvider>
+			<div className='app_container'>
+				<DragWindow>
+					<Header />
+				</DragWindow>
+				{/* <Home /> */}
+				<MusicPlayer />
+			</div>
+		</NotificationProvider>
+	);
+	}
+>>>>>>> utaha
 
 export default App;

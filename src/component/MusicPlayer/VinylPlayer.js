@@ -54,6 +54,7 @@ const VinylPlayer = ({
                 } else {
                     // 如果初始状态是暂停，确保唱臂在右侧位置（无动画）
                     tonearm.setAttribute('transform', 'rotate(-50 0 0)');
+                    recordSpinning.endElement();
                 }
             }
             return; // 首次渲染仅设置初始状态，不执行后续动画
@@ -75,9 +76,9 @@ const VinylPlayer = ({
                     
                     // 唱臂完全放到唱片上后再添加振动
                     setTimeout(() => {
-                    if (armVibration) {
-                        armVibration.beginElement();
-                    }
+                        if (armVibration) {
+                            armVibration.beginElement();
+                        }
                     }, 400);
                 }, 850);
             } else {

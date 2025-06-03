@@ -1,0 +1,20 @@
+@import './public.scss';
+.Notification_popover_message {
+    @include forbiddenSelect;
+}
+.Notification_popover_buttons_container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    .Notification_popover_button_comfirm {
+        margin-right: 8px;
+    }
+    .Notification_popover_button_comfirm,
+    .Notification_popover_button_cancel {
+        @include customButtonBasic;
+        font-size: $fontSize_small*0.9;
+        padding: 3px 8px;
+        border-radius: $borderRadius*0.5;
+    }
+}
+

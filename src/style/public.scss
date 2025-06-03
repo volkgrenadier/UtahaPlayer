@@ -1,5 +1,6 @@
 //  颜色类
 $color_main: #2563eb;
+$color_main_bg: #F9F9FC;
 //  动画/渐变类
 $custom_transition: all .3s ease-in-out;
 //  字体类
@@ -37,5 +38,29 @@ $borderRadius: 8px;
     &::-webkit-scrollbar-thumb {
         border-radius: 2px;
         background-color: transparent;
+    }
+}
+
+//  元素禁止选中
+@mixin forbiddenSelect {
+    user-select: none;
+}
+
+//  常规按钮
+@mixin customButtonBasic {
+    padding: 8px 16px;
+    background-color: $color_main;
+    color: white;
+    border: none;
+    border-radius: $borderRadius;
+    cursor: pointer;
+    font-size: $fontSize_small;
+    transition: background-color 0.2s ease;
+    &:hover {
+        background-color: darken($color_main, 10%);
+    }
+    
+    &:active {
+        background-color: darken($color_main, 15%);
     }
 }
