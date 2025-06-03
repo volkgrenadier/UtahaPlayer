@@ -65,23 +65,25 @@
     align-items: center;
     width: 100%;
     height: 100%;
+    overflow: hidden;
     .MusicPlayer_display_container {
-        // flex: 1 1 auto;
+        flex: 1 1 auto;
         width: 100%;
         // 限制显示区域高度，留出足够空间给控制器
-        max-height: calc(100% - 152px); // 100px是控制器的高度，50px是Header的高度
+        max-height: calc(100% - 100px); // 100px是控制器的高度
         position: relative;
         overflow: hidden;
     }
-    .MusicPlayer_controller_container {
+    .MusicPlayer_controller_outer_container {
         width: 100%;
-        height: 100px;
-        flex: 0 0 auto;
+        // height: 100px;
+        flex: 0 0 100px;
         border-top: 1px solid #e5e7eb;
         border-bottom: 1px solid #e5e7eb;
         // box-shadow: 0 -2px 2px rgba(0, 0, 0, 0.1);
         display: grid;
         grid-template-columns: 240px 1fr 100px;
+        align-items: center;
         .MusicPlayer_info_container {
             display: grid;
             grid-template-columns: 100px 1fr;
@@ -95,28 +97,23 @@
                 grid-row: 1/3;
                 // background-color: aqua;
                 overflow: hidden;
-                user-select: none;
                 &>img {
                     width: 70%;
                     height: auto;
                     border-radius: $borderRadius;
+                    user-select: none;
+                    pointer-events: none;
+                    -webkit-user-drag: none;
                 }
             }
             .MusicPlayer_info_title_container {
-                align-self: flex-end;
-                // background-color: antiquewhite;
-                padding-right: 10px;
-                @include textEllipsis;
                 font-weight: 500;
                 font-size: $fontSize;
             }
             .MusicPlayer_info_artist_container {
-                align-self: flex-start;
-                // background-color: antiquewhite;
                 font-size: $fontSize_small;
                 color: #666;
-                padding-right: 10px;
-                @include textEllipsis;
+
             }
         }
         
@@ -166,8 +163,7 @@
                 .MusicPlayer_volume_container {
                     position: relative;
                     @include flexCenter;
-                    
-                                        .MusicPlayer_volume_slider_container {
+                    .MusicPlayer_volume_slider_container {
                         position: absolute;
                         bottom: 100%;
                         left: 50%;
@@ -199,7 +195,7 @@
                             box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.03);
                         }
                         
-                                        .MusicPlayer_volume_slider {
+                        .MusicPlayer_volume_slider {
                             -webkit-appearance: none;
                             width: 80px;
                             height: 3px;
@@ -247,6 +243,12 @@
                         }
                     }
                 }
+                .MusicPlayer_control_button_playerPerformance_select {
+                    font-size: .8rem;
+                    
+                    
+                }
+                
             }
     
             .MusicPlayer_progress_container {
@@ -368,3 +370,299 @@
         }
     }
 }
+// 以下是需要添加到现有MusicPlayer.scss文件的播放列表样式代码
+// 将这些代码添加到文件末尾
+
+// 播放列表按钮样式增强
+.MusicPlayer_playlist_button {
+    &.active {
+        color: $color_main !important;
+        background-color: rgba($color_main, 0.1);
+    }
+}
+
+// 播放列表面板
+.MusicPlayer_playlist {
+    position: fixed;
+    right: -280px; // 初始位置在屏幕外
+    top: 100px;
+    width: 260px;
+    height: calc(100vh - 200px);
+    max-height: 500px;
+    background: white;
+    border-radius: $borderRadius;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 1000;
+    overflow: hidden;
+    min-width: 250px;
+    min-height: 300px;
+    
+    &.MusicPlayer_playlist_open {
+        right: 20px;
+    }
+    
+    // 播放列表标题栏
+    .MusicPlayer_playlist_header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        
+        .MusicPlayer_playlist_title {
+            margin: 0;
+            font-size: $fontSize;
+            font-weight: 500;
+            color: #333;
+            user-select: none;
+            span {
+                color: #666;
+                font-size: $fontSize_small;
+                font-weight: normal;
+                margin-left: 5px;
+            }
+        }
+        
+        .MusicPlayer_playlist_close_btn {
+            @include buttonInteraction;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            padding: 4px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            &:hover {
+                background-color: rgba(0, 0, 0, 0.05);
+            }
+        }
+    }
+    
+    // 列表项容器
+    .MusicPlayer_playlist_items {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+        
+        // 滚动条样式
+        &::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        &::-webkit-scrollbar-track {
+            background: #f5f5f5;
+        }
+        
+        &::-webkit-scrollbar-thumb {
+            background: #e0e0e0;
+            border-radius: 4px;
+        }
+        
+        &::-webkit-scrollbar-thumb:hover {
+            background: #d0d0d0;
+        }
+        
+        // 列表为空时的提示
+        .MusicPlayer_playlist_empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            padding: 20px;
+            
+            .MusicPlayer_playlist_empty_text {
+                color: #999;
+                margin-bottom: 15px;
+            }
+        }
+        
+        // 单个列表项
+        .MusicPlayer_playlist_item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f9f9f9;
+            transition: background-color 0.2s ease;
+            
+            &:hover {
+                background-color: #f9f9f9;
+            }
+            
+            &.MusicPlayer_playlist_item_playing {
+                background-color: rgba($color_main, 0.05);
+                
+                .MusicPlayer_playlist_item_title {
+                    color: $color_main;
+                    font-weight: 500;
+                }
+            }
+            
+            // 专辑封面
+            .MusicPlayer_playlist_item_cover {
+                width: 40px;
+                height: 40px;
+                border-radius: $borderRadius;
+                margin-right: 12px;
+                background-color: #f0f0f0;
+                overflow: hidden;
+                @include flexCenter;
+                flex-shrink: 0;
+                
+                img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                
+                svg {
+                    color: #999;
+                    font-size: 20px;
+                }
+            }
+            
+            // 歌曲信息
+            .MusicPlayer_playlist_item_info {
+                flex: 1;
+                min-width: 0; // 解决子元素无法正常应用text-overflow的问题
+                
+                .MusicPlayer_playlist_item_title {
+                    @include forbiddenSelect;
+                    @include textEllipsis;
+                    font-size: $fontSize_small;
+                    color: #333;
+                    margin-bottom: 4px;
+                }
+                
+                .MusicPlayer_playlist_item_artist {
+                    @include forbiddenSelect;
+                    @include textEllipsis;
+                    font-size: 12px;
+                    color: #999;
+                }
+            }
+            
+            // 当前播放指示器
+            .MusicPlayer_playlist_item_playing_indicator {
+                @include forbiddenSelect;
+                color: $color_main;
+                margin-left: 10px;
+                animation: playingPulse 1.5s infinite;
+                font-size: $fontSize_small;
+                
+                @keyframes playingPulse {
+                    0% { opacity: 0.5; }
+                    50% { opacity: 1; }
+                    100% { opacity: 0.5; }
+                }
+            }
+            //  歌词关联按钮
+            .MusicPlayer_playlist_item_lyrics_indicator {
+                @include forbiddenSelect;
+                $lyrics_link_btn_size: 24px;
+                width: $lyrics_link_btn_size;
+                height: $lyrics_link_btn_size;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: 8px;
+                cursor: pointer;
+                opacity: 0.5;
+                transition: all 0.2s ease;
+                border-radius: 50%;
+                flex-shrink: 0;
+                
+                &:hover {
+                    background-color: rgba($color_main, 0.1);
+                    opacity: 1;
+                }
+                
+                svg {
+                    color: #999;
+                    transition: color 0.2s ease;
+                    
+                    &.has-lyrics {
+                        color: $color_main;
+                        opacity: 1;
+                    }
+                }
+            }
+            //  歌曲移除按钮
+            .MusicPlayer_playlist_remove_btn {
+                @include forbiddenSelect;
+                $remove_btn_size: 24px;
+                width: $remove_btn_size;
+                height: $remove_btn_size;
+                background: none;
+                border: none;
+                color: #ccc;
+                font-size: 14px;
+                cursor: pointer;
+                opacity: 0;
+                transition: all 0.2s ease;
+                padding: 10px;
+                border-radius: 50%;
+                display: flex;
+                flex: 0 0 auto;
+                align-items: center;
+                justify-content: center;
+                margin-left: 5px;
+                &:hover {
+                    color: #ff4d4f;
+                    background-color: rgba(#ff4d4f, 0.1);
+                }
+            }
+            
+            &:hover {
+                .MusicPlayer_playlist_remove_btn {
+                    opacity: 1;
+                }
+                .MusicPlayer_playlist_item_lyrics_indicator {
+                    svg.has-lyrics {
+                        opacity: 1;
+                    }
+                }
+            }
+        }
+        
+    }
+    
+    // 底部操作区
+    .MusicPlayer_playlist_footer {
+        padding: 12px;
+        border-top: 1px solid #f0f0f0;
+        text-align: center;
+    }
+    
+    // 添加音乐按钮
+    .MusicPlayer_playlist_add_btn {
+        @include customButtonBasic;
+    }
+}
+.MuiInput-root[class*="MusicPlayer_control_button_playerPerformance_select"][class*="MuiInputBase-root"] {
+    &::before{
+        border-bottom: none;
+    }
+    &::after{ 
+        width: 0;
+    }
+    &:hover::before{
+        border-bottom: none;
+    }
+    .MuiSelect-select {
+        display: flex;
+        align-items: center;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+}
+
+
+
