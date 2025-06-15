@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const path = require('path');
 
+// 向主进程发送信息
+
 // 将electron API暴露给渲染进程
 contextBridge.exposeInMainWorld('electronFeatures', {
     // 获取用户配置
@@ -10,7 +12,7 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     // 选择音频文件
     selectAudioFiles: () => ipcRenderer.invoke('select-music-files'),
     
-    // 获取音频信息
+    // 获取音频信息 向主进程发送响应，告诉文件信息
     getAudioInfo: (filePath) => ipcRenderer.invoke('get-music-info', filePath),
     
     // 发送消息到主进程
@@ -41,6 +43,17 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     selectLyricsFile: () => ipcRenderer.invoke('select-lyrics-file'),
     // 保存歌词关联
     saveLyricsAssociation: (musicId, lyricPath) => ipcRenderer.invoke('save-lyrics-association', { musicId, lyricPath }),
+
+	// ! 视频
+	// 判断是否需要转码
+	needsTranscoding:(filePath)=>ipcRenderer.invoke('check-video-support', filePath),
+	// 获取输出路径
+	getOutputPath: (filePath) => ipcRenderer.invoke('get-output-path', filePath),
+	// 执行转码
+	transcodeVideo: (inputPath, outputPath) => ipcRenderer.invoke('transcode-video', { inputPath, outputPath }),
+
 });
 
 console.log('Preload script has been loaded');
+
+// 在windows下挂载

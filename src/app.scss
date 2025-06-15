@@ -15,8 +15,9 @@ body {
 		flex: 1;   // 占满 Header 下方所有区域
 		height: calc(100vh - 50px); 
 		overflow-y: auto;
-	}
-	.right_container{
-		
+		.right_container{
+			height: 100%;	
+			width: 100%;
+		}
 	}
 }

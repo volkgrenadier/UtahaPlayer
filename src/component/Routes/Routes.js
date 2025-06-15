@@ -8,7 +8,7 @@ const Routes = () => {
 	const routes = useRoutes([
 		{ path: '/', element: <Home /> },
 		{ path: '/music', element: <Music /> },
-		{ path: '/vidio', element: <Video /> },
+		{ path: '/video', element: <Video /> },
 		{ path: '/collect', element: <Collect /> },
 		{ path: '/resently', element: <Resently /> }
 	])

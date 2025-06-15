@@ -1,9 +1,11 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = require('electron');
-const { parseFile } = require('music-metadata')
+const { parseFile } = require('music-metadata') //node.js的库
 const path = require('path');
 const fs = require('fs');
 const { lyricFileType } = require('./config/config.js')
 const { musicFileType } = require('./config/config.js')
+const {needsTranscoding,getOutputPath}=require("./config/videoConfig.js");
+const ffmpeg = require('ffmpeg');
 let ElectronStore;
 let store;
 let userSavedConfig;
@@ -239,7 +241,7 @@ async function chooseMusicFile() {
     return null;
 }
 
-// 选择多个音乐文件
+// 选择多个音乐文件 electron自带的文件选择 获取文件本地路径
 async function chooseMusicFiles() {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile', 'multiSelections', 'showHiddenFiles'],
@@ -577,7 +579,7 @@ function listenEvent() {
     ipcMain.handle('get-music-file-path', getMusicPath) // 获取音乐文件路径
     ipcMain.handle('select-audio-file', chooseMusicFile); // 选择单个音频文件
     ipcMain.handle('select-music-files', chooseMusicFiles); // 选择多个音频文件
-    ipcMain.handle('get-music-info', getMusicInfo); // 获取音频信息
+    ipcMain.handle('get-music-info', getMusicInfo); // 获取音频信息 
     ipcMain.on('remove-from-playlist', (event, songId) => {
         removeFromPlaylist(event, songId);
     });
@@ -587,6 +589,42 @@ function listenEvent() {
     ipcMain.handle('load-lyrics', loadLyricsFile); // 加载歌词文件
     ipcMain.handle('select-lyrics-file', selectLyricsFile); // 选择歌词文件
     ipcMain.handle('save-lyrics-association', saveLyricsAssociation); // 保存歌词关联
+
+	// ========视频处理==============
+	// 判断是否需要转码
+	ipcMain.handle('video-needs-transcoding', (event,filePath)=>{
+		return needsTranscoding(filePath);
+	});
+	// 获取转码输出路径
+	ipcMain.handle('get-output-path', (event, filePath) => {
+		return getOutputPath(filePath);
+	});
+	// 转码
+	ipcMain.handle('transcode-video',transcodeVideo)
+}
+async function transcodeVideo(event,filePath){
+	try{
+		const outputPath = getOutputPath(filePath);
+		return await new Promise((resolve,reject)=>{
+			ffmpeg(filePath)
+				.outputOptions('-preset veryfast') // 可选：加快转码速度
+				.videoCodec('libx264')
+				.format('mp4')
+				.output(outputPath)
+				.on('end', () => {
+					console.log('视频转码完成:', outputPath);
+					resolve(outputPath); // 成功返回转码后路径
+				})
+				.on('error', (err) => {
+					console.error('视频转码失败:', err.message);
+					reject(err); // 转码失败
+				})
+				.run();
+		})
+	}catch(err){
+		console.error('转码异常:', err);
+		throw err;
+	}
 }
 
 function createWindow() {   //  创建窗口
