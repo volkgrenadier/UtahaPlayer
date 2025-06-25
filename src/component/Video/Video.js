@@ -1,5 +1,6 @@
 import React from 'react'
-import VideoPlayer from '../VideoPlayer/VideoPlayer'
+import VideoPlayer from '../VideoPlayer/VideoPlayer';
+import './Video.scss'
 
 const Video = () => {
 	return (

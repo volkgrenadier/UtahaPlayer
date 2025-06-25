@@ -15,6 +15,8 @@ git checkout name
 - 推送到远程分支
 
 ```bash
+git add .
+git commit -m "your commit message"
 git push origin name
 ```
 
