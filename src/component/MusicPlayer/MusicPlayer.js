@@ -275,6 +275,7 @@ const MusicPlayer = () => {
             setCurrentPlayerEffect(config.playerEffect || playerEffectListRef.current[0].id)
             setMusicList(config.musicLibrary.musicList || [])
             setVolumeLevel(config.volume || 25)
+            audioRef.current.volume = (((config.volume || 25) / 100) * MAXVOLUME) / 100;
         }
         console.log('useLayoutEffect')
         getUserConfig()
