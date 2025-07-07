@@ -22,8 +22,22 @@ import defaultCoverImg from '../../assets/1.jpg';
 
 const VideoPlayer = () => {
 
+	// 视频状态管理
+	const [isPlaying, setIsPlaying] = useState(false)
+
 	// 当前播放视频
 	const [currentVideo, setCurrentVideo] = useState(null);
+
+	// 添加选择本地视频文件功能
+	const handleSelectAudioFiles = async()=>{
+		try{
+			const filePaths = await window.electronFeatures.
+
+		}catch(error){
+			console.log('选择视频文件失败：', error);
+		}
+
+	}
 
 	return (
 		<div className='VideoPlayer_container'>
@@ -31,7 +45,7 @@ const VideoPlayer = () => {
 				aaa1
 			</div>
 			<div className='VideoPlayer_controller_outer_container'>
-				
+
 				<div className="VideoPlayer_info_container">
 					{/* 播放区域信息设置 */}
 					<div className="VideoPlayer_info_cover_container">
@@ -42,7 +56,7 @@ const VideoPlayer = () => {
 					2222
 					<div className="VideoPlayer_controller_buttons">
 						<button><SkipPreviousIcon /></button>
-						<button></button>
+						<button>{isPlaying ? <PauseIcon /> : <PlayArrowIcon />} </button>
 						<button><SkipNextIcon /></button>
 					</div>
 				</div>
