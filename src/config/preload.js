@@ -45,6 +45,12 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     saveLyricsAssociation: (musicId, lyricPath) => ipcRenderer.invoke('save-lyrics-association', { musicId, lyricPath }),
 
 	// ! 视频
+	// 选择视频文件
+	selectVideoFiles: () => ipcRenderer.invoke('select-video-files'),
+	// 获取音频信息 向主进程发送响应，告诉文件信息
+    getVideoInfo: (filePath) => ipcRenderer.invoke('get-video-info', filePath),
+	// 获取视频列表
+	getVideoList:()=>ipcRenderer.invoke('get-video-list'),
 	// 判断是否需要转码
 	needsTranscoding:(filePath)=>ipcRenderer.invoke('check-video-support', filePath),
 	// 获取输出路径
