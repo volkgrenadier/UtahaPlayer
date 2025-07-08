@@ -662,7 +662,7 @@ async function chooseVideoFile() {
 	return null;
 }
 // 选择多个视频文件
-async function chooseVideoFile() {
+async function chooseVideoFiles() {
 	const result = await dialog.showOpenDialog(mainWindow, {
 		properties: ['openFile', 'multiSelections'],
 		filters: [
