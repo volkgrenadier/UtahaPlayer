@@ -31,12 +31,25 @@ const VideoPlayer = () => {
 	// 添加选择本地视频文件功能
 	const handleSelectAudioFiles = async()=>{
 		try{
-			const filePaths = await window.electronFeatures.
+			const filePaths = await window.electronFeatures.SelectVideoFiles();
+			if(filePaths && filePaths.length>0){
+				// 获取视频信息
+				const info = await window.electronFeatures.getVideoInfo(filePaths);
+				if(info && info>0){
+					const newVideo = {
+						...info[0]
+					};
+					setCurrentVideo(newVideo);
+					setIsPlaying(true);
+
+					// 通知主进程添加到音乐库
+					await window.electronFeatures.sendMessage('add-video-to-library', info);
+				}
+			}
 
 		}catch(error){
 			console.log('选择视频文件失败：', error);
 		}
-
 	}
 
 	return (
