@@ -29,13 +29,13 @@ const VideoPlayer = () => {
 	const [currentVideo, setCurrentVideo] = useState(null);
 
 	// 添加选择本地视频文件功能
-	const handleSelectAudioFiles = async()=>{
-		try{
+	const handleSelectAudioFiles = async () => {
+		try {
 			const filePaths = await window.electronFeatures.SelectVideoFiles();
-			if(filePaths && filePaths.length>0){
+			if (filePaths && filePaths.length > 0) {
 				// 获取视频信息
 				const info = await window.electronFeatures.getVideoInfo(filePaths);
-				if(info && info>0){
+				if (info && info > 0) {
 					const newVideo = {
 						...info[0]
 					};
@@ -47,7 +47,7 @@ const VideoPlayer = () => {
 				}
 			}
 
-		}catch(error){
+		} catch (error) {
 			console.log('选择视频文件失败：', error);
 		}
 	}
@@ -66,11 +66,34 @@ const VideoPlayer = () => {
 					</div>
 				</div>
 				<div className="VideoPlayer_controller_container">
-					2222
 					<div className="VideoPlayer_controller_buttons">
-						<button><SkipPreviousIcon /></button>
-						<button>{isPlaying ? <PauseIcon /> : <PlayArrowIcon />} </button>
-						<button><SkipNextIcon /></button>
+						<button className="VideoPlayer_control_button"><RepeatIcon /></button>
+						<button className="VideoPlayer_control_button"><SkipPreviousIcon /></button>
+						<button className="VideoPlayer_control_button">{isPlaying ? <PauseIcon /> : <PlayArrowIcon />} </button>
+						<button className="VideoPlayer_control_button"><SkipNextIcon /></button>
+						<div className="VideoPlayer_volume_container">
+							<button className='VideoPlayer_control_button'>
+								<VolumeOffIcon />
+							</button>
+							{/* 音量控制条 */}
+							<div className="VideoPlayer_volume_slider_container">
+								<input type='range' min='0' max='100' className='VideoPlayer_volume_slider' />
+							</div>
+						</div>
+					</div>
+					<div className="VideoPlayer_progress_container">
+						<div className="VideoPlayer_time_current"></div>
+ 						<div className="VideoPlayer_progress_bar">
+							<div className="VideoPlayer_progress_completed"> 
+								<div className="VideoPlayer_progress_handle"></div>
+							</div>
+						</div>
+						<div className="VideoPlayer_time_total"></div>
+					</div>
+				</div>
+				<div className="VideoPlayer_buttons_container">
+					<div className="VideoPlayer_playlist_button">
+						<QueueMusicIcon />
 					</div>
 				</div>
 			</div>
