@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, use } from 'react';
 import "./VideoPlayer.scss";
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -23,19 +23,34 @@ import defaultCoverImg from '../../assets/1.jpg';
 const VideoPlayer = () => {
 
 	// 视频状态管理
-	const [isPlaying, setIsPlaying] = useState(false)
-
+	const [isPlaying, setIsPlaying] = useState(false);
+	// 播放列表
+	const [videoList, setVideoList] = useState([]);
 	// 当前播放视频
 	const [currentVideo, setCurrentVideo] = useState(null);
+	// 播放列表显示状态
+	const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+	const [isButtonAnimating, setIsButtonAnimating] = useState(null);
+	// 按钮点击动画
+	const animateButton = (buttonType) => {
+		setIsButtonAnimating(buttonType);
+		setTimeout(() => setIsButtonAnimating(null), 300);
+	}
+
+	// 切换播放列表显示状态
+	const togglePlaylist = () => {
+		setIsPlaylistOpen(!isPlaylistOpen);
+		animateButton('playlist');
+	}
 
 	// 添加选择本地视频文件功能
 	const handleSelectAudioFiles = async () => {
 		try {
-			const filePaths = await window.electronFeatures.SelectVideoFiles();
+			const filePaths = await window.electronFeatures.selectVideoFiles();
 			if (filePaths && filePaths.length > 0) {
 				// 获取视频信息
 				const info = await window.electronFeatures.getVideoInfo(filePaths);
-				if (info && info > 0) {
+				if (info && info.length > 0) {
 					const newVideo = {
 						...info[0]
 					};
@@ -51,6 +66,16 @@ const VideoPlayer = () => {
 			console.log('选择视频文件失败：', error);
 		}
 	}
+	// 初始化加载视频列表
+	useEffect(()=>{
+		const loadVideoList = async()=>{
+			try{
+
+			}catch(error){
+				console.error('加载音乐列表失败:', error);
+			}
+		}
+	},[])
 
 	return (
 		<div className='VideoPlayer_container'>
@@ -83,8 +108,8 @@ const VideoPlayer = () => {
 					</div>
 					<div className="VideoPlayer_progress_container">
 						<div className="VideoPlayer_time_current"></div>
- 						<div className="VideoPlayer_progress_bar">
-							<div className="VideoPlayer_progress_completed"> 
+						<div className="VideoPlayer_progress_bar">
+							<div className="VideoPlayer_progress_completed">
 								<div className="VideoPlayer_progress_handle"></div>
 							</div>
 						</div>
@@ -92,9 +117,31 @@ const VideoPlayer = () => {
 					</div>
 				</div>
 				<div className="VideoPlayer_buttons_container">
-					<div className="VideoPlayer_playlist_button">
+					<div className={`VideoPlayer_playlist_button ${isPlaylistOpen ? 'active' : ''} ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`}
+						onClick={togglePlaylist}
+					>
 						<QueueMusicIcon />
 					</div>
+				</div>
+			</div>
+
+			{/* 播放列表面板 */}
+			<div
+				className={`VideoPlayer_playlist ${isPlaylistOpen ? 'VideoPlayer_playlist_open' : ''}`}
+			>
+				<div className="VideoPlayer_playlist_header">
+					<h3 className="VideoPlayer_playlist_title">
+						播放列表
+					</h3>
+					<button
+						className="VideoPlayer_playlist_close_btn"
+						onClick={togglePlaylist}
+					>
+						<CloseIcon fontSize="small" />
+					</button>
+				</div>
+				<div className="VideoPlayer_playlist_items">
+
 				</div>
 			</div>
 		</div>
