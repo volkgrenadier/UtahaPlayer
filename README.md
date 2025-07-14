@@ -101,6 +101,7 @@ npm run electron-trace
 #### 参与贡献
 
 1.  霞ヶ丘詩羽のfans
+2.  A_Luck
 
 
 #### 版本号
