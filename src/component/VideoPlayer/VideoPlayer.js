@@ -141,7 +141,24 @@ const VideoPlayer = () => {
 					</button>
 				</div>
 				<div className="VideoPlayer_playlist_items">
-
+					{
+						videoList.length === 0? (
+						<div></div>
+					):(
+					<div></div>
+				)}
+					{
+						videoList.length > 0 && (
+							<div className="VideoPlayer_playlist_footer">
+								<button 
+									className="VideoPlayer_playlist_add_btn"
+									onClick={handleSelectAudioFiles}	
+								>
+									添加更多音乐
+								</button>
+							</div>
+						)
+					}
 				</div>
 			</div>
 		</div>
