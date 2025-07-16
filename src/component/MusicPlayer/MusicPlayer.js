@@ -270,6 +270,7 @@ const MusicPlayer = () => {
             setIsPlaying(false)
         }
     }, [musicList, currentMusic])
+	
     useLayoutEffect(() => {
         const getUserConfig = async () => {
             let config = await window.electronFeatures.getUserConfig('music')
@@ -281,6 +282,7 @@ const MusicPlayer = () => {
         console.log('useLayoutEffect')
         getUserConfig()
     }, [])
+
     // 加载当前音乐的歌词
     const loadLyricsForCurrentMusic = async () => {
         if (!currentMusic || !currentMusic.path) return;
