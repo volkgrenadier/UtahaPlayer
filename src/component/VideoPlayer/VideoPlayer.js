@@ -33,6 +33,7 @@ const VideoPlayer = () => {
 	const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
 	const [isButtonAnimating, setIsButtonAnimating] = useState(null);
 
+
 	const notifyContext = useNotification();
 
 	// 播放列表和当前音乐
@@ -79,11 +80,11 @@ const VideoPlayer = () => {
 		const loadVideoList = async () => {
 			try {
 				const list = await window.electronFeatures.getVideoList();
-				if(list && Array.isArray(list)){
+				if (list && Array.isArray(list)) {
 					setVideoList(list);
-					if(videoList.length>0){
+					if (videoList.length > 0) {
 						let index = list.findIndex(it => it.id === currentVideo?.id)
-						if(index === -1){
+						if (index === -1) {
 							index = 0;
 						}
 						setCurrentVideo(list[index]);
@@ -97,25 +98,34 @@ const VideoPlayer = () => {
 		loadVideoList();
 
 		// 监听音乐列表更新事件
-		const videoListUpdateListener = window.electronFeatures.onMessage('video-list-updated',(newList)=>{
+		const videoListUpdateListener = window.electronFeatures.onMessage('video-list-updated', (newList) => {
 			if (newList && Array.isArray(newList)) {
-                setMusicList(newList);
-            }
+				setVideoList(newList);
+			}
 		});
 
-		return ()=>{
-			if (typeof videoListUpdateListener === 'function'){
+		return () => {
+			if (typeof videoListUpdateListener === 'function') {
 				videoListUpdateListener();
 			}
-		}
+		};
 	}, []);
 
-	// 播放选中歌曲
+	useLayoutEffect(() => {
+		const getUserConfig = async () => {
+			let config = await window.electronFeatures.getUserConfig('video')
+			setVideoList(config.videoLibrary.videoList || [])
+		}
+		console.log('useLayoutEffect')
+		getUserConfig()
+	}, [])
+
+	// 播放选中视频
 	const playSelectedVideo = (video) => {
 		setCurrentVideo(video);
 		setIsPlaying(true);
 	}
-	// 显示移除歌曲的提示
+	// 显示移除视频的提示
 	const showRemoveVideoPopover = (e, video) => {
 		e.stopPropagation(); // 阻止事件冒泡，避免触发歌曲播放
 		notifyContext.notify.popoverNotify.info(e, '确定要从播放列表中移除歌曲吗？', {
@@ -131,9 +141,23 @@ const VideoPlayer = () => {
 		window.electronFeatures.sendMessage('remove-from-videolist', video.id);
 
 		// 如果当前播放的是要删除视频，则尝试播放下一首
-		// if(currentVideo && (currentVideo.id === video.id || currentVideo.path === video.path)){
-		// 	handleNext();
-		// }
+		if(currentVideo && (currentVideo.id === video.id || currentVideo.path === video.path)){
+			handleNext();
+		}
+	}
+	// 播放下一首歌
+	const handleNext = () => {
+		if (videoList.length >1 && currentVideo){
+			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			// if(currentIndex !== -1){
+
+			// }else 
+			if(videoList.length>0){
+				// 当前视频不在列表中，播放第一首
+				setCurrentVideo(videoList[0]);
+				animateButton('next');
+			}
+		}
 	}
 
 	return (
@@ -228,27 +252,28 @@ const VideoPlayer = () => {
 									添加视频文件
 								</button>
 							</div>
-						) : (videoList.map((video) => {
+						) : (videoList.map((video) => (
 							<div
 								key={video.path || video.id}
 								className={`VideoPlayer_playlist_item ${currentVideo && (currentVideo.path === video.path || currentVideo.id === video.id) ? 'VideoPlayer_playlist_item_playing' : ''}`}
 								onDoubleClick={() => playSelectedVideo(video)}
 							>
-								<div className="MusicPlayer_playlist_item_info">
-									<div className="MusicPlayer_playlist_item_title">
+								<div className="VideoPlayer_playlist_item_info">
+									<div className="VideoPlayer_playlist_item_title">
 										{video.title}
 									</div>
 								</div>
 								<button
-									className="MusicPlayer_playlist_remove_btn"
+									className="VideoPlayer_playlist_remove_btn"
 									onClick={(e) => showRemoveVideoPopover(e, video)}
 									title="从播放列表中移除"
 								>
 									✕
 								</button>
 							</div>
-						})
-						)}
+						))
+						)
+					}
 					{
 						videoList.length > 0 && (
 							<div className="VideoPlayer_playlist_footer">
