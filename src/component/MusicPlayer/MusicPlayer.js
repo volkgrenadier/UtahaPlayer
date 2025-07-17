@@ -693,7 +693,7 @@ const MusicPlayer = () => {
                             onClick={togglePlayMode}>
                             {getCurrentModeIcon()}
                         </button>
-                        <button 
+                        <button
                             className={`MusicPlayer_control_button ${isButtonAnimating === 'prev' ? 'animate-click' : ''}`}
                             onClick={handlePrevious}>
                             <SkipPreviousIcon />
@@ -732,6 +732,7 @@ const MusicPlayer = () => {
                                 />
                             </div>
                         </div>
+						{/* 选择播放样式设置 */}
                         <FormControl variant="standard" size={'small'}>
                             {/* <InputLabel 
                                 id="MusicPlayer_control_button_playerPerformance_label"

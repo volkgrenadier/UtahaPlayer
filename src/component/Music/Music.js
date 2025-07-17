@@ -1,8 +1,13 @@
-import React from 'react'
+import React, { useEffect } from 'react';
+import "./Music.scss";
+import MusicPlayer from '../MusicPlayer/MusicPlayer';
 
 const Music = () => {
 	return (
-		<div>Music</div>
+		<div className='Music_container'>
+			{/* 播放器组件  */}
+			<MusicPlayer />
+		</div>
 	)
 }
 
