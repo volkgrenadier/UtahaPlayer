@@ -4,6 +4,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';//最近播放
 import FavoriteIcon from '@mui/icons-material/Favorite';//收藏
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import VideocamIcon from '@mui/icons-material/Videocam';
+import PhotoIcon from '@mui/icons-material/Photo';
 
 const LeftNav = () => {
 	return (
@@ -28,6 +29,12 @@ const LeftNav = () => {
 			}>
 				<VideocamIcon className='nav-icon'/>
 				<div className='nav-txt'>视频</div>
+			</NavLink>
+			<NavLink to="/photo" className={({ isActive }) =>
+				isActive ? 'nav-item active' : 'nav-item'
+			}>
+				<PhotoIcon className='nav-icon'/>
+				<div className='nav-txt'>图片</div>
 			</NavLink>
 			<NavLink to="/collect" className={({ isActive }) =>
 				isActive ? 'nav-item active' : 'nav-item'
