@@ -568,8 +568,26 @@ async function saveLyricsAssociation(event, { musicId, lyricPath }) {
             message: '保存歌词关联失败'
         };
     }
-  }
+}
 
+/**
+ * @description 加载图片信息
+ * @param {Electron.IpcMainInvokeEvent} event IPC事件对象
+ * @param {string|string[]} filePaths 单个或多个图片文件路径
+ * @returns {<string[]>} 返回图片文件路径数组
+ */
+// async function getImagesInfo(event, filePaths) {
+//     if (!Array.isArray(filePaths)) {
+//         filePaths = [filePaths]; // 确保是数组
+//     }
+//     let images = [];
+//     const imagePath = path.join(__dirname, 'images', 'sample.jpg'); 
+//     if (fs.existsSync(imagePath)) {
+//         return imagePath;
+//     } else {
+//         return '';
+//     }
+// }
 //  添加事件监听
 function listenEvent() {  
     ipcMain.on('close-window', closeApp) //  shutdown application
