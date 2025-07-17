@@ -1,9 +1,11 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = require('electron');
-const { parseFile } = require('music-metadata')
+const { parseFile } = require('music-metadata') //node.js的库
 const path = require('path');
 const fs = require('fs');
 const { lyricFileType } = require('./config/config.js')
 const { musicFileType } = require('./config/config.js')
+const {needsTranscoding,getOutputPath}=require("./config/videoConfig.js");
+const ffmpeg = require('ffmpeg');
 let ElectronStore;
 let store;
 let userSavedConfig;
@@ -20,7 +22,15 @@ async function initStore() {
             },
             volume: 25, // 音量范围 0-100
             playerEffect: 'ImmersiveLyrics' // 播放器效果
-        }
+        },
+		video:{
+			// 存储视频文件信息的对象
+			videoLibrary:{
+				videoList:[],
+				videoFolders:[]
+			},
+			volume:25
+		}
     }) // 读取用户配置文件
     userConfig = userSavedConfig
 }
@@ -239,7 +249,7 @@ async function chooseMusicFile() {
     return null;
 }
 
-// 选择多个音乐文件
+// 选择多个音乐文件 electron自带的文件选择 获取文件本地路径
 async function chooseMusicFiles() {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile', 'multiSelections', 'showHiddenFiles'],
@@ -577,7 +587,7 @@ function listenEvent() {
     ipcMain.handle('get-music-file-path', getMusicPath) // 获取音乐文件路径
     ipcMain.handle('select-audio-file', chooseMusicFile); // 选择单个音频文件
     ipcMain.handle('select-music-files', chooseMusicFiles); // 选择多个音频文件
-    ipcMain.handle('get-music-info', getMusicInfo); // 获取音频信息
+    ipcMain.handle('get-music-info', getMusicInfo); // 获取音频信息 
     ipcMain.on('remove-from-playlist', (event, songId) => {
         removeFromPlaylist(event, songId);
     });
@@ -587,6 +597,218 @@ function listenEvent() {
     ipcMain.handle('load-lyrics', loadLyricsFile); // 加载歌词文件
     ipcMain.handle('select-lyrics-file', selectLyricsFile); // 选择歌词文件
     ipcMain.handle('save-lyrics-association', saveLyricsAssociation); // 保存歌词关联
+
+	// ========视频处理==============
+	ipcMain.handle('get-video-list', getVideoList)  //  获取播放列表
+	ipcMain.handle('get-video-file-path', getVideoPath) // 获取视频文件路径
+	ipcMain.handle('select-video-file', chooseVideoFile); // 选择单个视频文件
+    ipcMain.handle('select-video-files', chooseVideoFiles); // 选择多个视频文件
+    ipcMain.handle('get-video-info', getVideoInfo); // 获取视频信息 
+    ipcMain.on('remove-from-videolist', (event, songId) => {
+        removeFromVideolist(event, songId);
+    });
+    ipcMain.on('add-video-to-library', addVideoToLibrary)
+
+	// 判断是否需要转码
+	ipcMain.handle('video-needs-transcoding', (event,filePath)=>{
+		return needsTranscoding(filePath);
+	});
+	// 获取转码输出路径
+	ipcMain.handle('get-output-path', (event, filePath) => {
+		return getOutputPath(filePath);
+	});
+	// 转码
+	ipcMain.handle('transcode-video',transcodeVideo)
+}
+
+// 获取视频播放列表
+function getVideoList(){
+	return userConfig.video?.videoLibrary?.videoList || [];
+}
+// 查找视频文件完整路径
+async function getVideoPath(event, filename) {
+	for(const folder of userConfig.video.videoLibrary.videoFolders){
+		const filePath = path.join(folder,filename);
+		if(fs.existsSync(filePath)){
+			return filePath;
+		}
+	}
+	return null;
+}
+// 选择视频文件
+async function chooseVideoFile() {
+	const result = await dialog.showOpenDialog(mainWindow,{
+		properties:['openFile'],//选择文件
+		filters:[
+			{name:'视频',extensions:['mp4','webm', 'ogg']}
+		]
+	})
+	if(!result.canceled && result.filePaths.length>0){
+			const originalPath = result.filePaths[0];
+			//判断是否需要转码
+			if(needsTranscoding(originalPath)){
+				try{
+					const convertedPath = await transcodeVideo(originalPath);
+					return convertedPath;
+				}catch(err){
+					console.err("转码失败：",err);
+					return null;
+				}
+			}
+			// 不需要转码，直接返回原路径
+			return originalPath;
+	}
+	
+	return null;
+}
+// 选择多个视频文件
+async function chooseVideoFiles() {
+	const result = await dialog.showOpenDialog(mainWindow, {
+		properties: ['openFile', 'multiSelections'],
+		filters: [
+			{ name: '视频文件', extensions: ['mp4', 'webm', 'ogg', 'mkv', 'avi'] }
+		]
+	});
+
+	if(!result.canceled && result.filePaths.length > 0){
+		const processedPaths = [];
+		for (const filePath of result.filePaths) {
+			if (needsTranscoding(filePath)) {
+				try {
+					const convertedPath = await transcodeVideo(filePath);
+					processedPaths.push(convertedPath);
+				} catch (err) {
+					console.error('转码失败:', err);
+				}
+			} else {
+				processedPaths.push(filePath);
+			}
+		}
+		return processedPaths;
+	}
+	return [];
+}
+// 转码
+async function transcodeVideo(event,filePath){
+	try{
+		const outputPath = getOutputPath(filePath);
+		return await new Promise((resolve,reject)=>{
+			ffmpeg(filePath)
+				.outputOptions('-preset veryfast') // 可选：加快转码速度
+				.videoCodec('libx264')
+				.format('mp4')
+				.output(outputPath)
+				.on('end', () => {
+					console.log('视频转码完成:', outputPath);
+					resolve(outputPath); // 成功返回转码后路径
+				})
+				.on('error', (err) => {
+					console.error('视频转码失败:', err.message);
+					reject(err); // 转码失败
+				})
+				.run();
+		})
+	}catch(err){
+		console.error('转码异常:', err);
+		throw err;
+	}
+}
+
+// 获取视频信息 ???
+async function getVideoInfo(event,filePath) {
+	try{
+		const videoArr=[];
+
+		for(const filePath of filePaths){
+			// 获取文件基本信息
+			const stats = fs.statSync(filePath[i]);
+			const fileName = path.basename(filePaths[i]);
+			// 获取视频元数据
+			const metadata = await new Promise((resolve,reject)=>{
+				ffmpeg.ffprobe(filePath,(err,data)=>{
+					if(err) reject(err);
+					else resolve(data);
+				})
+			})
+			const videoStream = metadata.streams.find(s=>s.codec_type === 'video');
+
+			const title = fileName;
+			// 获取视频流使用的编解码器，比如 h264、vp9。
+			const codec = videoStream?.codec_name || 'unknown';
+			// 获取视频宽度和高度（分辨率）
+			const width = videoStream?.width || 0;
+			const height = videoStream?.height || 0;
+			// 视频总时长
+			const duration = metadata.format.duration || 0;
+			// 视频比特率 代表视频质量/大小，单位是 bps
+			const bitrate = metadata.format.bit_rate || 0;
+			// 文件大小 最后修改时间
+			const size = stats.size;
+			const modified = stats.mtime;
+
+			const videoInfoObj={
+				id:filePath,
+				path:filePath,
+				title,
+				codec,
+				width,
+				height,
+				duration,
+				bitrate,
+				size,
+				modified,
+				format: metadata.format.format_long_name || metadata.format.format_name,
+				filename: metadata.format.filename
+			};
+			videoArr.push(videoInfoObj);
+		}
+		return videoArr;
+	}catch(error){
+		console.log('获取视频信息失败：', error);
+		return [];
+	}
+}
+
+// 添加视频到播放列表
+function addVideoToLibrary(event,videoList){
+	try{
+		// 合并视频列表
+        userConfig.video.videoLibrary.videoList = [
+            ...userConfig.video.videoLibrary.videoList,
+            ...videoList
+        ];
+        updateSavedUserConfig();
+
+        // 通知渲染进程视频列表更新
+        if (mainWindow) {
+            mainWindow.webContents.send(
+                'video-list-updated',
+                userConfig.video.videoLibrary.videoList
+            );
+        }
+	}catch(err){
+		console.error('添加视频到播放列表失败:', error);
+	}
+	return null;
+}
+// 音视频在一个播放列表还是分开？
+// 从播放列表中移除视频
+function removeFromVideolist(event,videoId){
+	const index = userConfig.video.videoLibrary.videoList.findIndex(
+			video => video.id === videoId
+		);
+	if (index !== -1) {
+        userConfig.video.videoLibrary.videoList.splice(index, 1);
+        updateSavedUserConfig();
+
+        // 通知渲染进程更新
+        if (mainWindow) {
+            mainWindow.webContents.send(
+                'video-list-updated',
+                userConfig.video.videoLibrary.videoList
+            );
+        }
+    }
 }
 
 function createWindow() {   //  创建窗口
