@@ -1,6 +1,9 @@
 import React, { useState, useCallback } from 'react'
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import Tooltip from '@mui/material/Tooltip';
 import './Photo.scss'
 
 import testImage from '../../assets/2.jpg';
@@ -77,31 +80,49 @@ const Photo = () => {
     }, [])
     return (
         <div className='Photo_container'>
-            <ImageList
-                sx={{ width: 1/3, height: 1 }}
-                className='Photo_imageList'
-                variant="quilted"
-                cols={4}
-                rowHeight={121}
-            >
-                {
-                    imageList.map((item) => (
-                        <ImageListItem 
-                            className='Photo_imageListItem'
-                            key={item.src} 
-                            cols={item.cols || 1} 
-                            rows={item.rows || 1}
-                            onClick={() => setSelectedImage(item)}
+            <div className="Photo_imageListContainer">
+                <div className="Photo_imageListHeader">
+                    <Tooltip title="打开图片">
+                        <button
+                            className='Photo_addImageButton'
                         >
-                            <img
-                                {...srcset(item.src, 121, item.rows, item.cols)}
-                                alt={item.title}
-                                loading="lazy"
-                            />
-                        </ImageListItem>
-                    ))
-                }
-            </ImageList>
+                            <AddPhotoAlternateIcon />
+                        </button>
+                    </Tooltip>
+                    <Tooltip title="打开文件夹">
+                        <button
+                            className='Photo_addImageButton'
+                        >
+                            <FolderOpenIcon />
+                        </button>
+                    </Tooltip>
+                </div>
+                <ImageList
+                    // sx={{ width: 1, height: 1 }}
+                    className='Photo_imageList'
+                    variant="quilted"
+                    cols={4}
+                    rowHeight={121}
+                >
+                    {
+                        imageList.map((item) => (
+                            <ImageListItem 
+                                className='Photo_imageListItem'
+                                key={item.src} 
+                                cols={item.cols || 1} 
+                                rows={item.rows || 1}
+                                onClick={() => setSelectedImage(item)}
+                            >
+                                <img
+                                    {...srcset(item.src, 121, item.rows, item.cols)}
+                                    alt={item.title}
+                                    loading="lazy"
+                                />
+                            </ImageListItem>
+                        ))
+                    }
+                </ImageList>
+            </div>
             <div className="Photo_displayArea">
                 {
                     selectedImage ? (
