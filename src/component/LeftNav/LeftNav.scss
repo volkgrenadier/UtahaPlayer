@@ -1,53 +1,93 @@
 @import '../../style/public.scss';
 
-.sideBar {
-	width: 240px;
-	// height: 100vh;
+.sideBar_container {
+	$sideBarWidth: 60px;
+	width: $sideBarWidth;
 	background-color: #f2f2f5;
-	display: flex;
-	flex-direction: column;
-	
-	.sideTitle{
-		font-family: 'Microsoft YaHei';
-		font-size: 16px;
-		font-weight:700;
-		padding: 15px 20px;
-	}
-	.nav-item {
+	position: relative;
+	z-index: 500;
+	@mixin navItemBasic {
 		font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-		padding: 10px 35px;
+		width: 100%;
 		height: 40px;
+		padding: 5px 0;
 		color: #252020;
 		text-decoration: none;
-		transition: background-color 0.3s;
-		display: inline-flex;
+		transition: $custom_transition;
+		display: flex;
 		&:hover {
-			background-color: #ffc58b57;;
+			background-color: #ffc58b57;
 		}
 		.nav-icon{
 			color: gray;
 			position: relative;
 			margin-top: 5px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			width: $sideBarWidth;
 		}
 		.nav-txt{
 			display: inline-block;
 			position: relative;
 			margin-top: 5px;
 			margin-bottom: 5px;
-			padding-left: 20px;
+			display: none;
+			overflow: hidden;
+			text-overflow: clip;
+			white-space: nowrap;
+		}
+		.nav-txt-show {
+			display: block;
 		}
 	}
-	
-	.active { // 点击之后背景色和图标颜色设置
-		background-color: #ffc58b57; 
-		color: #ffb265; 
-		.nav-icon{
-			color: #ffb265;
-			position: relative;
-			margin-top: 5px;
+	.sideBar {
+		width: 100%;
+		height: 100%;
+		background-color: #f2f2f5;
+		display: flex;
+		flex-direction: column;
+		transition: $custom_transition;
+		.nav-expandButton {
+			@include navItemBasic;
+			width: $sideBarWidth;
+			height: 40px;
+			.nav-icon {
+				transition: all .05s ease-in-out;
+			}
+			&:active {
+				.nav-icon {
+					transform-origin: 50% 50%;
+					transform: scaleX(.75);
+				}
+			}
+		}
+		.nav-item {
+			@include navItemBasic;
+		}
+		
+		.active { // 点击之后背景色和图标颜色设置
+			background-color: #ffc58b57; 
+			color: #ffb265; 
+			.nav-icon{
+				color: #ffb265;
+				position: relative;
+				margin-top: 5px;
+			}
+		}
+	}
+	.sideBar-expand{
+		background-color: $color_main_bg;
+		box-shadow: 2px 0px 5px 1px rgba(0, 0, 0, 0.1);
+		width: 200px;
+		.nav-item {
+			.nav-txt {
+				display: block;
+			}
 		}
 	}
 }
+
 
 
 
