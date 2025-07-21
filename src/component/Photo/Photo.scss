@@ -44,9 +44,13 @@
             margin: 0;
             .Photo_imageListItem {
                 transition: $custom_transition;
+                transition-duration: .15s;
                 &:hover {
                     transform: scale(1.05);
                 }
+                &:active {
+                    transform: scale(0.95);
+                }                
             }
         }
     }

@@ -23,7 +23,7 @@ const LeftNav = () => {
 					媒体
 				</div> */}
 				<div 
-					className='nav-expandButton'
+					className={`nav-expandButton ${expandStatus? 'nav-expandButton-expanded': ''}`}
 					onClick={() => setExpandStatus(!expandStatus)}
 				>
 					<MenuIcon className='nav-icon'/>

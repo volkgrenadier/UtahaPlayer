@@ -53,13 +53,19 @@
 			width: $sideBarWidth;
 			height: 40px;
 			.nav-icon {
-				transition: all .05s ease-in-out;
+				transition: transform .05s ease-in-out;
+				transition: color .1s ease-in-out;
 			}
 			&:active {
 				.nav-icon {
 					transform-origin: 50% 50%;
 					transform: scaleX(.75);
 				}
+			}
+		}
+		.nav-expandButton-expanded {
+			.nav-icon {
+				color: #ffb265;
 			}
 		}
 		.nav-item {
