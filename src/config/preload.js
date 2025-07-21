@@ -58,6 +58,14 @@ contextBridge.exposeInMainWorld('electronFeatures', {
 	// 执行转码
 	transcodeVideo: (inputPath, outputPath) => ipcRenderer.invoke('transcode-video', { inputPath, outputPath }),
 
+    // 图片
+    /**
+     * @description 获取图片信息
+     * @param {string} filePath 图片文件路径
+     * @returns 
+     */
+    getImagesInfo: (filePath) => ipcRenderer.invoke('get-images-info', filePath),
+
 });
 
 console.log('Preload script has been loaded');
