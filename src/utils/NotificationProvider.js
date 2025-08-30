@@ -16,13 +16,14 @@ export const NotificationProvider = ({children}) => {
     /**
      * @description 添加通知
      * @param {string} message 消息内容
+     * @param {string} messageType 消息类型：'info', 'success', 'warning', 'error'
      * @param {number} duration 通知持续时间，单位为毫秒
      */
-    const addNotification = (message, duration) => {
+    const addNotification = (message, messageType = 'info', duration) => {
         const newNotification = {
             id: Date.now(),
             type: 'notification',
-            messageType: 'info',
+            messageType,
             message,
             duration: duration || NOTIFYDURATION // 默认持续时间
         }
@@ -85,8 +86,12 @@ export const NotificationProvider = ({children}) => {
         setAnchorEl(null)
     }
     const notify = {
+        info: (message, duration) => addNotification(message, 'info', duration),
+        success: (message, duration) => addNotification(message, 'success', duration),
+        warning: (message, duration) => addNotification(message, 'warning', duration),
+        error: (message, duration) => addNotification(message, 'error', duration),
         regularNotify: {
-            info: (message, duration) => addNotification(message, duration)
+            info: (message, duration) => addNotification(message, 'info', duration)
         },
         popoverNotify: {
             info: (e, message, buttonsConfig) => addInfoPopover(e, message, buttonsConfig)
@@ -112,6 +117,15 @@ export const NotificationProvider = ({children}) => {
                                 autoHideDuration={it.duration}
                                 onClose={() => closeNotification(it.id)}
                                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                                ContentProps={{
+                                    sx: {
+                                        backgroundColor: it.messageType === 'error' ? '#f44336' : 
+                                                       it.messageType === 'success' ? '#4caf50' :
+                                                       it.messageType === 'warning' ? '#ff9800' : '#2196f3',
+                                        color: 'white',
+                                        fontWeight: 500
+                                    }
+                                }}
                             />
                         )
                     } else {

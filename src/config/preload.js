@@ -16,12 +16,26 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     getAudioInfo: (filePath) => ipcRenderer.invoke('get-music-info', filePath),
     
     // 发送消息到主进程
-    sendMessage: (channel, data) => {
+    // sendMessage: (channel, data) => {
+    //     if (!channel) {
+    //         console.warn('消息类型不可缺少');
+    //         return;
+    //     }
+    //     return ipcRenderer.send(channel, data);
+    // },
+	
+	sendMessage: (channel, data) => {
         if (!channel) {
             console.warn('消息类型不可缺少');
-            return;
+            return Promise.resolve();
         }
-        return ipcRenderer.send(channel, data);
+        // 对于需要返回值的操作，使用 invoke
+        if (channel === 'check-file-exists') {
+            return ipcRenderer.invoke(channel, data);
+        }
+        // 对于不需要返回值的操作，使用 send 但返回 Promise
+        ipcRenderer.send(channel, data);
+        return Promise.resolve();
     },
     
     // 添加接收主进程消息的功能
@@ -45,6 +59,10 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     saveLyricsAssociation: (musicId, lyricPath) => ipcRenderer.invoke('save-lyrics-association', { musicId, lyricPath }),
 
 	// ! 视频
+	// 添加文件存在性检查函数
+    checkFileExists: (filePath) => {
+        return ipcRenderer.invoke('check-file-exists', filePath);
+    },
 	// 选择视频文件
 	selectVideoFiles: () => ipcRenderer.invoke('select-video-files'),
 	// 获取音频信息 向主进程发送响应，告诉文件信息
@@ -52,11 +70,19 @@ contextBridge.exposeInMainWorld('electronFeatures', {
 	// 获取视频列表
 	getVideoList:()=>ipcRenderer.invoke('get-video-list'),
 	// 判断是否需要转码
-	needsTranscoding:(filePath)=>ipcRenderer.invoke('check-video-support', filePath),
+	needsTranscoding:(filePath)=>ipcRenderer.invoke('video-needs-transcoding', filePath),
 	// 获取输出路径
 	getOutputPath: (filePath) => ipcRenderer.invoke('get-output-path', filePath),
 	// 执行转码
 	transcodeVideo: (inputPath, outputPath) => ipcRenderer.invoke('transcode-video', { inputPath, outputPath }),
+
+    // 工具函数
+    /**
+     * @description 获取文件名（不含路径）
+     * @param {string} filePath 文件路径
+     * @returns {string} 文件名
+     */
+    getBaseName: (filePath) => path.basename(filePath),
 
     // 图片
     /**
