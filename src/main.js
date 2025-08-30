@@ -575,24 +575,6 @@ async function saveLyricsAssociation(event, { musicId, lyricPath }) {
 	}
 }
 
-/**
- * @description 加载图片信息
- * @param {Electron.IpcMainInvokeEvent} event IPC事件对象
- * @param {string|string[]} filePaths 单个或多个图片文件路径
- * @returns {<string[]>} 返回图片文件路径数组
- */
-// async function getImagesInfo(event, filePaths) {
-//     if (!Array.isArray(filePaths)) {
-//         filePaths = [filePaths]; // 确保是数组
-//     }
-//     let images = [];
-//     const imagePath = path.join(__dirname, 'images', 'sample.jpg'); 
-//     if (fs.existsSync(imagePath)) {
-//         return imagePath;
-//     } else {
-//         return '';
-//     }
-// }
 //  添加事件监听
 function listenEvent() {
 	ipcMain.on('close-window', closeApp) //  shutdown application
@@ -641,7 +623,19 @@ function listenEvent() {
 		return getOutputPath(filePath);
 	});
 	// 转码
-	ipcMain.handle('transcode-video', transcodeVideo)
+	ipcMain.handle('transcode-video', transcodeVideo);
+	// 文件检查函数
+	ipcMain.handle('check-file-exists', (event, filePath) => {
+        try {
+            console.log('检查文件是否存在:', filePath);
+            const exists = fs.existsSync(filePath);
+            console.log('文件存在性检查结果:', exists);
+            return exists;
+        } catch (error) {
+            console.error('检查文件存在性失败:', error);
+            return false;
+        }
+    });
 }
 
 // 获取视频播放列表
@@ -686,58 +680,177 @@ async function chooseVideoFile() {
 }
 // 选择多个视频文件
 async function chooseVideoFiles() {
-	const result = await dialog.showOpenDialog(mainWindow, {
-		properties: ['openFile', 'multiSelections'],
-		filters: [
-			{ name: '视频文件', extensions: ['mp4', 'webm', 'ogg', 'mkv', 'avi'] }
-		]
-	});
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+            { name: '视频文件', extensions: ['mp4', 'webm', 'ogg', 'mkv', 'avi'] }
+        ]
+    });
 
-	if (!result.canceled && result.filePaths.length > 0) {
-		const processedPaths = [];
-		for (const filePath of result.filePaths) {
-			if (needsTranscoding(filePath)) {
-				try {
-					const convertedPath = await transcodeVideo(filePath);
-					processedPaths.push(convertedPath);
-				} catch (err) {
-					console.error('转码失败:', err);
-				}
-			} else {
-				processedPaths.push(filePath);
-			}
-		}
-		return processedPaths;
-	}
-	return [];
+    if (!result.canceled && result.filePaths.length > 0) {
+        const processedPaths = [];
+        const totalFiles = result.filePaths.length;
+
+        for (let i = 0; i < result.filePaths.length; i++) {
+            const filePath = result.filePaths[i];           
+            try {
+                if (needsTranscoding(filePath)) {
+                    // 通知转码开始
+                    if (mainWindow) {
+                        mainWindow.webContents.send('video-transcode-start', {
+                            file: filePath,
+                            current: i + 1,
+                            total: totalFiles
+                        });
+                    }
+
+                    const outputPath = getOutputPath(filePath);
+                    const convertedPath = await transcodeVideo(null, { 
+                        inputPath: filePath, 
+                        outputPath: outputPath 
+                    });
+                    
+                    // 验证转码后的文件是否存在
+                    if (fs.existsSync(convertedPath)) {
+                        processedPaths.push(convertedPath);
+                        console.log(`转码成功，添加路径: ${convertedPath}`);
+                    } else {
+                        console.error(`转码后文件不存在: ${convertedPath}`);
+                        continue;
+                    }
+                    
+                    // 通知转码成功
+                    if (mainWindow) {
+                        mainWindow.webContents.send('video-transcode-success', {
+                            original: filePath,
+                            converted: convertedPath,
+                            current: i + 1,
+                            total: totalFiles
+                        });
+                    }
+                } else {
+                    // 不需要转码的文件直接添加
+                    if (fs.existsSync(filePath)) {
+                        processedPaths.push(filePath);
+                        console.log(`直接添加路径: ${filePath}`);
+                    }
+                }
+            } catch (err) {
+                console.error(`处理文件 ${filePath} 失败:`, err);
+                
+                // 通知转码失败
+                if (mainWindow) {
+                    mainWindow.webContents.send('video-transcode-error', {
+                        file: filePath,
+                        error: err.message,
+                        current: i + 1,
+                        total: totalFiles
+                    });
+                }
+            }
+        }
+        
+        console.log('最终处理的文件路径:', processedPaths);
+        return processedPaths;
+    }
+    return [];
 }
-// 转码
-async function transcodeVideo(event, filePath) {
-	try {
-		const outputPath = getOutputPath(filePath);
-		return await new Promise((resolve, reject) => {
-			ffmpeg(filePath)
-				.outputOptions('-preset veryfast') // 可选：加快转码速度
-				.videoCodec('libx264')
-				.format('mp4')
-				.output(outputPath)
-				.on('start', commandLine => {
-					console.log('FFmpeg command:', commandLine);
-				})
-				.on('end', () => {
-					console.log('视频转码完成:', outputPath);
-					resolve(outputPath); // 成功返回转码后路径
-				})
-				.on('error', (err) => {
-					console.error('视频转码失败:', err.message);
-					reject(err); // 转码失败
-				})
-				.run();
-		})
-	} catch (err) {
-		console.error('转码异常:', err);
-		throw err;
-	}
+// 修复 transcodeVideo 函数的参数处理
+async function transcodeVideo(event, { inputPath, outputPath }) {
+    try {
+        // 如果没有提供输出路径，则生成一个
+        if (!outputPath) {
+            outputPath = getOutputPath(inputPath);
+        }
+
+        console.log(`开始转码: ${inputPath} -> ${outputPath}`);
+
+        // 通知渲染进程转码开始
+        if (mainWindow) {
+            mainWindow.webContents.send('video-transcode-start', {
+                file: inputPath,
+                current: 1,
+                total: 1
+            });
+        }
+
+        return await new Promise((resolve, reject) => {
+            // 添加视频文件验证
+            if (!fs.existsSync(inputPath)) {
+                reject(new Error('输入文件不存在'));
+                return;
+            }
+
+            ffmpeg(inputPath)
+                .videoCodec('libx264')
+                .audioCodec('aac')
+                .outputOptions([
+                    '-profile:v baseline',
+                    '-level 3.0',
+                    '-pix_fmt yuv420p',
+                    '-preset medium',
+                    '-crf 23',
+                    '-movflags +faststart',
+                    '-r 25',
+                    '-vsync cfr',
+                    '-avoid_negative_ts make_zero'
+                ])
+                .format('mp4')
+                .output(outputPath)
+                .on('start', commandLine => {
+                    console.log('FFmpeg 命令:', commandLine);
+                })
+                .on('progress', (progress) => {
+                    if (mainWindow && progress.percent) {
+                        mainWindow.webContents.send('video-transcode-progress', {
+                            file: inputPath,
+                            percent: Math.round(progress.percent)
+                        });
+                    }
+                })
+                .on('end', () => {
+                    console.log('视频转码完成:', outputPath);
+                    
+                    // 通知渲染进程转码成功
+                    if (mainWindow) {
+                        mainWindow.webContents.send('video-transcode-success', {
+                            original: inputPath,
+                            converted: outputPath,
+                            current: 1,
+                            total: 1
+                        });
+                    }
+                    
+                    resolve(outputPath);
+                })
+                .on('error', (err) => {
+                    console.error('视频转码失败:', err.message);
+                    
+                    // 通知渲染进程转码失败
+                    if (mainWindow) {
+                        mainWindow.webContents.send('video-transcode-error', {
+                            file: inputPath,
+                            error: err.message
+                        });
+                    }
+                    
+                    reject(err);
+                })
+                .run();
+        });
+    } catch (err) {
+        console.error('转码异常:', err);
+        
+        // 通知渲染进程转码失败
+        if (mainWindow) {
+            mainWindow.webContents.send('video-transcode-error', {
+                file: inputPath || '未知文件',
+                error: err.message
+            });
+        }
+        
+        throw err;
+    }
 }
 
 // 获取视频信息 ???
@@ -807,7 +920,7 @@ function addVideoToLibrary(event, videoList) {
 		if (!userConfig.video.videoLibrary) userConfig.video.videoLibrary = {};
 		if (!Array.isArray(userConfig.video.videoLibrary.videoList)) userConfig.video.videoLibrary.videoList = [];
 
-		console.log('userConfig:', userConfig);
+		console.log('userConfig:', userConfig);//输出了
 
 		// 合并视频列表
 		userConfig.video.videoLibrary.videoList = [
@@ -897,9 +1010,14 @@ app.on('ready', async () => {
 
 // 应用准备就绪后设置协议和监听器
 app.whenReady().then(() => {
+    // 注册 file 协议
+    protocol.registerFileProtocol('file', (request, callback) => {
+        const pathname = decodeURI(request.url.replace('file:///', ''));
+        callback(pathname);
+    });
 
-	console.log('协议和处理程序注册完成');
-	listenEvent();
+    console.log('协议和处理程序注册完成');
+    listenEvent();
 	// createTray(); // 取消注释以启用系统托盘
 });
 
