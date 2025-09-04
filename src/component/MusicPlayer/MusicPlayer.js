@@ -191,6 +191,7 @@ const MusicPlayer = () => {
 				const progressPercent = (currentTime / duration) * 100;
 				setProgress(progressPercent);
 
+			
 				// 更新时间显示
 				setCurrentTime(currentTime);
 				setTotalTime(duration);
