@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import "./VideoPlayer.scss";
 import RepeatIcon from '@mui/icons-material/Repeat';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
@@ -11,11 +11,18 @@ import CloseIcon from '@mui/icons-material/Close';
 import defaultCoverImg from '../../assets/1.jpg';
 import { useNotification } from '../../utils/NotificationProvider';
 
+
 const VideoPlayer = () => {
 	// 视频播放器引用
 	const videoRef = useRef(null);
+	const progressBarRef = useRef(null);
 	// 视频状态管理
 	const [isPlaying, setIsPlaying] = useState(false);
+	const [totalTime, setTotalTime] = useState(0);
+	const [progress, setProgress] = useState(0);
+	const [currentTime, setCurrentTime] = useState(0);
+	const [isDragging, setIsDragging] = useState(false);
+	const [temporaryProgress, setTemporaryProgress] = useState(null);
 	// 播放列表
 	const [videoList, setVideoList] = useState([]);
 	// 当前播放视频
@@ -23,10 +30,11 @@ const VideoPlayer = () => {
 	// 播放列表显示状态
 	const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
 	const [isButtonAnimating, setIsButtonAnimating] = useState(null);
-
+	// 错误提示框
 	const notifyContext = useNotification();
+	// 新增播放列表引用
+	const playlistRef = useRef(null);
 
-	const playlistRef = useRef(null); // 新增播放列表引用
 
 	// 按钮点击动画
 	const animateButton = (buttonType) => {
@@ -46,7 +54,7 @@ const VideoPlayer = () => {
 			console.log('视频 src 为空，跳过错误提示');
 			return;
 		}
-		
+
 		// 如果当前没有视频，跳过错误提示
 		if (!currentVideo) {
 			console.log('当前没有视频，跳过错误提示');
@@ -110,12 +118,49 @@ const VideoPlayer = () => {
 	const handlePause = () => {
 		setIsPlaying(false);
 	};
+	// // 播放列表发生变化时，若当前没有视频正在播放，则播放第一首歌曲
+	// useEffect(() => {
+	// 	// 更新配置文件中的视频列表和当前视频
+	// 	if (!currentVideo && videoList.length > 0) {
+	// 		setCurrentVideo(videoList[0]);
+	// 	}else if(videoList.length===0){
+	// 		videoRef.current.pause();
+	// 		videoRef.current.src = '';
+	// 		setCurrentVideo(null);
+	// 		setCurrentTime(0);
+	// 		setTotalTime(0);
+	// 		setProgress(0);
+	// 		setIsPlaying(false);
+	// 	}
+
+	// }, [videoList, currentVideo]);
+
+
 	useEffect(() => {
 		const videoElement = videoRef.current;
-		// console.log('videoElement', videoElement);
 		if (!videoElement) return;
 
+		const updateProgress = () => {
+			const duration = videoElement.duration;
+			const current = videoElement.currentTime;
+
+			// 🔥 修复：先更新时间，再计算进度
+			if (current && !isNaN(current)) {
+				setCurrentTime(current);
+			}
+
+			// 🔥 修复：正确计算进度百分比
+			if (duration && !isNaN(duration) && duration !== Infinity && duration > 0) {
+				setTotalTime(duration);
+
+				// 🔥 使用当前时间计算进度（不是之前的 currentTime 状态）
+				const progressPercent = (current / duration) * 100;
+				setProgress(progressPercent);
+			}
+		};
+
 		// 添加事件监听
+		videoElement.addEventListener('timeupdate', updateProgress);
 		videoElement.addEventListener('play', handlePlay);
 		videoElement.addEventListener('pause', handlePause);
 		videoElement.addEventListener('error', handleError);
@@ -124,7 +169,7 @@ const VideoPlayer = () => {
 
 
 		return () => {
-
+			videoElement.removeEventListener('timeupdate', updateProgress);
 			videoElement.removeEventListener('play', handlePlay);
 			videoElement.removeEventListener('pause', handlePause);
 			videoElement.removeEventListener('error', handleError);
@@ -146,12 +191,21 @@ const VideoPlayer = () => {
 				const list = await window.electronFeatures.getVideoList();
 				if (list && Array.isArray(list)) {
 					setVideoList(list);
-					if (videoList.length > 0) {
+					if (list.length > 0) {
 						let index = list.findIndex(it => it.id === currentVideo?.id)
 						if (index === -1) {
 							index = 0;
 						}
 						setCurrentVideo(list[index]);
+
+						// 🔥 添加自动播放逻辑
+						// if (!currentVideo) {
+						//     console.log('没有当前视频，自动播放第一个');
+						//     setTimeout(() => {
+						//         playSelectedVideo(list[index]);
+						// 		setIsPlaying(true);
+						//     }, 200);
+						// }
 					}
 				}
 			} catch (error) {
@@ -217,36 +271,95 @@ const VideoPlayer = () => {
 		};
 	}, []);
 
+	// 添加拖动进度条相关事件监听
+	useEffect(() => {
+		const handleMouseMove = (event) => {
+			if (!isDragging || !progressBarRef.current) return;
+
+			const rect = progressBarRef.current.getBoundingClientRect();
+			const clickPosition = event.clientX - rect.left; // 计算鼠标在进度条上的相对位置
+			const newProgress = (clickPosition / rect.width) * 100; // 转换为百分比
+			const clampedProgress = Math.min(Math.max(newProgress, 0), 100); // 限制在 0-100% 之间
+
+			setTemporaryProgress(clampedProgress);
+			updateDisplayTime(clampedProgress);
+		};
+		const handleMouseUp = (event) => {
+			if (isDragging && temporaryProgress != null) {
+				handleDragEnd(event);
+			}
+		};
+		if (isDragging) {
+			document.addEventListener('mousemove', handleMouseMove);
+			document.addEventListener('mouseup', handleMouseUp);
+		}
+		return () => {
+			document.removeEventListener('mousemove', handleMouseMove);
+			document.removeEventListener('mouseup', handleMouseUp);
+		};
+	}, [isDragging, temporaryProgress])
+
+
 	useLayoutEffect(() => {
 		const getUserConfig = async () => {
 			let config = await window.electronFeatures.getUserConfig('video')
-			setVideoList(config.videoLibrary.videoList || [])
+			setVideoList(config.videoLibrary.videoList || []);
+
+			// if (!currentVideo) {
+			//     console.log('没有当前视频，自动播放第一个');
+			//     setTimeout(() => {
+			//         playSelectedVideo(videoList[0]);
+			// 		setIsPlaying(true);
+			//     }, 200);
+			// }
+
 		}
-		console.log('useLayoutEffect')
+
 		getUserConfig()
 	}, [])
 
 
 	// 播放选中视频
 	const playSelectedVideo = (video) => {
+		console.log('播放选中视频:', video);
+
+		// 重置时间状态
+		setCurrentTime(0);
+		setTotalTime(0);
+
+		// 重置进度条相关状态
+		setProgress(0);
+		setTemporaryProgress(null);
+		setIsDragging(false);
+
+
 		setCurrentVideo(video);
+
 		// 等待下一个渲染周期，确保视频元素已经更新了 src
 		setTimeout(() => {
 			if (videoRef.current) {
 				console.log('开始播放选中的视频:', video.title);
-				videoRef.current.load(); // 重新加载视频
+				// 设置视频源
+				videoRef.current.src = toFileUrl(video.path);
 
-				// 尝试播放视频
-				videoRef.current.play()
-					.then(() => {
-						setIsPlaying(true);
-						console.log('视频播放成功');
-					})
-					.catch(err => {
-						console.error('播放视频失败:', err);
-						setIsPlaying(false);
-						notifyContext.notify.error('视频播放失败: ' + err.message);
-					});
+				// 重新加载视频（这会触发 loadedmetadata 事件）
+				videoRef.current.load();
+
+				// 直接尝试播放
+				setTimeout(() => {
+					if (videoRef.current) {
+						videoRef.current.play()
+							.then(() => {
+								setIsPlaying(true);
+								console.log('视频播放成功');
+							})
+							.catch(err => {
+								console.error('播放视频失败:', err);
+								setIsPlaying(false);
+								notifyContext.notify.error('视频播放失败: ' + err.message);
+							});
+					}
+				}, 500); // 给元数据加载更多时间
 			}
 		}, 100);
 	}
@@ -259,9 +372,13 @@ const VideoPlayer = () => {
 				videoRef.current.pause();
 			} else {
 				setIsPlaying(true);
-				// if(videoRef.current.src ==' '|| !videoRef.current.src){
-				// 	return;
-				// }
+				// 确保视频源已设置
+				if (!videoRef.current.src || videoRef.current.src === '') {
+					videoRef.current.src = toFileUrl(currentVideo.path);
+					videoRef.current.load();
+				}
+
+				setIsPlaying(true);
 				videoRef.current.play().catch(err => {
 					console.error('播放视频失败:', err);
 					setIsPlaying(false);
@@ -316,34 +433,34 @@ const VideoPlayer = () => {
 				if (info && info.length > 0) {
 					// 先通知主进程添加到视频库
 					await window.electronFeatures.sendMessage('add-video-to-library', info);
-					
+
 					// 等待一下，确保主进程处理完成
 					await new Promise(resolve => setTimeout(resolve, 200));
-					
+
 					// 重新获取完整的视频列表
 					const updatedList = await window.electronFeatures.getVideoList();
 					console.log('更新后的视频列表:', updatedList);
-					
+
 					if (updatedList && Array.isArray(updatedList) && updatedList.length > 0) {
 						setVideoList(updatedList);
-						
+
 						// 找到刚添加的视频（通过路径匹配）
-						const newlyAddedVideo = updatedList.find(video => 
-							filePaths.includes(video.path) || 
+						const newlyAddedVideo = updatedList.find(video =>
+							filePaths.includes(video.path) ||
 							info.some(infoItem => infoItem.path === video.path)
 						);
-						
+
 						console.log('找到的新添加视频:', newlyAddedVideo);
-						
+
 						if (newlyAddedVideo) {
 							// 验证文件是否真的存在
 							try {
 								const fileExists = await window.electronFeatures.checkFileExists(newlyAddedVideo.path);
 								console.log('文件是否存在:', fileExists, '路径:', newlyAddedVideo.path);
-								
+
 								if (fileExists) {
 									setCurrentVideo(newlyAddedVideo);
-									
+
 									// 等待一帧后开始播放
 									setTimeout(() => {
 										if (videoRef.current) {
@@ -458,53 +575,85 @@ const VideoPlayer = () => {
 		}
 	};
 
-	// 播放下一首歌
-	const handleNext = async () => {
-		try {
-			// 重新获取最新的视频列表
-			const list = await window.electronFeatures.getVideoList();
-			if (list && Array.isArray(list)) {
-				setVideoList(list);
-
-				if (list.length > 0) {
-					// 如果当前视频存在，找到下一个
-					if (currentVideo) {
-						const currentIndex = list.findIndex(video =>
-							video.id === currentVideo.id || video.path === currentVideo.path
-						);
-
-						if (currentIndex !== -1 && currentIndex < list.length - 1) {
-							// 播放下一个视频
-							playSelectedVideo(list[currentIndex + 1]);
-						} else {
-							// 播放第一个视频（循环）
-							playSelectedVideo(list[0]);
-						}
-					} else {
-						// 当前没有视频，播放第一个
-						playSelectedVideo(list[0]);
-					}
-				} else {
-					// 没有视频了，清空当前视频
-					setCurrentVideo(null);
-					setIsPlaying(false);
-					if (videoRef.current) {
-						try {
-							videoRef.current.pause();
-							videoRef.current.src = '';
-							videoRef.current.load();
-						} catch (err) {
-							console.log('清空视频元素时出错:', err);
-						}
-					}
-				}
+	// 播放上一个视频
+	const handlePrevious = async () => {
+		if (videoList.length > 1 && currentVideo) {
+			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			if (currentIndex !== -1) {
+				const prevIndex = (currentIndex - 1 + videoList.length) % videoList.length;
+				setCurrentVideo(videoList[prevIndex]);
+				playSelectedVideo(videoList[prevIndex]);
+				animateButton('prev');
+			} else if (videoList.length > 0) {
+				setCurrentVideo(videoList[0]);
+				playSelectedVideo(videoList[0]);
+				animateButton('prev');
 			}
-		} catch (error) {
-			console.error('获取视频列表失败:', error);
 		}
+	}
 
-		animateButton('next');
-	};
+	// 播放下一个视频
+	// const handleNext = async () => {
+	// 	try {
+	// 		// 重新获取最新的视频列表
+	// 		const list = await window.electronFeatures.getVideoList();
+	// 		if (list && Array.isArray(list)) {
+	// 			setVideoList(list);
+
+	// 			if (list.length > 0) {
+	// 				// 如果当前视频存在，找到下一个
+	// 				if (currentVideo) {
+	// 					const currentIndex = list.findIndex(video =>
+	// 						video.id === currentVideo.id || video.path === currentVideo.path
+	// 					);
+
+	// 					if (currentIndex !== -1 && currentIndex < list.length - 1) {
+	// 						// 播放下一个视频
+	// 						playSelectedVideo(list[currentIndex + 1]);
+	// 					} else {
+	// 						// 播放第一个视频（循环）
+	// 						playSelectedVideo(list[0]);
+	// 					}
+	// 				} else {
+	// 					// 当前没有视频，播放第一个
+	// 					playSelectedVideo(list[0]);
+	// 				}
+	// 			} else {
+	// 				// 没有视频了，清空当前视频
+	// 				setCurrentVideo(null);
+	// 				setIsPlaying(false);
+	// 				if (videoRef.current) {
+	// 					try {
+	// 						videoRef.current.pause();
+	// 						videoRef.current.src = '';
+	// 						videoRef.current.load();
+	// 					} catch (err) {
+	// 						console.log('清空视频元素时出错:', err);
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	} catch (error) {
+	// 		console.error('获取视频列表失败:', error);
+	// 	}
+
+	// 	animateButton('next');
+	// };
+	const handleNext = async () => {
+		if (videoList.length > 1 && currentVideo) {
+			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			if (currentIndex !== -1) {
+				const nextIndex = (currentIndex + 1) % videoList.length;
+				console.log('播放下一个视频:', videoList[nextIndex].title);
+				playSelectedVideo(videoList[nextIndex]); // 🔥 这会自动重置进度
+				animateButton('next');
+			} else if (videoList.length > 0) {
+				playSelectedVideo(videoList[0]);
+				animateButton('next');
+			}
+		}
+	}
+
 
 	// 添加缺失的 toFileUrl 函数
 	const toFileUrl = (filePath) => {
@@ -514,6 +663,89 @@ const VideoPlayer = () => {
 		return `file:///${encodeURI(normalizedPath)}`;
 	};
 
+	// 格式化时间显示
+	const formatTime = (seconds) => {
+		if (!seconds || isNaN(seconds)) return '00:00';
+
+		const hours = Math.floor(seconds / 3600);//时
+		const minutes = Math.floor((seconds % 3600) / 60); //分
+		const secs = Math.floor(seconds % 60); //秒
+
+		if (hours > 0) {
+			// 如果超过1小时，显示 H:MM:SS 格式
+			return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+		} else {
+			// 小于1小时，显示 MM:SS 格式
+			return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+		}
+
+	}
+	// 更新显示时间
+	const updateDisplayTime = (progressPercent) => {
+		if (videoRef.current.duration) {
+			const newTime = (progressPercent / 100) * videoRef.current.duration;
+			setCurrentTime(newTime);
+		}
+	}
+
+	// 进度条拖拽
+	const handleProgressMouseDown = (event) => {
+		event.preventDefault();
+		if (!currentVideo || !currentVideo.id) {
+			return;
+		}
+		setIsDragging(true);
+
+		// 计算点击位置对应的播放进度
+		const rect = progressBarRef.current.getBoundingClientRect();// 获取进度条的位置信息
+		const clickPosition = event.clientX - rect.left; // 计算鼠标在进度条上的相对位置
+		const newProgress = (clickPosition / rect.width) * 100; // 转换为百分比
+		const clampedProgress = Math.min(Math.max(newProgress, 0), 100); // 限制在 0-100% 之间
+
+		setTemporaryProgress(clampedProgress); // 设置临时进度（拖拽时显示）
+		updateDisplayTime(clampedProgress); //  更新时间显示
+	}
+	// 点击进度条
+	const handleProgressClick = (event) => {
+		if (isDragging) return; // 如果正在拖拽，不处理点击事件
+
+		const progressBar = event.currentTarget; //获取进度条元素
+		const clickPosition = event.clientX - progressBar.getBoundingClientRect().left;//计算点击位置
+		const newProgress = (clickPosition / progressBar.offsetWidth) * 100; //转换为百分比
+		const clampedProgress = Math.min(Math.max(newProgress, 0), 100); //限制在 0-100% 之间
+
+		if (videoRef.current && videoRef.current.duration) {
+			// 直接设置音频播放位置
+			videoRef.current.currentTime = (clampedProgress / 100) * videoRef.current.duration;
+			setProgress(clampedProgress);
+		}
+	}
+	// 拖拽结束
+	const handleDragEnd = (event) => {
+		if (isDragging && temporaryProgress != null && currentVideo) {
+			const duration = videoRef.current.duration;
+			const newTime = (temporaryProgress / 100) * duration;
+			videoRef.current.currentTime = newTime;
+			setProgress(temporaryProgress);
+			setTemporaryProgress(null);
+		}
+		setIsDragging(false);
+	}
+
+	// 使用 useCallback 避免不必要的重渲染
+	const progressStyle = useCallback(() => {
+		if (isDragging && temporaryProgress !== null) {
+			return { width: `${temporaryProgress}%` };
+		}
+
+		if (totalTime > 0 && currentTime >= 0) {
+			const percentage = (currentTime / totalTime) * 100;
+			return { width: `${Math.min(Math.max(percentage, 0), 100)}%` };
+		}
+
+		return { width: '0%' };
+	}, [isDragging, temporaryProgress, currentTime, totalTime]);
+
 	return (
 		<div className='VideoPlayer_container'>
 			<div className="VideoPlayer_diaplay_container">
@@ -521,8 +753,9 @@ const VideoPlayer = () => {
 					currentVideo ? (
 						<video
 							ref={videoRef}
-							src={currentVideo?.path && isPlaying ? toFileUrl(currentVideo.path) : ''} // 现在 toFileUrl 已定义
+							src={currentVideo?.path ? toFileUrl(currentVideo.path) : ''} // 现在 toFileUrl 已定义
 							controls={false}
+							preload="metadata" // 改为 metadata，这样可以获取时长但不下载整个视频
 							onPlay={handlePlay}
 							onPause={handlePause}
 							onError={handleError}
@@ -531,6 +764,17 @@ const VideoPlayer = () => {
 							style={{ width: '100%', height: '100%' }}
 							onEnded={() => setIsPlaying(false)}
 							className="VideoPlayer_video_element"
+							onTimeUpdate={() => {
+								// 直接在这里更新时间
+								if (videoRef.current) {
+									setCurrentTime(videoRef.current.currentTime);
+									// 🔥 只在总时长为0时才设置，避免重复设置
+									if (totalTime === 0 && videoRef.current.duration && !isNaN(videoRef.current.duration)) {
+										setTotalTime(videoRef.current.duration);
+										console.log('从 onTimeUpdate 获取总时长:', videoRef.current.duration);
+									}
+								}
+							}}
 						/>
 					) : (
 						<div className="no-video-placeholder">
@@ -550,30 +794,47 @@ const VideoPlayer = () => {
 				<div className="VideoPlayer_controller_container">
 					<div className="VideoPlayer_controller_buttons">
 						<button className="VideoPlayer_control_button"><RepeatIcon /></button>
-						<button className="VideoPlayer_control_button"><SkipPreviousIcon /></button>
+						<button
+							className={`VideoPlayer_control_button ${isButtonAnimating === 'prev' ? 'animate-click' : ''}`}
+							onClick={handlePrevious}>
+							<SkipPreviousIcon />
+						</button>
 						<button className={`VideoPlayer_control_button play_button ${isButtonAnimating === 'play' ? 'animate-click' : ''}`}
 							onClick={togglePlay}>
 							{isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
 						</button>
-						<button className="VideoPlayer_control_button"><SkipNextIcon /></button>
+						<button
+							className={`VideoPlayer_control_button ${isButtonAnimating === 'next' ? 'animate-click' : ''}`}
+							onClick={handleNext}
+						>
+							<SkipNextIcon />
+						</button>
 						<div className="VideoPlayer_volume_container">
 							<button className='VideoPlayer_control_button'>
 								<VolumeOffIcon />
 							</button>
 							{/* 音量控制条 */}
-							<div className="VideoPlayer_volume_slider_container">
+							<div className="Videolayer_volume_slider_container">
 								<input type='range' min='0' max='100' className='VideoPlayer_volume_slider' />
 							</div>
 						</div>
 					</div>
+					{/* 播放进度条 */}
 					<div className="VideoPlayer_progress_container">
-						<div className="VideoPlayer_time_current"></div>
-						<div className="VideoPlayer_progress_bar">
-							<div className="VideoPlayer_progress_completed">
+						<div className="VideoPlayer_time_current">{formatTime(currentTime)}</div>
+						<div
+							className={`VideoPlayer_progress_bar ${isDragging ? 'dragging' : ''}`}
+							onClick={handleProgressClick}
+							onMouseDown={handleProgressMouseDown}
+							ref={progressBarRef}
+						>
+							<div className="VideoPlayer_progress_completed"
+								style={progressStyle()}
+							>
 								<div className="VideoPlayer_progress_handle"></div>
 							</div>
 						</div>
-						<div className="VideoPlayer_time_total"></div>
+						<div className="VideoPlayer_time_total">{formatTime(totalTime)}</div>
 					</div>
 				</div>
 				<div className="VideoPlayer_buttons_container">
@@ -617,7 +878,10 @@ const VideoPlayer = () => {
 							<div
 								key={video.path || video.id}
 								className={`VideoPlayer_playlist_item ${currentVideo && (currentVideo.path === video.path || currentVideo.id === video.id) ? 'VideoPlayer_playlist_item_playing' : ''}`}
-								onDoubleClick={() => playSelectedVideo(video)}
+								onDoubleClick={() => {
+									console.log('双击播放列表项:', video.title); // 🔥 添加调试信息
+									playSelectedVideo(video);
+								}}
 							>
 								<div className="VideoPlayer_playlist_item_info">
 									<div className="VideoPlayer_playlist_item_title">
