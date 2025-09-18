@@ -5,17 +5,20 @@ import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import CloseIcon from '@mui/icons-material/Close';
 import defaultCoverImg from '../../assets/1.jpg';
 import { useNotification } from '../../utils/NotificationProvider';
+import { MAXVOLUME } from '../../config/reactConfig';
 
 
 const VideoPlayer = () => {
 	// 视频播放器引用
 	const videoRef = useRef(null);
 	const progressBarRef = useRef(null);
+	const volumeContainerRef = useRef(null);
 	// 视频状态管理
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [totalTime, setTotalTime] = useState(0);
@@ -23,6 +26,11 @@ const VideoPlayer = () => {
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isDragging, setIsDragging] = useState(false);
 	const [temporaryProgress, setTemporaryProgress] = useState(null);
+	// 音频状态管理
+	const [isMuted, setIsMuted] = useState(false);
+	const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+	const [volumeLevel, setVolumeLevel] = useState(25);
+	const [lastVolume, setLastVolume] = useState(25);
 	// 播放列表
 	const [videoList, setVideoList] = useState([]);
 	// 当前播放视频
@@ -118,22 +126,25 @@ const VideoPlayer = () => {
 	const handlePause = () => {
 		setIsPlaying(false);
 	};
-	// // 播放列表发生变化时，若当前没有视频正在播放，则播放第一首歌曲
-	// useEffect(() => {
-	// 	// 更新配置文件中的视频列表和当前视频
-	// 	if (!currentVideo && videoList.length > 0) {
-	// 		setCurrentVideo(videoList[0]);
-	// 	}else if(videoList.length===0){
-	// 		videoRef.current.pause();
-	// 		videoRef.current.src = '';
-	// 		setCurrentVideo(null);
-	// 		setCurrentTime(0);
-	// 		setTotalTime(0);
-	// 		setProgress(0);
-	// 		setIsPlaying(false);
-	// 	}
 
-	// }, [videoList, currentVideo]);
+
+	// useEffect(() => {
+	// 	const initializeVolume = async () => {
+	// 		if (videoRef.current && volumeLevel !== null) {
+	// 			try {
+	// 				videoRef.current.volume = ((volumeLevel / 100) * MAXVOLUME) / 100;
+	// 				console.log('初始化音量:', volumeLevel);
+	// 			} catch (error) {
+	// 				console.warn('初始化音量失败:', error);
+	// 			}
+	// 		}
+	// 	};
+
+	// 	// 延迟一点时间确保视频元素已挂载
+	// 	const timer = setTimeout(initializeVolume, 100);
+
+	// 	return () => clearTimeout(timer);
+	// }, [volumeLevel]); // 当 volumeLevel 变化时重新初始化
 
 
 	useEffect(() => {
@@ -199,13 +210,13 @@ const VideoPlayer = () => {
 						setCurrentVideo(list[index]);
 
 						// 🔥 添加自动播放逻辑
-						// if (!currentVideo) {
-						//     console.log('没有当前视频，自动播放第一个');
-						//     setTimeout(() => {
-						//         playSelectedVideo(list[index]);
-						// 		setIsPlaying(true);
-						//     }, 200);
-						// }
+						if (!currentVideo) {
+							console.log('没有当前视频，自动播放第一个');
+							setTimeout(() => {
+								playSelectedVideo(list[index]);
+								setIsPlaying(true);
+							}, 200);
+						}
 					}
 				}
 			} catch (error) {
@@ -304,15 +315,15 @@ const VideoPlayer = () => {
 		const getUserConfig = async () => {
 			let config = await window.electronFeatures.getUserConfig('video')
 			setVideoList(config.videoLibrary.videoList || []);
-
-			// if (!currentVideo) {
-			//     console.log('没有当前视频，自动播放第一个');
-			//     setTimeout(() => {
-			//         playSelectedVideo(videoList[0]);
-			// 		setIsPlaying(true);
-			//     }, 200);
-			// }
-
+			
+			const initialVolume = config.volume || 25;
+			setVolumeLevel(initialVolume);
+			setLastVolume(initialVolume); // 🔥 初始化上次音量
+			
+			// 🔥 添加空值检查
+			if (videoRef.current) {
+				videoRef.current.volume = ((initialVolume / 100) * MAXVOLUME) / 100;
+			}
 		}
 
 		getUserConfig()
@@ -392,7 +403,11 @@ const VideoPlayer = () => {
 	useEffect(() => {
 		function handleClickOutside(event) {
 			// 音量控制器
-
+			if (showVolumeSlider &&
+				volumeContainerRef.current &&
+				!volumeContainerRef.current.contains(event.target)) {
+				setShowVolumeSlider(false);
+			}
 			// 播放列表
 			if (isPlaylistOpen &&
 				playlistRef.current &&
@@ -406,7 +421,7 @@ const VideoPlayer = () => {
 		return () => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [isPlaylistOpen])
+	}, [showVolumeSlider, isPlaylistOpen, notifyContext])
 
 	// 切换播放列表显示状态
 	const togglePlaylist = () => {
@@ -592,53 +607,6 @@ const VideoPlayer = () => {
 		}
 	}
 
-	// 播放下一个视频
-	// const handleNext = async () => {
-	// 	try {
-	// 		// 重新获取最新的视频列表
-	// 		const list = await window.electronFeatures.getVideoList();
-	// 		if (list && Array.isArray(list)) {
-	// 			setVideoList(list);
-
-	// 			if (list.length > 0) {
-	// 				// 如果当前视频存在，找到下一个
-	// 				if (currentVideo) {
-	// 					const currentIndex = list.findIndex(video =>
-	// 						video.id === currentVideo.id || video.path === currentVideo.path
-	// 					);
-
-	// 					if (currentIndex !== -1 && currentIndex < list.length - 1) {
-	// 						// 播放下一个视频
-	// 						playSelectedVideo(list[currentIndex + 1]);
-	// 					} else {
-	// 						// 播放第一个视频（循环）
-	// 						playSelectedVideo(list[0]);
-	// 					}
-	// 				} else {
-	// 					// 当前没有视频，播放第一个
-	// 					playSelectedVideo(list[0]);
-	// 				}
-	// 			} else {
-	// 				// 没有视频了，清空当前视频
-	// 				setCurrentVideo(null);
-	// 				setIsPlaying(false);
-	// 				if (videoRef.current) {
-	// 					try {
-	// 						videoRef.current.pause();
-	// 						videoRef.current.src = '';
-	// 						videoRef.current.load();
-	// 					} catch (err) {
-	// 						console.log('清空视频元素时出错:', err);
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	} catch (error) {
-	// 		console.error('获取视频列表失败:', error);
-	// 	}
-
-	// 	animateButton('next');
-	// };
 	const handleNext = async () => {
 		if (videoList.length > 1 && currentVideo) {
 			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
@@ -746,6 +714,65 @@ const VideoPlayer = () => {
 		return { width: '0%' };
 	}, [isDragging, temporaryProgress, currentTime, totalTime]);
 
+	// 处理音量变化
+	const handleVolumeChange = (event) => {
+		const newVolume = parseInt(event.target.value);
+		setVolumeLevel(newVolume);
+		
+		if (videoRef.current) {
+			videoRef.current.volume = ((newVolume / 100) * MAXVOLUME) / 100;
+
+			// 🔥 当用户手动调整音量时，更新上次音量记录
+			if (newVolume > 0) {
+				setLastVolume(newVolume);
+				setIsMuted(false);
+				videoRef.current.muted = false;
+			} else {
+				setIsMuted(true);
+				videoRef.current.muted = true;
+			}
+		}
+
+	}
+
+	// 保存更新音量
+	const updateVolumeSave = (e) => {
+		const newVolume = parseInt(e.target.value);
+		window.electronFeatures.updateUserConfig('video.volume', newVolume);
+	}
+	// 切换静音状态
+	const toggleMute = () => {
+		// 🔥 添加空值检查
+		if (!videoRef.current) return;
+
+		if (isMuted || volumeLevel === 0) {
+			// 🔥 当前是静音状态，恢复音量
+			const restoreVolume = lastVolume > 0 ? lastVolume : 25;
+			setIsMuted(false);
+			setVolumeLevel(restoreVolume);
+			videoRef.current.muted = false;
+			videoRef.current.volume = ((restoreVolume / 100) * MAXVOLUME) / 100;
+			window.electronFeatures.updateUserConfig('video.volume', restoreVolume);
+			// console.log('恢复音量:', restoreVolume);
+		} else {
+			// 🔥 当前不是静音，设置为静音
+			setLastVolume(volumeLevel);
+			setIsMuted(true);
+			setVolumeLevel(0);
+			videoRef.current.muted = true;
+			videoRef.current.volume = 0;
+			window.electronFeatures.updateUserConfig('video.volume', 0);
+			// console.log('设置静音');
+		}
+
+		animateButton('volume');
+	}
+
+
+	const handleVolumeHover = (isHovering) => {
+		setShowVolumeSlider(isHovering);
+	}
+
 	return (
 		<div className='VideoPlayer_container'>
 			<div className="VideoPlayer_diaplay_container">
@@ -809,13 +836,29 @@ const VideoPlayer = () => {
 						>
 							<SkipNextIcon />
 						</button>
-						<div className="VideoPlayer_volume_container">
-							<button className='VideoPlayer_control_button'>
-								<VolumeOffIcon />
+						<div className="VideoPlayer_volume_container"
+							onMouseEnter={() => handleVolumeHover(true)}
+							onMouseLeave={() => handleVolumeHover(false)}
+							ref={volumeContainerRef}
+						>
+							<button
+								className={`VideoPlayer_control_button ${isButtonAnimating === 'volume' ? 'animate-click' : ''}`}
+								onClick={toggleMute}
+							>
+								{isMuted || volumeLevel === 0 ? <VolumeOffIcon /> : <VolumeUpIcon />}
 							</button>
 							{/* 音量控制条 */}
-							<div className="Videolayer_volume_slider_container">
-								<input type='range' min='0' max='100' className='VideoPlayer_volume_slider' />
+							<div className={`VideoPlayer_volume_slider_container ${showVolumeSlider ? 'show' : ''}`}>
+								<input
+									type='range'
+									min='0'
+									max='100'
+									value={volumeLevel}
+									onChange={handleVolumeChange}
+									onMouseUp={updateVolumeSave}
+									className='VideoPlayer_volume_slider'
+									style={{ "--volume-percentage": `${volumeLevel}%` }}
+								/>
 							</div>
 						</div>
 					</div>
