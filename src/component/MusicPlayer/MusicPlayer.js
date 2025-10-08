@@ -357,6 +357,7 @@ const MusicPlayer = () => {
 	const saveLyricsAssociation = async (musicId, lyricPath) => {
 		return await window.electronFeatures.saveLyricsAssociation(musicId, lyricPath);
 	}
+	
 	// 主要播放功能按钮列表
 	const mainControlButtons = [
 		{
