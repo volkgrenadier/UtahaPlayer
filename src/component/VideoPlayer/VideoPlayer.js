@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import "./VideoPlayer.scss";
+import ShuffleIcon from '@mui/icons-material/Shuffle';
 import RepeatIcon from '@mui/icons-material/Repeat';
+import RepeatOneIcon from '@mui/icons-material/RepeatOne';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -26,6 +28,7 @@ const VideoPlayer = () => {
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isDragging, setIsDragging] = useState(false);
 	const [temporaryProgress, setTemporaryProgress] = useState(null);
+	const [currentMode, setCurrentMode] = useState('sequential'); // sequential, repeat, repeat-one, shuffle
 	// 音频状态管理
 	const [isMuted, setIsMuted] = useState(false);
 	const [showVolumeSlider, setShowVolumeSlider] = useState(false);
@@ -281,6 +284,31 @@ const VideoPlayer = () => {
 			}
 		};
 	}, []);
+	// // 为了防止依赖问题导致的切换播放模式后导致的useEffect重新执行导致的暂停播放且无法继续播放的问题，单独处理handleEnded事件
+	// useEffect(() => {
+	// 	const video = videoRef.current;
+
+	// 	const handleEnded = () => {
+	// 		// 根据当前播放模式决定下一步操作
+	// 		if (currentMode === 'single loop') {
+	// 			// 单曲循环
+	// 			video.currentTime = 0;
+	// 			video.play().catch(err => console.error('重新播放失败:', err));
+	// 		} else if (currentMode === 'sequential play') {
+	// 			// 顺序播放
+	// 			handleNext();
+	// 		} else if (currentMode === 'shuffle') {
+	// 			// 随机播放
+	// 			playRandomSong();
+	// 		}
+	// 	};
+
+	// 	video.addEventListener('ended', handleEnded);
+
+	// 	return () => {
+	// 		video.removeEventListener('ended', handleEnded);
+	// 	};
+	// }, [currentMode, currentVideo, videoList]);
 
 	// 添加拖动进度条相关事件监听
 	useEffect(() => {
@@ -310,16 +338,15 @@ const VideoPlayer = () => {
 		};
 	}, [isDragging, temporaryProgress])
 
-
 	useLayoutEffect(() => {
 		const getUserConfig = async () => {
 			let config = await window.electronFeatures.getUserConfig('video')
 			setVideoList(config.videoLibrary.videoList || []);
-			
+
 			const initialVolume = config.volume || 25;
 			setVolumeLevel(initialVolume);
 			setLastVolume(initialVolume); // 🔥 初始化上次音量
-			
+
 			// 🔥 添加空值检查
 			if (videoRef.current) {
 				videoRef.current.volume = ((initialVolume / 100) * MAXVOLUME) / 100;
@@ -328,6 +355,43 @@ const VideoPlayer = () => {
 
 		getUserConfig()
 	}, [])
+
+
+
+	// 播放功能按钮列表
+	const mainControlButtons = [
+		{
+			label: '播放模式',
+			value: 'update-video-player-mode',
+			iconList: [
+				{
+					label: '顺序播放',
+					value: 'sequential',
+					icon: <RepeatIcon />
+				},
+				{
+					label: '列表循环',
+					value: 'repeat',
+					icon: <RepeatIcon />
+				},
+				{
+					label: '单曲循环',
+					value: 'repeat-one',
+					icon: <RepeatOneIcon />
+				},
+				{
+					label: '随机播放',
+					value: 'shuffle',
+					icon: <ShuffleIcon />
+				},
+			]
+		}
+	];
+	// 获取当前播放模式的图标
+	const getCurrentModeIcon = () => {
+		const mode = mainControlButtons[0].iconList.find(icon => icon.value === currentMode);
+		return mode ? mode.icon : <RepeatIcon />;
+	}
 
 
 	// 播放选中视频
@@ -611,9 +675,41 @@ const VideoPlayer = () => {
 		if (videoList.length > 1 && currentVideo) {
 			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
 			if (currentIndex !== -1) {
-				const nextIndex = (currentIndex + 1) % videoList.length;
+				let nextIndex;
+				
+				switch (currentMode) {
+					case 'repeat-one':
+						// 单曲循环：重新播放当前视频
+						nextIndex = currentIndex;
+						break;
+					case 'shuffle':
+						// 随机播放：随机选择一个不同的视频
+						if (videoList.length > 1) {
+							do {
+								nextIndex = Math.floor(Math.random() * videoList.length);
+							} while (nextIndex === currentIndex);
+						} else {
+							nextIndex = currentIndex;
+						}
+						break;
+					case 'repeat':
+						// 列表循环：播放下一个，到末尾时回到开头
+						nextIndex = (currentIndex + 1) % videoList.length;
+						break;
+					case 'sequential':
+					default:
+						// 顺序播放：播放下一个，到末尾时停止
+						nextIndex = currentIndex + 1;
+						if (nextIndex >= videoList.length) {
+							// 已经是最后一个视频，停止播放
+							console.log('已播放完所有视频');
+							return;
+						}
+						break;
+				}
+				
 				console.log('播放下一个视频:', videoList[nextIndex].title);
-				playSelectedVideo(videoList[nextIndex]); // 🔥 这会自动重置进度
+				playSelectedVideo(videoList[nextIndex]);
 				animateButton('next');
 			} else if (videoList.length > 0) {
 				playSelectedVideo(videoList[0]);
@@ -622,6 +718,52 @@ const VideoPlayer = () => {
 		}
 	}
 
+	// 处理视频播放结束
+	const handleVideoEnded = () => {
+		setIsPlaying(false);
+		
+		// 根据当前播放模式决定下一步操作
+		if (currentMode === 'repeat-one') {
+			// 单曲循环：重新播放当前视频
+			if (videoRef.current) {
+				videoRef.current.currentTime = 0;
+				videoRef.current.play()
+					.then(() => {
+						setIsPlaying(true);
+						console.log('单曲循环：重新播放当前视频');
+					})
+					.catch(err => console.error('重新播放失败:', err));
+			}
+		} else if (currentMode === 'shuffle') {
+			// 随机播放：播放随机视频
+			playRandomVideo();
+		} else if (currentMode === 'repeat') {
+			// 列表循环：播放下一个视频
+			handleNext();
+		} else if (currentMode === 'sequential') {
+			// 顺序播放：播放下一个视频（到末尾时停止）
+			handleNext();
+		}
+	};
+
+	// 播放随机视频
+	const playRandomVideo = () => {
+		if (videoList.length > 1 && currentVideo) {
+			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			let randomIndex;
+
+			// 确保不重复播放同一个视频
+			do {
+				randomIndex = Math.floor(Math.random() * videoList.length);
+			} while (randomIndex === currentIndex && videoList.length > 1);
+
+			console.log('随机播放视频:', videoList[randomIndex].title);
+			playSelectedVideo(videoList[randomIndex]);
+		} else if (videoList.length > 0) {
+			// 如果列表中只有一个视频或当前视频不在列表中
+			playSelectedVideo(videoList[0]);
+		}
+	};
 
 	// 添加缺失的 toFileUrl 函数
 	const toFileUrl = (filePath) => {
@@ -718,7 +860,7 @@ const VideoPlayer = () => {
 	const handleVolumeChange = (event) => {
 		const newVolume = parseInt(event.target.value);
 		setVolumeLevel(newVolume);
-		
+
 		if (videoRef.current) {
 			videoRef.current.volume = ((newVolume / 100) * MAXVOLUME) / 100;
 
@@ -768,10 +910,41 @@ const VideoPlayer = () => {
 		animateButton('volume');
 	}
 
-
 	const handleVolumeHover = (isHovering) => {
 		setShowVolumeSlider(isHovering);
 	}
+
+	// 播放随机视频
+	const playRandomSong = () => {
+		if (videoList.length > 1) {
+			const currentIndex = currentVideo ? videoList.findIndex(video => video.id === currentVideo.id) : -1;
+			let randomIndex;
+
+			// 确保不重复播放同一首歌
+			do {
+				randomIndex = Math.floor(Math.random() * videoList.length);
+			} while (randomIndex === currentIndex && videoList.length > 1);
+
+			setCurrentVideo(videoList[randomIndex]);
+		}
+	};
+
+	// 切换播放模式
+	const togglePlayMode = () => {
+		const modes = mainControlButtons[0].iconList.map(icon => icon.value);
+		const currentIndex = modes.indexOf(currentMode);
+		const nextIndex = (currentIndex + 1) % modes.length;
+		const newMode = modes[nextIndex];
+
+		setCurrentMode(newMode);
+		animateButton('mode');
+
+		// 可选：保存用户播放模式配置
+		window.electronFeatures.sendMessage('update-userconfig-video', {
+			attrName: ['playMode'],
+			value: [newMode]
+		});
+	};
 
 	return (
 		<div className='VideoPlayer_container'>
@@ -789,7 +962,7 @@ const VideoPlayer = () => {
 							onCanPlay={handleCanPlay}
 							onLoadedData={handleLoadedData}
 							style={{ width: '100%', height: '100%' }}
-							onEnded={() => setIsPlaying(false)}
+							onEnded={handleVideoEnded}
 							className="VideoPlayer_video_element"
 							onTimeUpdate={() => {
 								// 直接在这里更新时间
@@ -820,7 +993,11 @@ const VideoPlayer = () => {
 				</div>
 				<div className="VideoPlayer_controller_container">
 					<div className="VideoPlayer_controller_buttons">
-						<button className="VideoPlayer_control_button"><RepeatIcon /></button>
+						<button
+							className={`VideoPlayer_control_button ${isButtonAnimating === 'mode' ? 'animate-click' : ''}`}
+							onClick={togglePlayMode}>
+							{getCurrentModeIcon()}
+						</button>
 						<button
 							className={`VideoPlayer_control_button ${isButtonAnimating === 'prev' ? 'animate-click' : ''}`}
 							onClick={handlePrevious}>
