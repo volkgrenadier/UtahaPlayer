@@ -17,7 +17,7 @@
             flex: 1 1 auto;
             display: flex;
             align-items: center;
-            .Photo_addImageButton {
+            .Photo_button {
                 @include customButtonBasic;
                 background-color: $color_main_bg;
                 color: $color_main;
@@ -42,6 +42,7 @@
             flex: 0 0 auto;
             overflow-x: hidden;
             margin: 0;
+            padding-bottom: 4px;
             .Photo_imageListItem {
                 transition: $custom_transition;
                 transition-duration: .15s;

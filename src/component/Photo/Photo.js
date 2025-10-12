@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useLayoutEffect } from 'react'
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import SmartDisplayIcon from '@mui/icons-material/SmartDisplay';
 import Tooltip from '@mui/material/Tooltip';
 import './Photo.scss'
 
@@ -72,30 +73,146 @@ const Photo = () => {
             cols: 2,
         },
     ])
+    const buttonList = useRef([
+        {
+            icon: <AddPhotoAlternateIcon />,
+            tooltip: '打开图片',
+            onClick: async () => {
+                let res = await window.electronFeatures.getImages()
+                if (res && res.length > 0) {
+                    let newImageList = [...imageList, ...res];
+                    let updatedImageList = updateImagesRowsAndCols(newImageList);
+                    setImageList(updatedImageList)
+                } else {
+                    console.warn('没有找到图片文件')
+                }
+            }
+        },
+        {
+            icon: <FolderOpenIcon />,
+            tooltip: '打开文件夹',
+            onClick: async () => {
+                let res = await window.electronFeatures.getImages('directory')
+                if (res && res.length > 0) {
+                    let newImageList = [...imageList, ...res];
+                    let updatedImageList = updateImagesRowsAndCols(newImageList);
+                    console.log(updatedImageList)
+                    setImageList(updatedImageList)
+                } else {
+                    console.warn('没有找到图片文件')
+                }
+            }
+        },
+        {
+            icon: <SmartDisplayIcon />,
+            tooltip: '播放',
+            onClick: () => {
+                // 播放
+            }
+        },
+    ])
+    /**
+     * @description 处理图片列表，根据图片的索引生成图片的行数和列数，其生成是行数和列数要满足排布方式，排布方式为：以每四张图片为“一组”，每组的总行数为2，列数为4，奇数组四张图片占据的行列数分别为：
+     * 1. 第一张图片占据2行2列
+     * 2. 第二张图片占据1行1列
+     * 3. 第三张图片占据1行1列
+     * 4. 第四张图片占据1行2列
+     * 偶数组四张图片占据的行列数分别为：
+     * 1. 第一张图片占据1行2列
+     * 2. 第二张图片占据2行2列
+     * 3. 第三张图片占据1行1列
+     * 4. 第四张图片占据1行1列
+     * @param {number} list 图片列表
+     */
+    const updateImagesRowsAndCols = (list = []) => {
+        let oldList = Array.isArray(list) ? [...list] : [];
+        let updatedList = oldList.map((item, index) => {
+            let groupIndex = Math.floor(index / 4); // 计算当前图片所在的组
+            let isOddGroup = groupIndex % 2 === 1; // 判断当前组是奇数组还是偶数组
+            let rows, cols;
+            let imageSeq = index + 1; // 从1开始计数
+            if (isOddGroup) {
+                // 奇数组
+                if (imageSeq % 4 === 1) {
+                    rows = 2;
+                    cols = 2;
+                } else if (imageSeq % 4 === 2 || imageSeq % 4 === 3) {
+                    rows = 1;
+                    cols = 1;
+                } else {
+                    rows = 1;
+                    cols = 2;
+                }
+            } else {
+                // 偶数组
+                if (imageSeq % 4 === 1) {
+                    rows = 1;
+                    cols = 2;
+                } else if (imageSeq % 4 === 2) {
+                    rows = 2;
+                    cols = 2;
+                } else {
+                    rows = 1;
+                    cols = 1;
+                }
+            }
+            let obj = {
+                rows: 1,
+                cols: 1,
+            }
+            if (typeof(item) === 'string') {
+                obj.src = item;
+            } else {
+                obj = {
+                    ...item,
+                    rows: rows,
+                    cols: cols
+                }
+            }
+            return obj
+        })
+        return updatedList;
+    }
+
+    /**
+     * @description 生成图片的 srcset 属性
+     * @param {string} src 图片源地址
+     * @param {number} size 图片的宽高
+     * @param {number} rows 图片的行数，默认为1
+     * @param {number} cols 图片的列数，默认为1
+     * @returns {object} 包含 src 和 srcSet 属性的对象
+     */
     const srcset = useCallback((src, size, rows = 1, cols = 1) => {
         return {
             src: `${src}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format`,
             srcSet: `${src}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format&dpr=2 2x`,
         }
     }, [])
+
+
+    /**
+     * @description 组件加载完成后，设置图片列表的行列数
+     */
+    useLayoutEffect(() => {
+        const updatedImageList = updateImagesRowsAndCols(imageList);
+        setImageList(updatedImageList);
+    }, []);
     return (
         <div className='Photo_container'>
             <div className="Photo_imageListContainer">
                 <div className="Photo_imageListHeader">
-                    <Tooltip title="打开图片">
-                        <button
-                            className='Photo_addImageButton'
-                        >
-                            <AddPhotoAlternateIcon />
-                        </button>
-                    </Tooltip>
-                    <Tooltip title="打开文件夹">
-                        <button
-                            className='Photo_addImageButton'
-                        >
-                            <FolderOpenIcon />
-                        </button>
-                    </Tooltip>
+                    {
+                        buttonList.current.map((button, index) => (
+                            <Tooltip key={index} title={button.tooltip}>
+                                <button
+                                    className='Photo_button'
+                                    onClick={button.onClick}
+                                >
+                                    {button.icon}
+                                </button>
+                            </Tooltip>
+                        ))
+                    }
                 </div>
                 <ImageList
                     // sx={{ width: 1, height: 1 }}
