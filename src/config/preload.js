@@ -88,11 +88,16 @@ contextBridge.exposeInMainWorld('electronFeatures', {
 
     // 图片
     /**
-     * @description 获取图片信息
-     * @param {string} filePath 图片文件路径
+     * @description 获取图片
+     * @param {enum} openDirectoryOrFile 选择文件或目录，值为'directory' or 'file'，默认为'file'
      * @returns 
      */
-    getImagesInfo: (filePath) => ipcRenderer.invoke('get-images-info', filePath),
+    getImages: (openDirectoryOrFile) => {
+        if (!openDirectoryOrFile) {
+            openDirectoryOrFile = 'file'; // 默认选择文件
+        }
+        return ipcRenderer.invoke('get-images', openDirectoryOrFile)
+    },
 
 });
 

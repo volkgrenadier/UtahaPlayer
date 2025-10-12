@@ -2,9 +2,9 @@ const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = re
 const { parseFile } = require('music-metadata') //node.js的库
 const path = require('path');
 const fs = require('fs');
-const { lyricFileType } = require('./config/config.js')
-const { musicFileType } = require('./config/config.js')
+const { lyricFileType, musicFileType } = require('./config/config.js')
 const { needsTranscoding, getOutputPath } = require("./config/videoConfig.js");
+const { imageTypeList } = require('./config/photoConfig.js');
 
 const ffmpeg = require('fluent-ffmpeg');
 const ffprobeStatic = require('ffprobe-static');
@@ -612,6 +612,47 @@ async function saveLyricsAssociation(event, { musicId, lyricPath }) {
 	}
 }
 
+
+// 图片部分
+/**
+ * @description 处理图片和目录获取事件
+ * @param {*} event 
+ * @param {enum} openDirectoryOrFile 选择文件或目录，传入值为'directory' or 'file'，默认为'file'
+ */
+async function handleImageRequest(event, openDirectoryOrFile) {
+	// console.log(event, openDirectoryOrFile)
+	let imageFiles = [];
+	if (openDirectoryOrFile === 'directory') {
+		const result = await dialog.showOpenDialog(mainWindow, {
+			properties: ['openDirectory'] // 选择目录
+		});
+
+		// 读取目录下所有图片文件
+		if (!result.canceled && result.filePaths.length > 0) {
+			const dirPath = result.filePaths[0];
+			const files = fs.readdirSync(dirPath);
+			for (const file of files) {
+				const filePath = path.join(dirPath, file);
+				const stats = fs.statSync(filePath);
+				// 检查是否为文件且扩展名在图片类型列表中
+				if (stats.isFile() && imageTypeList.includes(path.extname(file).toLowerCase().slice(1))) {
+					imageFiles.push(filePath); // 添加符合条件的图片文件路径
+				}
+			}
+			
+		}
+	} else {
+		const result = await dialog.showOpenDialog(mainWindow, {
+			properties: ['openFile'], // 选择文件
+			filters: [{ name: '图片文件', extensions: imageTypeList }]
+		});
+		if (!result.canceled && result.filePaths.length > 0) {
+			imageFiles.push(result.filePaths[0]); // 返回选择的文件路径
+		}
+	}
+	return imageFiles; // 返回选择的目录路径
+}
+
 //  添加事件监听
 function listenEvent() {
 	ipcMain.on('close-window', closeApp) //  shutdown application
@@ -697,19 +738,9 @@ function listenEvent() {
 		return getOutputPath(filePath);
 	});
 	// 转码
-	ipcMain.handle('transcode-video', transcodeVideo);
-	// 文件检查函数
-	ipcMain.handle('check-file-exists', (event, filePath) => {
-        try {
-            console.log('检查文件是否存在:', filePath);
-            const exists = fs.existsSync(filePath);
-            console.log('文件存在性检查结果:', exists);
-            return exists;
-        } catch (error) {
-            console.error('检查文件存在性失败:', error);
-            return false;
-        }
-    });
+	ipcMain.handle('transcode-video', transcodeVideo)
+	// ==========图片处理================
+	ipcMain.handle('get-images', handleImageRequest); // 处理图片和目录
 }
 
 // 获取视频播放列表
@@ -1082,6 +1113,7 @@ function removeFromVideolist(event, videoId) {
 		}
 	}
 }
+
 
 function createWindow() {   //  创建窗口
 	const windowOptions = {
