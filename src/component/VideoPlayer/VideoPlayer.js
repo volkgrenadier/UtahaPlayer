@@ -195,7 +195,7 @@ const VideoPlayer = () => {
 			videoElement.src = ''; // 清空视频源
 
 		};
-	}, [notifyContext]);
+	}, []); // 🔥 移除 notifyContext 依赖，避免无限循环
 
 
 	// 初始化加载视频列表
@@ -949,34 +949,37 @@ const VideoPlayer = () => {
 	return (
 		<div className='VideoPlayer_container'>
 			<div className="VideoPlayer_diaplay_container">
+				<video
+					ref={videoRef}
+					src={currentVideo?.path ? toFileUrl(currentVideo.path) : ''}
+					controls={false}
+					preload="metadata"
+					onPlay={handlePlay}
+					onPause={handlePause}
+					onError={handleError}
+					onCanPlay={handleCanPlay}
+					onLoadedData={handleLoadedData}
+					style={{ 
+						width: '100%', 
+						height: '100%',
+						display: currentVideo ? 'block' : 'none' // 🔥 使用 display 控制显示，不销毁元素
+					}}
+					onEnded={handleVideoEnded}
+					className="VideoPlayer_video_element"
+					onTimeUpdate={() => {
+						// 直接在这里更新时间
+						if (videoRef.current) {
+							setCurrentTime(videoRef.current.currentTime);
+							// 🔥 只在总时长为0时才设置，避免重复设置
+							if (totalTime === 0 && videoRef.current.duration && !isNaN(videoRef.current.duration)) {
+								setTotalTime(videoRef.current.duration);
+								console.log('从 onTimeUpdate 获取总时长:', videoRef.current.duration);
+							}
+						}
+					}}
+				/>
 				{
-					currentVideo ? (
-						<video
-							ref={videoRef}
-							src={currentVideo?.path ? toFileUrl(currentVideo.path) : ''} // 现在 toFileUrl 已定义
-							controls={false}
-							preload="metadata" // 改为 metadata，这样可以获取时长但不下载整个视频
-							onPlay={handlePlay}
-							onPause={handlePause}
-							onError={handleError}
-							onCanPlay={handleCanPlay}
-							onLoadedData={handleLoadedData}
-							style={{ width: '100%', height: '100%' }}
-							onEnded={handleVideoEnded}
-							className="VideoPlayer_video_element"
-							onTimeUpdate={() => {
-								// 直接在这里更新时间
-								if (videoRef.current) {
-									setCurrentTime(videoRef.current.currentTime);
-									// 🔥 只在总时长为0时才设置，避免重复设置
-									if (totalTime === 0 && videoRef.current.duration && !isNaN(videoRef.current.duration)) {
-										setTotalTime(videoRef.current.duration);
-										console.log('从 onTimeUpdate 获取总时长:', videoRef.current.duration);
-									}
-								}
-							}}
-						/>
-					) : (
+					!currentVideo && (
 						<div className="no-video-placeholder">
 							<p>请选择视频文件</p>
 						</div>

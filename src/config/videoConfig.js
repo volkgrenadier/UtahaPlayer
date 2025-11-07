@@ -3,29 +3,34 @@
 const path = require('path');
 const fs=require('fs');
 
-// video.js支持的视频类型
-const supportedExtensions = ['.mp4', '.webm', '.ogg'];
+// ✅ ffmpeg 和 HTML5 video 都支持的视频格式（不需要转码）
+const supportedExtensions = [
+	'.mp4',   // H.264/H.265
+	'.webm',  // VP8/VP9
+	'.ogg',   // Theora
+	'.ogv',   // Ogg Video
+	'.m4v',   // MPEG-4
+];
 
 function needsTranscoding(filePath) {
 	try {
 		// 检查文件是否存在
 		if (!fs.existsSync(filePath)) {
 			console.warn('文件不存在:', filePath);
-			return true; // 文件不存在，跳过处理
+			return false; // 文件不存在，不转码
 		}
 
 		const ext = path.extname(filePath).toLowerCase();
 		
-		// 暂时对所有视频文件都进行转码，确保完全兼容 Chromium
-		// 这可以解决像素格式问题和编解码器兼容性问题
-		const shouldTranscode = true;
+		// ✅ 只有不在支持列表中的格式才需要转码
+		const shouldTranscode = !supportedExtensions.includes(ext);
 		
 		console.log(`文件: ${path.basename(filePath)}, 扩展名: ${ext}, 需要转码: ${shouldTranscode}`);
 		
 		return shouldTranscode;
 	} catch (error) {
 		console.error('检查文件转码需求失败:', error);
-		return true; // 出错时假设需要转码
+		return false; // 出错时不转码
 	}
 }
 // 获取转码后输出路径
