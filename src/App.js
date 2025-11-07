@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { NotificationProvider } from './utils/NotificationProvider';
 import DragWindow from './component/DragWindow/DragWindow';
 import Header from './component/Header/Header';
@@ -20,12 +20,12 @@ function App() {
 					<Header />
 				</DragWindow>
 				<div className='main_container'>
-					<BrowserRouter>
+					<HashRouter>
 						<LeftNav />
 						<div className='right_container'>
 							<Routes />
 						</div>
-					</BrowserRouter>
+					</HashRouter>
 				</div>
 			</div>
 		</NotificationProvider>

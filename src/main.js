@@ -980,7 +980,16 @@ function createWindow() {   //  创建窗口
 	}
 	mainWindow = new BrowserWindow(windowOptions);
 	mainWindow.title = 'Utaha Music';
-	mainWindow.loadURL("http://localhost:3000/");
+	
+	// 判断是开发环境还是生产环境
+	if (app.isPackaged) {
+		// 生产环境：加载打包后的 build/index.html
+		mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
+	} else {
+		// 开发环境：加载 React 开发服务器
+		mainWindow.loadURL("http://localhost:3000/");
+	}
+	
 	mainWindow.once('ready-to-show', () => {
 		mainWindow.show();
 	});
