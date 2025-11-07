@@ -1,7 +1,11 @@
 {
-  "name": "utaha music",
+  "name": "utaha-music",
+  "productName": "Utaha Music",
   "version": "0.1.0",
+  "description": "Desktop Music & Video Player",
+  "author": "Utaha Team",
   "private": true,
+  "homepage": ".",
   "main": "./src/main.js",
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -33,7 +37,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "electron-trace": "electron --trace-warnings ."
+    "electron-trace": "electron --trace-warnings .",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "eslintConfig": {
     "extends": [
@@ -54,6 +60,14 @@
     ]
   },
   "devDependencies": {
+    "@electron-forge/cli": "^7.10.2",
+    "@electron-forge/maker-deb": "^7.10.2",
+    "@electron-forge/maker-rpm": "^7.10.2",
+    "@electron-forge/maker-squirrel": "^7.10.2",
+    "@electron-forge/maker-zip": "^7.10.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
+    "@electron-forge/plugin-fuses": "^7.10.2",
+    "@electron/fuses": "^1.8.0",
     "electron": "^34.2.0",
     "sass": "^1.85.0"
   }
