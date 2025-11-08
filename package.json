@@ -17,6 +17,7 @@
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
     "blueimp-md5": "^2.19.0",
+    "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^10.0.1",
     "ffmpeg": "^0.0.4",
     "ffmpeg-static": "^5.2.0",
@@ -34,6 +35,8 @@
   "scripts": {
     "electron": "electron .",
     "start": "react-scripts start",
+    "dev": "concurrently \"npm:start\" \"npx wait-on http://localhost:3000 && electron .\"",
+    "start:forge": "electron-forge start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",

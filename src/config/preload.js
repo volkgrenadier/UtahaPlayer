@@ -75,6 +75,8 @@ contextBridge.exposeInMainWorld('electronFeatures', {
 	getOutputPath: (filePath) => ipcRenderer.invoke('get-output-path', filePath),
 	// 执行转码
 	transcodeVideo: (inputPath, outputPath) => ipcRenderer.invoke('transcode-video', { inputPath, outputPath }),
+	// 诊断 ffprobe
+	diagnoseFfprobe: () => ipcRenderer.invoke('diagnose-ffprobe'),
 
     // 工具函数
     /**
