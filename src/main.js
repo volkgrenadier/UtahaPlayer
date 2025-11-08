@@ -8,7 +8,44 @@ const { needsTranscoding, getOutputPath } = require("./config/videoConfig.js");
 
 const ffmpeg = require('fluent-ffmpeg');
 const ffprobeStatic = require('ffprobe-static');
-ffmpeg.setFfprobePath(ffprobeStatic.path);
+const ffmpegStatic = require('ffmpeg-static');
+
+// 更鲁棒的二进制解析：优先使用导出路径，其次尝试 resourcesPath 下的 asar.unpacked 路径
+function resolveBinary(pkgName, exportedPath) {
+	try {
+		if (!exportedPath) return null;
+
+		// 1) 导出的路径（开发模式或已解析的路径）
+		if (fs.existsSync(exportedPath)) return exportedPath;
+
+		// 2) 打包后常见位置：resources/app.asar.unpacked/node_modules/<pkg>/basename
+		const baseName = path.basename(exportedPath);
+		const unpackedCandidate = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', pkgName, baseName);
+		if (fs.existsSync(unpackedCandidate)) return unpackedCandidate;
+
+		// 3) 有时在 resources/app/node_modules 下（极少数情况）
+		const appNodeCandidate = path.join(process.resourcesPath, 'app', 'node_modules', pkgName, baseName);
+		if (fs.existsSync(appNodeCandidate)) return appNodeCandidate;
+
+		// 4) 最后回退到原始导出路径（可能不可用，但尽量不返回 undefined）
+		return exportedPath;
+	} catch (err) {
+		console.error('resolveBinary 失败:', err);
+		return exportedPath;
+	}
+}
+
+const ffmpegExport = ffmpegStatic; // ffmpeg-static 通常直接导出路径字符串
+const ffprobeExport = ffprobeStatic && ffprobeStatic.path ? ffprobeStatic.path : ffprobeStatic;
+
+const ffmpegPathResolved = resolveBinary('ffmpeg-static', ffmpegExport);
+const ffprobePathResolved = resolveBinary('ffprobe-static', ffprobeExport);
+
+ffmpeg.setFfmpegPath(ffmpegPathResolved);
+ffmpeg.setFfprobePath(ffprobePathResolved);
+
+console.log('FFmpeg 路径解析结果:', ffmpegPathResolved);
+console.log('FFprobe 路径解析结果:', ffprobePathResolved);
 
 
 let ElectronStore;
@@ -608,7 +645,44 @@ function listenEvent() {
 	ipcMain.handle('get-video-file-path', getVideoPath) // 获取视频文件路径
 	ipcMain.handle('select-video-file', chooseVideoFile); // 选择单个视频文件
 	ipcMain.handle('select-video-files', chooseVideoFiles); // 选择多个视频文件
-	ipcMain.handle('get-video-info', getVideoInfo); // 获取视频信息 
+	ipcMain.handle('get-video-info', getVideoInfo); // 获取视频信息
+	// 诊断 ffprobe 二进制
+	ipcMain.handle('diagnose-ffprobe', async () => {
+		const results = {
+			ffmpeg: {
+				exportedPath: ffmpegExport,
+				resolvedPath: ffmpegPathResolved,
+				exists: fs.existsSync(ffmpegPathResolved || ''),
+				isInAsar: (ffmpegPathResolved || '').includes('app.asar') && !(ffmpegPathResolved || '').includes('app.asar.unpacked')
+			},
+			ffprobe: {
+				exportedPath: ffprobeExport,
+				resolvedPath: ffprobePathResolved,
+				exists: fs.existsSync(ffprobePathResolved || ''),
+				isInAsar: (ffprobePathResolved || '').includes('app.asar') && !(ffprobePathResolved || '').includes('app.asar.unpacked')
+			},
+			environment: {
+				isDev: !app.isPackaged,
+				resourcesPath: process.resourcesPath,
+				appPath: app.getAppPath()
+			}
+		};
+		
+		// 尝试手动执行 ffprobe 验证可执行性
+		if (results.ffprobe.exists) {
+			try {
+				const { execFileSync } = require('child_process');
+				const versionOutput = execFileSync(ffprobePathResolved, ['-version'], { encoding: 'utf8' });
+				results.ffprobe.executable = true;
+				results.ffprobe.versionOutput = versionOutput.split('\n')[0];
+			} catch (err) {
+				results.ffprobe.executable = false;
+				results.ffprobe.execError = err.message;
+			}
+		}
+		
+		return results;
+	});
 	ipcMain.on('remove-from-videolist', (event, videoId) => {
 		removeFromVideolist(event, videoId);
 	});
@@ -855,20 +929,64 @@ async function transcodeVideo(event, { inputPath, outputPath }) {
 
 // 获取视频信息 ???
 async function getVideoInfo(event, filePaths) {
+	console.log('=== 开始获取视频信息 ===');
+	console.log('文件路径列表:', filePaths);
+	console.log('当前 ffprobe 解析路径:', ffprobePathResolved);
+	console.log('ffprobe 文件存在性:', fs.existsSync(ffprobePathResolved || ''));
+	
 	try {
 		const videoArr = [];
 
 		for (const filePath of filePaths) {
+			console.log(`\n处理视频文件: ${filePath}`);
+			
 			// 获取文件基本信息
 			const stats = fs.statSync(filePath);
 			const fileName = path.basename(filePath);
-			// 获取视频元数据
-			const metadata = await new Promise((resolve, reject) => {
-				ffmpeg.ffprobe(filePath, (err, data) => {
-					if (err) reject(err);
-					else resolve(data);
-				})
-			})
+			
+			// 获取视频元数据：优先使用 fluent-ffmpeg 的 ffprobe，失败则直接调用二进制
+			let metadata = null;
+			try {
+				console.log('尝试使用 fluent-ffmpeg.ffprobe...');
+				metadata = await new Promise((resolve, reject) => {
+					ffmpeg.ffprobe(filePath, (err, data) => {
+						if (err) {
+							console.error('fluent-ffmpeg.ffprobe 返回错误:', err.message);
+							reject(err);
+						} else {
+							console.log('fluent-ffmpeg.ffprobe 成功');
+							resolve(data);
+						}
+					})
+				});
+			} catch (ffprobeErr) {
+				console.warn('fluent-ffmpeg ffprobe 调用失败，尝试直接调用 ffprobe 二进制:', ffprobeErr.message);
+				// 回退：直接调用 ffprobe 可执行文件
+				try {
+					const { execFileSync } = require('child_process');
+					const ffprobeBin = ffprobePathResolved || ffprobeExport;
+					console.log('检查 ffprobe 二进制路径:', ffprobeBin);
+					console.log('ffprobe 二进制存在:', fs.existsSync(ffprobeBin || ''));
+					
+					if (!ffprobeBin || !fs.existsSync(ffprobeBin)) {
+						throw new Error(`ffprobe 二进制不存在: ${ffprobeBin}`);
+					}
+					console.log('直接调用 ffprobe:', ffprobeBin);
+					const args = ['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', filePath];
+					const output = execFileSync(ffprobeBin, args, { 
+						encoding: 'utf8', 
+						maxBuffer: 10 * 1024 * 1024,
+						timeout: 30000 
+					});
+					metadata = JSON.parse(output);
+					console.log('直接调用 ffprobe 成功，获取到 metadata');
+				} catch (binErr) {
+					console.error('直接调用 ffprobe 二进制也失败:', binErr.message);
+					console.error('完整错误:', binErr);
+					throw new Error(`无法获取视频信息: ${ffprobeErr.message}`);
+				}
+			}
+			
 			const videoStream = metadata.streams.find(s => s.codec_type === 'video');
 
 			const title = fileName;
@@ -901,9 +1019,13 @@ async function getVideoInfo(event, filePaths) {
 			};
 			videoArr.push(videoInfoObj);
 		}
+		console.log('=== 成功获取所有视频信息 ===');
+		console.log('返回视频数量:', videoArr.length);
 		return videoArr;
 	} catch (error) {
-		console.log('获取视频信息失败：', error);
+		console.error('=== 获取视频信息失败 ===');
+		console.error('错误消息:', error.message);
+		console.error('错误堆栈:', error.stack);
 		return [];
 	}
 }
