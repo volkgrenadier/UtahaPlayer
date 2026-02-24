@@ -3,7 +3,7 @@
 .sideBar_container {
 	$sideBarWidth: 60px;
 	width: $sideBarWidth;
-	background-color: #f2f2f5;
+	background-color: $color_main_sidebar_bg;
 	position: relative;
 	z-index: 500;
 	@mixin navItemBasic {

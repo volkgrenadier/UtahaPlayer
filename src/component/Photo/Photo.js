@@ -1,14 +1,18 @@
-import React, { useState, useCallback, useRef, useLayoutEffect } from 'react'
+import React, { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SmartDisplayIcon from '@mui/icons-material/SmartDisplay';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import PlaylistRemoveIcon from '@mui/icons-material/PlaylistRemove';
 import Tooltip from '@mui/material/Tooltip';
+import PhotoEditor from './PhotoEditor/PhotoEditor.js';
 import './Photo.scss'
 
 import testImage from '../../assets/2.jpg';
 import testImage2 from '../../assets/1.jpg';
+
 const Photo = () => {
     // 当前选中的图片
     const [selectedImage, setSelectedImage] = useState(null);
@@ -110,6 +114,15 @@ const Photo = () => {
                 // 播放
             }
         },
+        {
+            icon: <PlaylistRemoveIcon />,
+            tooltip: '清空图片列表',
+            onClick: async () => {
+                setImageList([]);
+                setSelectedImage(null);
+                // resetImageTransform();
+            }
+        }
     ])
     /**
      * @description 处理图片列表，根据图片的索引生成图片的行数和列数，其生成是行数和列数要满足排布方式，排布方式为：以每四张图片为“一组”，每组的总行数为2，列数为4，奇数组四张图片占据的行列数分别为：
@@ -197,6 +210,35 @@ const Photo = () => {
         const updatedImageList = updateImagesRowsAndCols(imageList);
         setImageList(updatedImageList);
     }, []);
+
+    /**
+     * @description 点击图片时，设置当前选中的图片，并重置图片的放大和移动状态
+     * @param {object} item 图片对象
+     */
+    const handleImageClick = (item) => {
+        setSelectedImage(item);
+        // resetImageTransform();
+    }
+    /**
+     * @description 从图片列表中移除图片，如果当前选中的图片被移除，则重置图片放大和移动状态并将当前选中的图片为null
+     * @param {object} item 图片对象
+     */
+    const handleRemoveImage = (item) => {
+        const updatedImageList = imageList.filter(image => image.src !== item.src);
+        setImageList(updatedImageList);
+        if (selectedImage && selectedImage.src === item.src) {
+            setSelectedImage(null);
+            // resetImageTransform();
+        }
+    }
+    /**
+     * @description 清除图片列表，重置当前选中的图片和图片的放大和移动状态
+     * 
+     */
+    const handleClearImages = () => {
+        
+    }
+
     return (
         <div className='Photo_container'>
             <div className="Photo_imageListContainer">
@@ -228,7 +270,7 @@ const Photo = () => {
                                 key={item.src} 
                                 cols={item.cols || 1} 
                                 rows={item.rows || 1}
-                                onClick={() => setSelectedImage(item)}
+                                onClick={() => handleImageClick(item)}
                             >
                                 <img
                                     {...srcset(item.src, 121, item.rows, item.cols)}
@@ -240,18 +282,14 @@ const Photo = () => {
                     }
                 </ImageList>
             </div>
-            <div className="Photo_displayArea">
-                {
-                    selectedImage ? (
-                        <img
-                            src={selectedImage.src}
-                            alt={selectedImage.title}
-                            className="Photo_selectedImage"
-                        />
-                    ) : (
-                        <div className="Photo_placeholder">请选择一张图片</div>
-                    )
-                }
+            <div 
+                className="Photo_displayArea"
+            >
+                {selectedImage ? (
+                    <PhotoEditor selectedImage={selectedImage} />
+                ) : (
+                    <div className="Photo_placeholder">请选择一张图片</div>
+                )}
             </div>
         </div>
     )
