@@ -1,0 +1,83 @@
+@import '../../../style/public.scss';
+@import '../PhotoPublic.scss';
+.PhotoEditor_container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.PhotoEditor_toolbar {
+    display: flex;
+    align-items: center;
+    height: $photoImageListHeaderHeight;
+    padding: 0;
+    background: $color_main_sidebar_bg;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.PhotoEditor_toolBtn {
+    @include photoButtonColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 4px 8px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.PhotoEditor_drawOptions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 8px;
+}
+
+.PhotoEditor_cropOptions {
+    display: flex;
+    gap: 6px;
+    margin-left: 8px;
+}
+
+.PhotoEditor_filterPanel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 16px;
+    background: #f9f9fb;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+
+    label { color: #aaa; font-size: 12px; white-space: nowrap; }
+
+    .MuiSlider-root { 
+        width: 120px; 
+        color: $color_main; 
+    }
+}
+
+.PhotoEditor_canvas {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: #e8e8e8;
+    cursor: grab;
+    &:active { 
+        cursor: grabbing; 
+    }
+}
+
+.PhotoEditor_placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: #aaa;
+    font-size: 16px;
+}
