@@ -1,8 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const path = require('path');
 
-// 向主进程发送信息
+// 需要返回值的消息列表
+let channelsWithResponse = [
+    'check-file-exists',
+    'getSlideImages'
+]
 
+// 向主进程发送信息
 // 将electron API暴露给渲染进程
 contextBridge.exposeInMainWorld('electronFeatures', {
     // 获取用户配置
@@ -30,7 +35,7 @@ contextBridge.exposeInMainWorld('electronFeatures', {
             return Promise.resolve();
         }
         // 对于需要返回值的操作，使用 invoke
-        if (channel === 'check-file-exists') {
+        if (channelsWithResponse.includes(channel)) {
             return ipcRenderer.invoke(channel, data);
         }
         // 对于不需要返回值的操作，使用 send 但返回 Promise
@@ -98,6 +103,48 @@ contextBridge.exposeInMainWorld('electronFeatures', {
         }
         return ipcRenderer.invoke('get-images', openDirectoryOrFile)
     },
+    /**
+     * @description 获取图片列表幻灯片播放配置
+     */
+    getImageListShowConfig: () => ipcRenderer.invoke('get-imagelist-show-config'),
+    /**
+     * @description 更新图片列表缓存和播放数量配置
+     * @param {number} photoPlayCount 播放数量，整数，范围 1-12
+     * @returns 
+     */
+    updateSlideShowConfig: (imageList, photoPlayCount) => {
+        let attrList = []
+        let valueList = []
+        if (photoPlayCount !== undefined) {
+            attrList.push('photo.photoPlayCount');
+            valueList.push(photoPlayCount);
+        }
+        if (imageList !== undefined) {
+            attrList.push('photo.photoLibrary.slideImagesCache');
+            valueList.push(imageList);
+        }
+
+        return ipcRenderer.send('update-slide-show-config',
+            { 
+                attrName: attrList,
+                value: valueList
+            }
+        )
+    },
+    /**
+     * @description 关闭图片幻灯片窗口
+     */
+    closeSlideShow: () => ipcRenderer.send('close-slide-show'),
+    /**
+     * @description 从本地删除图片文件
+     */
+    deleteImageFile: (filePath, updatedImageList) => {
+        return ipcRenderer.invoke('delete-image-file', {
+            filePath,
+            updatedImageList
+        });
+    }
+
 
 });
 

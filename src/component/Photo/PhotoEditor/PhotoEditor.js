@@ -78,7 +78,7 @@ const PhotoEditor = ({ selectedImage }) => {
     const [stageScale, setStageScale] = useState(1)
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 })
 
-    // 编辑模式:  'preview' | 'preview' | 'crop' | 'draw' | 'text' | 'filter'
+    // 编辑模式:  'view' | 'preview' | 'crop' | 'draw' | 'text' | 'filter'
     const [editMode, setEditMode] = useState('view')
 
     // 旋转 & 翻转
@@ -134,7 +134,7 @@ const PhotoEditor = ({ selectedImage }) => {
         setContrast(0)
         setLines([])
         setTexts([])
-        setEditMode('preview')
+        setEditMode('view')
         setStageScale(1)
         setStagePos({ x: 0, y: 0 })
         setHistory([])

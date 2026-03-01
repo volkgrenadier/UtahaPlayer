@@ -17,18 +17,111 @@
             height: $photoImageListHeaderHeight;
             flex: 1 0 auto;
             display: flex;
-            align-items: center;
+            align-items: stretch;
             background: $color_main_sidebar_bg;
             border-bottom: 1px solid #e0e0e0;
+            position: relative;
+            gap: 4px;
             .Photo_button {
                 @include customButtonBasic;
                 @include photoButtonColor;
                 padding: 4px 8px;
                 border-radius: 0;
-                &:is(:first-child) {
-                    margin-left: 4px;
-                }
+                height: 100%;
             }
+            .Photo_secondaryButton_container {
+                position: relative;
+                display: inline-flex;
+                height: 100%;
+                // flex-direction: row;
+                align-items: stretch;
+                .photo_secondaryButton {
+                    height: 100%;
+                    position: relative;
+                    
+                }
+                .Photo_subButton_sideAttach {
+                    @include flexCenter;
+                    min-width: unset;
+                    width: 18px;
+                    height: 100%;
+                    &::before {
+                        content: '';
+                        position: absolute;
+                        left: 0;
+                        top: 6px;        // 控制上边距
+                        bottom: 6px;     // 控制下边距
+                        width: 1px;
+                        background: rgba(25,25,25,.3);
+                    }
+                }
+                .Photo_subButton_playCount {
+                    svg {
+                        transition: $custom_transition;
+                    }
+                    &.active {
+                        &:hover {
+                            background-color: darken(#e4e4e8, 10%);
+                            color: $color_main;
+                        }
+                        &:active {
+                            background-color: lighten($color_main, 35%);
+                            color: $color_main;
+                        }
+                        svg{
+                            transform: rotate(180deg);
+                        }
+                    }
+                }
+                .Photo_playCountMenu {
+                    position: absolute;
+                    top: 100%;
+                    right: 0;
+                    width: 80px;
+                    max-height: 0;
+                    overflow-y: auto;
+                    background-color: #ffffff;
+                    border: 1px solid #e6e6e6;
+                    border-radius: 6px;
+                    padding: 0;
+                    z-index: 1000;
+                    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+                    opacity: 0;
+                    transform: translateY(-8px) scale(0.95);
+                    pointer-events: none;
+                    transition: $custom_transition;
+                    @include scrollStyle;
+                    .Photo_playCountItem {
+                        padding: 6px 0;
+                        text-align: center;
+                        cursor: pointer;
+                        color: #444;
+                        font-size: 14px;
+                        transition: all 0.2s;
+                    }
+
+                    .Photo_playCountItem:hover {
+                        background: #f5f7fa;
+                        color: $color_main;
+                    }
+
+                    .Photo_playCountItem.active {
+                        background: #e3f2fd;
+                        color: $color_main;
+                        font-weight: 500;
+                    }
+                }
+                .Photo_playCountMenu.open {
+                    max-height: 200px;
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                    pointer-events: auto;
+                    padding: 4px 0;
+                }
+
+                
+            }
+            
         }
         .Photo_imageList {
             @include scrollStyle;
