@@ -10,6 +10,8 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffprobeStatic = require('ffprobe-static');
 const ffmpegStatic = require('ffmpeg-static');
 
+const { attachThumbs } = require('./thumbnailHelper.js');
+
 // 更鲁棒的二进制解析：优先使用导出路径，其次尝试 resourcesPath 下的 asar.unpacked 路径
 function resolveBinary(pkgName, exportedPath) {
 	try {
@@ -72,18 +74,29 @@ async function initStore() {
 				videoFolders: []
 			},
 			volume: 25
+		},
+		photo: {
+			photoLibrary: {
+				slideImagesCache: [],
+			},
+			photoPlayCount: 4
 		}
 	}) // 读取用户配置文件
 	userConfig = userSavedConfig
 }
 
 let mainWindow = null;
+let slideWindow = null
 let movingInterval = null;
 let lastUpdateTime = 0;
 const UPDATE_INTERVAL = 16; // 约等于 60fps (1000/60 ≈ 16.67ms)
 //  歌词文件类型列表
 const lyricFileTypeList = lyricFileType.map(item => item.type)
-
+//  图片幻灯片播放设置
+let slideImagesConfig = {
+	photoPlayCount: 4, // 同时显示的图片数量
+	slideImagesCache: []
+}
 /**
  * 应用级系统型事件处理函数
  */
@@ -620,37 +633,44 @@ async function saveLyricsAssociation(event, { musicId, lyricPath }) {
  * @param {enum} openDirectoryOrFile 选择文件或目录，传入值为'directory' or 'file'，默认为'file'
  */
 async function handleImageRequest(event, openDirectoryOrFile) {
-	// console.log(event, openDirectoryOrFile)
-	let imageFiles = [];
-	if (openDirectoryOrFile === 'directory') {
-		const result = await dialog.showOpenDialog(mainWindow, {
-			properties: ['openDirectory'] // 选择目录
-		});
+    let imageFiles = []; // 存放原始路径字符串
+    if (openDirectoryOrFile === 'directory') {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory']
+        });
 
-		// 读取目录下所有图片文件
-		if (!result.canceled && result.filePaths.length > 0) {
-			const dirPath = result.filePaths[0];
-			const files = fs.readdirSync(dirPath);
-			for (const file of files) {
-				const filePath = path.join(dirPath, file);
-				const stats = fs.statSync(filePath);
-				// 检查是否为文件且扩展名在图片类型列表中
-				if (stats.isFile() && imageTypeList.includes(path.extname(file).toLowerCase().slice(1))) {
-					imageFiles.push(filePath); // 添加符合条件的图片文件路径
-				}
-			}
-			
-		}
-	} else {
-		const result = await dialog.showOpenDialog(mainWindow, {
-			properties: ['openFile'], // 选择文件
-			filters: [{ name: '图片文件', extensions: imageTypeList }]
-		});
-		if (!result.canceled && result.filePaths.length > 0) {
-			imageFiles.push(result.filePaths[0]); // 返回选择的文件路径
-		}
-	}
-	return imageFiles; // 返回选择的目录路径
+        if (!result.canceled && result.filePaths.length > 0) {
+            const dirPath = result.filePaths[0];
+            const files = fs.readdirSync(dirPath);
+            for (const file of files) {
+                const filePath = path.join(dirPath, file);
+                const stats = fs.statSync(filePath);
+                if (
+                    stats.isFile() &&
+                    imageTypeList.includes(path.extname(file).toLowerCase().slice(1))
+                ) {
+                    imageFiles.push(filePath);
+                }
+            }
+        }
+    } else {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openFile'],
+            filters: [{ name: '图片文件', extensions: imageTypeList }]
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+            imageFiles.push(result.filePaths[0]);
+        }
+    }
+
+    // 将路径字符串转为 { src } 对象，再批量附加 thumb 字段
+    const imageObjects = imageFiles.map((filePath) => ({ src: filePath }));
+	let imageListWithThumbs = attachThumbs(imageObjects);
+	//	更新配置文件中的图片列表缓存，供幻灯片播放和缓存数据获取使用
+    updateUserConfig(null, { attrName: 'photo.photoLibrary.slideImagesCache', value: imageListWithThumbs }) // 更新配置文件中的图片列表缓存
+	console.log(userConfig)
+	return imageListWithThumbs;
+    // 返回格式：[{ src: '/abs/path/img.jpg', thumb: 'data:image/jpeg;base64,...' }, ...]
 }
 
 //  添加事件监听
@@ -741,6 +761,42 @@ function listenEvent() {
 	ipcMain.handle('transcode-video', transcodeVideo)
 	// ==========图片处理================
 	ipcMain.handle('get-images', handleImageRequest); // 处理图片和目录
+	// 获取图片列表幻灯片播放配置
+	ipcMain.handle('get-imagelist-show-config', getSlideImagesConfig);
+	ipcMain.on('update-slide-show-config', (event, config) => {
+		updateUserConfig(null, {
+			attrName: config.attrName,
+			value: config.value
+		})
+	})
+	// 从本地删除图片文件
+	ipcMain.handle('delete-image-file', (event, data) => {
+		let { filePath, updatedImageList } = data;
+		try {		
+			fs.unlinkSync(filePath);
+			updateUserConfig(null, {
+				attrName: 'photo.photoLibrary.slideImagesCache',
+				value: updatedImageList
+			})
+			return { success: true, message: '图片删除成功' };	
+		} catch (error) {
+			console.error('删除图片文件失败:', error);
+			return { success: false, message: '图片删除失败' };
+		}
+	})
+	// 处理图片幻灯片播放
+	ipcMain.on('open-slide-show', (event, config) => {
+		userConfig.photo.photoLibrary.slideImagesCache = config.imageList
+		userConfig.photo.photoPlayCount = config.photoPlayCount
+		openSlideShowWindow()
+	})
+	//	关闭图片幻灯片窗口
+	ipcMain.on('close-slide-show', () => {
+		if (slideWindow) {
+			slideWindow.close()
+			slideWindow = null
+		}
+	})
 }
 
 // 获取视频播放列表
@@ -1112,6 +1168,58 @@ function removeFromVideolist(event, videoId) {
 			);
 		}
 	}
+}
+/**
+ * @description 获取缓存的图片和播放次数配置
+ * 
+ */
+function getSlideImagesConfig() {
+	return {
+		photoPlayCount: userConfig.photo?.photoPlayCount || 4,
+		slideImagesCache: userConfig.photo?.photoLibrary?.slideImagesCache || []
+	}
+}
+/**
+ * @description 打开图片幻灯片窗口
+ * @description 如果窗口已存在则聚焦，否则创建新窗口并加载幻灯片页面，同时传递当前幻灯片配置
+ */
+function openSlideShowWindow() {
+	if (slideWindow) {
+		slideWindow.focus()
+		return
+	}
+	let configParam = { 
+		attrName: ['photo.photoPlayCount', 'photo.photoLibrary.slideImagesCache'], 
+		value: [userConfig.photo?.photoPlayCount || 4, userConfig.photo?.photoLibrary?.slideImagesCache || []] 
+	}
+	updateUserConfig(null, configParam)
+
+	slideWindow = new BrowserWindow({
+		fullscreen: true,
+		backgroundColor: '#000000',
+		autoHideMenuBar: true,
+		webPreferences: {
+			preload: path.join(__dirname, 'config/preload.js'),
+			nodeIntegration: true,
+			contextIsolation: true,
+			webSecurity: false
+		},
+		title: '幻灯片播放',
+	})
+
+	if (app.isPackaged) {
+		// 生产环境：加载打包后的 build/index.html
+		slideWindow.loadFile(
+			path.join(__dirname, '../build/index.html'),
+			{ hash: '/slideshow' }
+		)
+	} else {
+		slideWindow.loadURL('http://localhost:3000/#/slideshow')
+	}
+
+	slideWindow.on('closed', () => {
+		slideWindow = null
+	})
 }
 
 

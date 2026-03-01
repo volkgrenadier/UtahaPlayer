@@ -1,12 +1,21 @@
 import React, { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Divider from '@mui/material/Divider';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SmartDisplayIcon from '@mui/icons-material/SmartDisplay';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import PlaylistRemoveIcon from '@mui/icons-material/PlaylistRemove';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Tooltip from '@mui/material/Tooltip';
+import { useNotification } from '../../utils/NotificationProvider.js';
 import PhotoEditor from './PhotoEditor/PhotoEditor.js';
 import './Photo.scss'
 
@@ -17,67 +26,76 @@ const Photo = () => {
     // 当前选中的图片
     const [selectedImage, setSelectedImage] = useState(null);
     // 图片列表
-    const [imageList, setImageList] = useState([
-        {
-            src: testImage,
-            title: 'Breakfast',
-            rows: 2,
-            cols: 2,
-        },
-        {
-            src: testImage2,
-            title: 'Burger',
-        },
-        {
-            src: testImage,
-            title: 'Camera',
-        },
-        {
-            src: testImage2,
-            title: 'Coffee',
-            cols: 2,
-        },
-        {
-            src: testImage,
-            title: 'Hats',
-            cols: 2,
-        },
-        {
-            src: testImage,
-            title: 'Honey',
-            author: '@arwinneil',
-            rows: 2,
-            cols: 2,
-        },
-        {
-            src: testImage2,
-            title: 'Basketball',
-        },
-        {
-            src: testImage,
-            title: 'Fern',
-        },
-        {
-            src: testImage,
-            title: 'Mushrooms',
-            rows: 2,
-            cols: 2,
-        },
-        {
-            src: testImage,
-            title: 'Tomato basil',
-        },
-        {
-            src: testImage2,
-            title: 'Sea star',
-        },
-        {
-            src: testImage,
-            title: 'Bike',
-            cols: 2,
-        },
-    ])
-    const buttonList = useRef([
+    // const [imageList, setImageList] = useState([
+    //     {
+    //         src: testImage,
+    //         title: 'Breakfast',
+    //         rows: 2,
+    //         cols: 2,
+    //     },
+    //     {
+    //         src: testImage2,
+    //         title: 'Burger',
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Camera',
+    //     },
+    //     {
+    //         src: testImage2,
+    //         title: 'Coffee',
+    //         cols: 2,
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Hats',
+    //         cols: 2,
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Honey',
+    //         author: '@arwinneil',
+    //         rows: 2,
+    //         cols: 2,
+    //     },
+    //     {
+    //         src: testImage2,
+    //         title: 'Basketball',
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Fern',
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Mushrooms',
+    //         rows: 2,
+    //         cols: 2,
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Tomato basil',
+    //     },
+    //     {
+    //         src: testImage2,
+    //         title: 'Sea star',
+    //     },
+    //     {
+    //         src: testImage,
+    //         title: 'Bike',
+    //         cols: 2,
+    //     },
+    // ])
+    const [imageList, setImageList] = useState([]);
+    const [photoPlayCount, setPhotoPlayCount] = useState(4);
+    const playCountButtonRef = useRef(null);
+    // 展开的二级菜单的索引
+    const [activeMenu, setActiveMenu] = useState(null);
+    // 右键菜单状态：记录鼠标位置和右键点击的目标图片，null 表示菜单关闭
+    const [contextMenu, setContextMenu] = useState(null);
+    // 通知组件
+    const notifyContext = useNotification()
+    const buttonList = [
         {
             icon: <AddPhotoAlternateIcon />,
             tooltip: '打开图片',
@@ -110,22 +128,41 @@ const Photo = () => {
         {
             icon: <SmartDisplayIcon />,
             tooltip: '播放',
-            onClick: () => {
+            onClick: async () => {
                 // 播放
+                if (imageList.length > 0) {
+                    window.electronFeatures.sendMessage('open-slide-show', {
+                        imageList,
+                        photoPlayCount
+                    })
+                }
+            },
+            secondButton: {
+                icon: <ArrowDropDownIcon />,
+                tooltip: '播放数量设置',
+                ref: playCountButtonRef,
+                className: 'Photo_subButton_sideAttach Photo_subButton_playCount',
+                // 用于标识哪个二级菜单被打开了
+                secondaryMenuName: 'photoPlayCount',
+                valueRange: [1, 12],
+                onClick: async (e) => {
+                    e.stopPropagation();
+                    setActiveMenu(prev =>
+                        prev === 'photoPlayCount' ? null : 'photoPlayCount'
+                    );
+                }
             }
         },
         {
             icon: <PlaylistRemoveIcon />,
             tooltip: '清空图片列表',
             onClick: async () => {
-                setImageList([]);
-                setSelectedImage(null);
-                // resetImageTransform();
+                handleClearImages();
             }
         }
-    ])
+    ]
     /**
-     * @description 处理图片列表，根据图片的索引生成图片的行数和列数，其生成是行数和列数要满足排布方式，排布方式为：以每四张图片为“一组”，每组的总行数为2，列数为4，奇数组四张图片占据的行列数分别为：
+     * @description 处理图片列表，根据图片的索引生成图片的行数和列数，其生成是行数和列数要满足排布方式，排布方式为：以每四张图片为"一组"，每组的总行数为2，列数为4，奇数组四张图片占据的行列数分别为：
      * 1. 第一张图片占据2行2列
      * 2. 第二张图片占据1行1列
      * 3. 第三张图片占据1行1列
@@ -196,6 +233,12 @@ const Photo = () => {
      * @returns {object} 包含 src 和 srcSet 属性的对象
      */
     const srcset = useCallback((src, size, rows = 1, cols = 1) => {
+        // 本地文件路径无法通过查询参数裁剪
+        // 直接返回原始 src，避免浏览器以 src + srcSet 双倍加载原始大图
+        const isLocalFile = !src.startsWith('http://') && !src.startsWith('https://');
+        if (isLocalFile) {
+            return { src };
+        }
         return {
             src: `${src}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format`,
             srcSet: `${src}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format&dpr=2 2x`,
@@ -204,11 +247,22 @@ const Photo = () => {
 
 
     /**
-     * @description 组件加载完成后，设置图片列表的行列数
+     * @description 组件加载完成后，获取缓存的图片和播放信息设置，设置图片列表的行列数
      */
     useLayoutEffect(() => {
-        const updatedImageList = updateImagesRowsAndCols(imageList);
-        setImageList(updatedImageList);
+        window.electronFeatures.getImageListShowConfig().then(cachedConfig => {
+            if (cachedConfig) {
+                const updatedImageList = updateImagesRowsAndCols(cachedConfig.slideImagesCache || []);
+                setImageList(updatedImageList);
+                setPhotoPlayCount(cachedConfig.photoPlayCount || 4);
+                console.log(updatedImageList)
+            } else {
+                setImageList([]);
+            }
+        }).catch(err => {
+            console.error('获取图片列表幻灯片播放配置失败', err);
+            setImageList([]);
+        });
     }, []);
 
     /**
@@ -225,18 +279,85 @@ const Photo = () => {
      */
     const handleRemoveImage = (item) => {
         const updatedImageList = imageList.filter(image => image.src !== item.src);
-        setImageList(updatedImageList);
+        let updatedImageListWithRowsAndCols = updateImagesRowsAndCols(updatedImageList);
+        setImageList(updatedImageListWithRowsAndCols);
+        window.electronFeatures.updateSlideShowConfig(updatedImageListWithRowsAndCols, undefined);
         if (selectedImage && selectedImage.src === item.src) {
             setSelectedImage(null);
-            // resetImageTransform();
         }
     }
     /**
-     * @description 清除图片列表，重置当前选中的图片和图片的放大和移动状态
+     * @description 清除图片列表
      * 
      */
     const handleClearImages = () => {
-        
+        setImageList([]);
+        setSelectedImage(null);
+        window.electronFeatures.updateSlideShowConfig([], undefined);
+        // resetImageTransform();
+    }
+    /**
+     * @description 选择播放数量的二级菜单项时，设置播放数量，并关闭二级菜单
+     */
+    const setPhotoPlayCountAndUpdateStoredData = (count) => {
+        setPhotoPlayCount(count);
+        window.electronFeatures.updateSlideShowConfig(undefined, count);
+        setActiveMenu(null);
+    }
+
+    // ── 右键菜单 ──────────────────────────────────────
+
+    /**
+     * @description 打开右键菜单，阻止浏览器默认菜单，记录鼠标位置和目标图片
+     * @param {MouseEvent} e
+     * @param {object} item 右键点击的图片对象
+     */
+    const handleContextMenu = (e, item) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ mouseX: e.clientX, mouseY: e.clientY, item });
+    }
+
+    /**
+     * @description 关闭右键菜单
+     */
+    const handleContextMenuClose = () => {
+        setContextMenu(null);
+    }
+
+    /**
+     * @description 右键菜单 → 从列表中移除，不影响本地文件
+     */
+    const handleContextRemove = () => {
+        handleRemoveImage(contextMenu.item);
+        handleContextMenuClose();
+    }
+
+    /**
+     * @description 右键菜单 → 删除本地图片
+     * 从列表移除后，通知主进程删除本地文件并更新幻灯片配置
+     */
+    const handleContextDeleteLocal = () => {
+        const targetSrc = contextMenu.item.src;
+        const updatedImageList = imageList.filter(image => image.src !== targetSrc);
+        let updatedImageListWithRowsAndCols = updateImagesRowsAndCols(updatedImageList);
+        setImageList(updatedImageListWithRowsAndCols);
+        if (selectedImage && selectedImage.src === targetSrc) {
+            setSelectedImage(null);
+            // resetImageTransform();
+        }
+        window.electronFeatures.deleteImageFile(targetSrc, updatedImageListWithRowsAndCols)
+        .then((res) => {
+            if (res && res.success) {
+                notifyContext.notify.regularNotify.info(res.message || '图片删除成功')
+            } else {                
+                notifyContext.notify.regularNotify.error(res.message || '图片删除失败')
+            }
+            
+        }).catch(err => {
+            notifyContext.notify.regularNotify.error('图片删除失败')
+        })
+        handleContextMenuClose();
     }
 
     return (
@@ -244,15 +365,52 @@ const Photo = () => {
             <div className="Photo_imageListContainer">
                 <div className="Photo_imageListHeader">
                     {
-                        buttonList.current.map((button, index) => (
-                            <Tooltip key={index} title={button.tooltip}>
-                                <button
-                                    className='Photo_button'
-                                    onClick={button.onClick}
-                                >
-                                    {button.icon}
-                                </button>
-                            </Tooltip>
+                        buttonList.map((button, index) => (
+                            <div className='Photo_buttonGroup' key={index}>
+                                <Tooltip key={index} title={button.tooltip}>
+                                    <button
+                                        className='Photo_button'
+                                        onClick={button.onClick}
+                                    >
+                                        {button.icon}
+                                    </button>
+                                </Tooltip>
+                                    {
+                                        button.secondButton && (
+                                            <div className='Photo_secondaryButton_container'>
+                                                <Tooltip title={button.secondButton.tooltip}>
+                                                    <button
+                                                        ref={button.secondButton.ref}
+                                                        className={`Photo_button photo_secondaryButton ${button.secondButton.className} ${
+                                                            activeMenu === button.secondButton.secondaryMenuName? 'active' : ''
+                                                        }`}
+                                                        onClick={button.secondButton.onClick}
+                                                    >
+                                                        {button.secondButton.icon}
+                                                    </button>
+                                                </Tooltip>
+                                                <div className={`Photo_playCountMenu ${activeMenu === button.secondButton.secondaryMenuName ? 'open' : ''}`}>
+                                                    {
+                                                        button.secondButton.valueRange &&
+                                                        Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
+                                                            <div
+                                                                key={num}
+                                                                className={`Photo_playCountItem ${
+                                                                    photoPlayCount === num ? 'active' : ''
+                                                                }`}
+                                                                onClick={() => {
+                                                                    setPhotoPlayCountAndUpdateStoredData(num);
+                                                                }}
+                                                            >
+                                                                {num}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+                            </div>
                         ))
                     }
                 </div>
@@ -271,9 +429,10 @@ const Photo = () => {
                                 cols={item.cols || 1} 
                                 rows={item.rows || 1}
                                 onClick={() => handleImageClick(item)}
+                                onContextMenu={(e) => handleContextMenu(e, item)}
                             >
                                 <img
-                                    {...srcset(item.src, 121, item.rows, item.cols)}
+                                    src={item.thumb || item.src}
                                     alt={item.title}
                                     loading="lazy"
                                 />
@@ -282,6 +441,33 @@ const Photo = () => {
                     }
                 </ImageList>
             </div>
+
+            {/* 右键菜单 */}
+            <Menu
+                open={!!contextMenu}
+                onClose={handleContextMenuClose}
+                anchorReference="anchorPosition"
+                anchorPosition={
+                    contextMenu
+                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                        : undefined
+                }
+            >
+                <MenuItem onClick={handleContextRemove}>
+                    <ListItemIcon>
+                        <DeleteOutlineIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>从列表中移除</ListItemText>
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleContextDeleteLocal} sx={{ color: 'error.main' }}>
+                    <ListItemIcon sx={{ color: 'error.main' }}>
+                        <DeleteForeverIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>删除本地图片</ListItemText>
+                </MenuItem>
+            </Menu>
+
             <div 
                 className="Photo_displayArea"
             >

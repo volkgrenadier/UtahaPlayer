@@ -1,0 +1,135 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: black;
+}
+
+.PhotoSlideShow_wall {
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    gap: 4px;
+    padding: 8px;
+    box-sizing: border-box;
+    background: #000;
+}
+
+/* ===== 磁贴：3D 舞台 ===== */
+.PhotoSlideShow_tile {
+    position: relative;
+    border-radius: 14px;
+    background: #111;
+    clip-path: inset(0 round 14px);
+    perspective: 1400px;
+    perspective-origin: 50% 50%;
+}
+
+/* ===== 图片通用 ===== */
+.PhotoSlideShow_img {
+    position: absolute;
+    inset: 0;
+    width: 115%;
+    height: 115%;
+    top: -7.5%;
+    left: -7.5%;
+    object-fit: cover;
+}
+
+/* ===== Ken Burns ===== */
+.PhotoSlideShow_kenburns {
+    animation: PhotoSlideShow_kenburns 20s ease-in-out infinite alternate;
+}
+@keyframes PhotoSlideShow_kenburns {
+    0%   { transform: scale(1)    translate(0px, 0px);     }
+    100% { transform: scale(1.15) translate(-25px, -15px); }
+}
+
+/* ===== 淡入 ===== */
+.PhotoSlideShow_fadeIn {
+    animation:
+        PhotoSlideShow_fadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+        PhotoSlideShow_kenburns 20s 1.2s ease-in-out infinite alternate;
+}
+@keyframes PhotoSlideShow_fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ===== 立方体翻转 ===== */
+
+$dur:  0.85s;
+$ease: cubic-bezier(0.4, 0, 0.2, 1);
+$dw: 20vw;
+$dh: 20vh;
+
+.PhotoSlideShow_cube {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+}
+
+.PhotoSlideShow_cubeFace {
+    backface-visibility: hidden;
+}
+
+/* ── flip-left ── */
+.PhotoSlideShow_flipLeft {
+    animation: PhotoSlideShow_cubeLeft $dur $ease forwards;
+}
+.PhotoSlideShow_flipLeft .PhotoSlideShow_cubeFaceFront {
+    transform: translateZ($dw);
+}
+.PhotoSlideShow_flipLeft .PhotoSlideShow_cubeFaceNext {
+    transform: rotateY(-90deg) translateZ($dw);
+}
+@keyframes PhotoSlideShow_cubeLeft {
+    from { transform: rotateY(0deg);   }
+    to   { transform: rotateY(90deg);  }
+}
+
+/* ── flip-right ── */
+.PhotoSlideShow_flipRight {
+    animation: PhotoSlideShow_cubeRight $dur $ease forwards;
+}
+.PhotoSlideShow_flipRight .PhotoSlideShow_cubeFaceFront {
+    transform: translateZ($dw);
+}
+.PhotoSlideShow_flipRight .PhotoSlideShow_cubeFaceNext {
+    transform: rotateY(90deg) translateZ($dw);
+}
+@keyframes PhotoSlideShow_cubeRight {
+    from { transform: rotateY(0deg);   }
+    to   { transform: rotateY(-90deg); }
+}
+
+/* ── flip-top ── */
+.PhotoSlideShow_flipTop {
+    animation: PhotoSlideShow_cubeTop $dur $ease forwards;
+}
+.PhotoSlideShow_flipTop .PhotoSlideShow_cubeFaceFront {
+    transform: translateZ($dh);
+}
+.PhotoSlideShow_flipTop .PhotoSlideShow_cubeFaceNext {
+    transform: rotateX(90deg) translateZ($dh);
+}
+@keyframes PhotoSlideShow_cubeTop {
+    from { transform: rotateX(0deg);   }
+    to   { transform: rotateX(-90deg); }
+}
+
+/* ── flip-bottom ── */
+.PhotoSlideShow_flipBottom {
+    animation: PhotoSlideShow_cubeBottom $dur $ease forwards;
+}
+.PhotoSlideShow_flipBottom .PhotoSlideShow_cubeFaceFront {
+    transform: translateZ($dh);
+}
+.PhotoSlideShow_flipBottom .PhotoSlideShow_cubeFaceNext {
+    transform: rotateX(-90deg) translateZ($dh);
+}
+@keyframes PhotoSlideShow_cubeBottom {
+    from { transform: rotateX(0deg);  }
+    to   { transform: rotateX(90deg); }
+}
