@@ -1,5 +1,5 @@
 import { useRoutes } from 'react-router-dom'
-import Home from '../Home/Home'
+import HomeGuide from '../Home/HomeGuide'
 import Music from '../Music/Music'
 import Video from '../Video/Video'
 import Photo from '../Photo/Photo'
@@ -8,7 +8,7 @@ import Resently from '../Resently/Resently'
 import PhotoSlideShow from '../Photo/PhotoSlideShow/PhotoSlideShow'
 const Routes = () => {
 	const routes = useRoutes([
-		{ path: '/', element: <Home /> },
+		{ path: '/', element: <HomeGuide /> },
 		{ path: '/music', element: <Music /> },
 		{ path: '/video', element: <Video /> },
 		{ path: '/photo', element: <Photo /> },

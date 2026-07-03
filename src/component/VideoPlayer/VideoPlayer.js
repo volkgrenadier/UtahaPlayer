@@ -11,7 +11,7 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import CloseIcon from '@mui/icons-material/Close';
-import defaultCoverImg from '../../assets/1.jpg';
+import MovieCreationIcon from '@mui/icons-material/MovieCreation';
 import { useNotification } from '../../utils/NotificationProvider';
 import { MAXVOLUME } from '../../config/reactConfig';
 
@@ -946,6 +946,21 @@ const VideoPlayer = () => {
 		});
 	};
 
+	const getVideoMetaText = (video) => {
+		if (!video) return '添加视频文件后开始播放';
+
+		const resolution = video.width && video.height ? `${video.width}x${video.height}` : '';
+		const duration = video.duration ? formatTime(video.duration) : '';
+		return [video.codec, resolution, duration].filter(Boolean).join(' · ') || video.format || '本地视频';
+	}
+
+	const currentVideoTitle = currentVideo?.title || '未选择视频';
+	const currentVideoMeta = currentVideo
+		? getVideoMetaText(currentVideo)
+		: videoList.length > 0
+			? `${videoList.length} 个视频在列表中`
+			: '添加视频文件后开始播放';
+
 	return (
 		<div className='VideoPlayer_container'>
 			<div className="VideoPlayer_diaplay_container">
@@ -959,11 +974,7 @@ const VideoPlayer = () => {
 					onError={handleError}
 					onCanPlay={handleCanPlay}
 					onLoadedData={handleLoadedData}
-					style={{ 
-						width: '100%', 
-						height: '100%',
-						display: currentVideo ? 'block' : 'none' // 🔥 使用 display 控制显示，不销毁元素
-					}}
+					style={{ display: currentVideo ? 'block' : 'none' }}
 					onEnded={handleVideoEnded}
 					className="VideoPlayer_video_element"
 					onTimeUpdate={() => {
@@ -981,90 +992,108 @@ const VideoPlayer = () => {
 				{
 					!currentVideo && (
 						<div className="no-video-placeholder">
-							<p>请选择视频文件</p>
+							<MovieCreationIcon />
+							<p>还没有选择视频</p>
+							<span>添加本地视频后，可以在这里播放、切换和管理列表。</span>
+							<button
+								className="VideoPlayer_empty_add_btn"
+								type="button"
+								onClick={handleSelectVideoFiles}
+							>
+								添加视频文件
+							</button>
 						</div>
 					)
 				}
 			</div>
 			<div className='VideoPlayer_controller_outer_container'>
-
-				<div className="VideoPlayer_info_container">
-					{/* 播放区域信息设置 */}
-					<div className="VideoPlayer_info_cover_container">
-						<img src={currentVideo?.coverUrl || defaultCoverImg} alt="封面" />
-					</div>
-				</div>
-				<div className="VideoPlayer_controller_container">
-					<div className="VideoPlayer_controller_buttons">
-						<button
-							className={`VideoPlayer_control_button ${isButtonAnimating === 'mode' ? 'animate-click' : ''}`}
-							onClick={togglePlayMode}>
-							{getCurrentModeIcon()}
-						</button>
-						<button
-							className={`VideoPlayer_control_button ${isButtonAnimating === 'prev' ? 'animate-click' : ''}`}
-							onClick={handlePrevious}>
-							<SkipPreviousIcon />
-						</button>
-						<button className={`VideoPlayer_control_button play_button ${isButtonAnimating === 'play' ? 'animate-click' : ''}`}
-							onClick={togglePlay}>
-							{isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-						</button>
-						<button
-							className={`VideoPlayer_control_button ${isButtonAnimating === 'next' ? 'animate-click' : ''}`}
-							onClick={handleNext}
-						>
-							<SkipNextIcon />
-						</button>
-						<div className="VideoPlayer_volume_container"
-							onMouseEnter={() => handleVolumeHover(true)}
-							onMouseLeave={() => handleVolumeHover(false)}
-							ref={volumeContainerRef}
-						>
-							<button
-								className={`VideoPlayer_control_button ${isButtonAnimating === 'volume' ? 'animate-click' : ''}`}
-								onClick={toggleMute}
-							>
-								{isMuted || volumeLevel === 0 ? <VolumeOffIcon /> : <VolumeUpIcon />}
-							</button>
-							{/* 音量控制条 */}
-							<div className={`VideoPlayer_volume_slider_container ${showVolumeSlider ? 'show' : ''}`}>
-								<input
-									type='range'
-									min='0'
-									max='100'
-									value={volumeLevel}
-									onChange={handleVolumeChange}
-									onMouseUp={updateVolumeSave}
-									className='VideoPlayer_volume_slider'
-									style={{ "--volume-percentage": `${volumeLevel}%` }}
-								/>
-							</div>
-						</div>
-					</div>
-					{/* 播放进度条 */}
-					<div className="VideoPlayer_progress_container">
-						<div className="VideoPlayer_time_current">{formatTime(currentTime)}</div>
-						<div
-							className={`VideoPlayer_progress_bar ${isDragging ? 'dragging' : ''}`}
-							onClick={handleProgressClick}
-							onMouseDown={handleProgressMouseDown}
-							ref={progressBarRef}
-						>
-							<div className="VideoPlayer_progress_completed"
-								style={progressStyle()}
-							>
-								<div className="VideoPlayer_progress_handle"></div>
-							</div>
-						</div>
-						<div className="VideoPlayer_time_total">{formatTime(totalTime)}</div>
-					</div>
-				</div>
-				<div className="VideoPlayer_buttons_container">
-					<div className={`VideoPlayer_playlist_button ${isPlaylistOpen ? 'active' : ''} ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`}
-						onClick={togglePlaylist}
+				<div className="VideoPlayer_progress_container">
+					<div className="VideoPlayer_time_current">{formatTime(currentTime)}</div>
+					<div
+						className={`VideoPlayer_progress_bar ${isDragging ? 'dragging' : ''}`}
+						onClick={handleProgressClick}
+						onMouseDown={handleProgressMouseDown}
+						ref={progressBarRef}
 					>
-						<QueueMusicIcon />
+						<div className="VideoPlayer_progress_completed"
+							style={progressStyle()}
+						>
+							<div className="VideoPlayer_progress_handle"></div>
+						</div>
+					</div>
+					<div className="VideoPlayer_time_total">{formatTime(totalTime)}</div>
+				</div>
+				<div className="VideoPlayer_controlRow">
+					<div className="VideoPlayer_info_container">
+						<div className="VideoPlayer_info_cover_container">
+							{
+								currentVideo?.coverUrl
+									? <img src={currentVideo.coverUrl} alt="封面" />
+									: <MovieCreationIcon />
+							}
+						</div>
+						<div className="VideoPlayer_info_text">
+							<div className="VideoPlayer_info_title_container">{currentVideoTitle}</div>
+							<div className="VideoPlayer_info_meta_container">{currentVideoMeta}</div>
+						</div>
+					</div>
+					<div className="VideoPlayer_controller_container">
+						<div className="VideoPlayer_controller_buttons">
+							<button
+								className={`VideoPlayer_control_button ${isButtonAnimating === 'mode' ? 'animate-click' : ''}`}
+								onClick={togglePlayMode}>
+								{getCurrentModeIcon()}
+							</button>
+							<button
+								className={`VideoPlayer_control_button ${isButtonAnimating === 'prev' ? 'animate-click' : ''}`}
+								onClick={handlePrevious}>
+								<SkipPreviousIcon />
+							</button>
+							<button className={`VideoPlayer_control_button play_button ${isButtonAnimating === 'play' ? 'animate-click' : ''}`}
+								onClick={togglePlay}>
+								{isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+							</button>
+							<button
+								className={`VideoPlayer_control_button ${isButtonAnimating === 'next' ? 'animate-click' : ''}`}
+								onClick={handleNext}
+							>
+								<SkipNextIcon />
+							</button>
+							<div className="VideoPlayer_volume_container"
+								onMouseEnter={() => handleVolumeHover(true)}
+								onMouseLeave={() => handleVolumeHover(false)}
+								ref={volumeContainerRef}
+							>
+								<button
+									className={`VideoPlayer_control_button ${isButtonAnimating === 'volume' ? 'animate-click' : ''}`}
+									onClick={toggleMute}
+								>
+									{isMuted || volumeLevel === 0 ? <VolumeOffIcon /> : <VolumeUpIcon />}
+								</button>
+								<div className={`VideoPlayer_volume_slider_container ${showVolumeSlider ? 'show' : ''}`}>
+									<input
+										type='range'
+										min='0'
+										max='100'
+										value={volumeLevel}
+										onChange={handleVolumeChange}
+										onMouseUp={updateVolumeSave}
+										className='VideoPlayer_volume_slider'
+										style={{ "--volume-percentage": `${volumeLevel}%` }}
+									/>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div className="VideoPlayer_buttons_container">
+						<button
+							className={`VideoPlayer_playlist_button ${isPlaylistOpen ? 'active' : ''} ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`}
+							type="button"
+							onClick={togglePlaylist}
+							title="视频列表"
+						>
+							<QueueMusicIcon />
+						</button>
 					</div>
 				</div>
 			</div>
@@ -1076,7 +1105,7 @@ const VideoPlayer = () => {
 			>
 				<div className="VideoPlayer_playlist_header">
 					<h3 className="VideoPlayer_playlist_title">
-						播放列表 <span>({videoList.length}个)</span>
+						视频列表 <span>({videoList.length}个)</span>
 					</h3>
 					<button
 						className="VideoPlayer_playlist_close_btn"
@@ -1109,6 +1138,9 @@ const VideoPlayer = () => {
 								<div className="VideoPlayer_playlist_item_info">
 									<div className="VideoPlayer_playlist_item_title">
 										{video.title}
+									</div>
+									<div className="VideoPlayer_playlist_item_meta">
+										{getVideoMetaText(video)}
 									</div>
 								</div>
 								<button

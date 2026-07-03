@@ -156,6 +156,7 @@ const Photo = () => {
         {
             icon: <PlaylistRemoveIcon />,
             tooltip: '清空图片列表',
+            tone: 'danger',
             onClick: async () => {
                 handleClearImages();
             }
@@ -364,55 +365,71 @@ const Photo = () => {
         <div className='Photo_container'>
             <div className="Photo_imageListContainer">
                 <div className="Photo_imageListHeader">
-                    {
-                        buttonList.map((button, index) => (
-                            <div className='Photo_buttonGroup' key={index}>
-                                <Tooltip key={index} title={button.tooltip}>
-                                    <button
-                                        className='Photo_button'
-                                        onClick={button.onClick}
-                                    >
-                                        {button.icon}
-                                    </button>
-                                </Tooltip>
-                                    {
-                                        button.secondButton && (
-                                            <div className='Photo_secondaryButton_container'>
-                                                <Tooltip title={button.secondButton.tooltip}>
-                                                    <button
-                                                        ref={button.secondButton.ref}
-                                                        className={`Photo_button photo_secondaryButton ${button.secondButton.className} ${
-                                                            activeMenu === button.secondButton.secondaryMenuName? 'active' : ''
-                                                        }`}
-                                                        onClick={button.secondButton.onClick}
-                                                    >
-                                                        {button.secondButton.icon}
-                                                    </button>
-                                                </Tooltip>
-                                                <div className={`Photo_playCountMenu ${activeMenu === button.secondButton.secondaryMenuName ? 'open' : ''}`}>
-                                                    {
-                                                        button.secondButton.valueRange &&
-                                                        Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
-                                                            <div
-                                                                key={num}
-                                                                className={`Photo_playCountItem ${
-                                                                    photoPlayCount === num ? 'active' : ''
+                    <div className='Photo_toolbar'>
+                        <div className='Photo_toolbarButtons'>
+                            {
+                                buttonList.map((button, index) => (
+                                    <div className={`Photo_buttonGroup ${button.secondButton ? 'Photo_buttonGroup_combo' : ''}`} key={index}>
+                                        <Tooltip key={index} title={button.tooltip}>
+                                            <button
+                                                className={`Photo_button ${button.tone === 'danger' ? 'Photo_button_danger' : ''}`}
+                                                type='button'
+                                                aria-label={button.tooltip}
+                                                onClick={button.onClick}
+                                            >
+                                                {button.icon}
+                                            </button>
+                                        </Tooltip>
+                                            {
+                                                button.secondButton && (
+                                                    <div className='Photo_secondaryButton_container'>
+                                                        <Tooltip title={button.secondButton.tooltip}>
+                                                            <button
+                                                                ref={button.secondButton.ref}
+                                                                className={`Photo_button photo_secondaryButton ${button.secondButton.className} ${
+                                                                    activeMenu === button.secondButton.secondaryMenuName? 'active' : ''
                                                                 }`}
-                                                                onClick={() => {
-                                                                    setPhotoPlayCountAndUpdateStoredData(num);
-                                                                }}
+                                                                type='button'
+                                                                aria-label={button.secondButton.tooltip}
+                                                                onClick={button.secondButton.onClick}
                                                             >
-                                                                {num}
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            </div>
-                                        )
-                                    }
-                            </div>
-                        ))
-                    }
+                                                                {button.secondButton.icon}
+                                                            </button>
+                                                        </Tooltip>
+                                                        <div className={`Photo_playCountMenu ${activeMenu === button.secondButton.secondaryMenuName ? 'open' : ''}`}>
+                                                            {
+                                                                button.secondButton.valueRange &&
+                                                                Array.from(
+                                                                    { length: button.secondButton.valueRange[1] - button.secondButton.valueRange[0] + 1 },
+                                                                    (_, i) => i + button.secondButton.valueRange[0]
+                                                                ).map((num) => (
+                                                                    <button
+                                                                        key={num}
+                                                                        className={`Photo_playCountItem ${
+                                                                            photoPlayCount === num ? 'active' : ''
+                                                                        }`}
+                                                                        type='button'
+                                                                        onClick={() => {
+                                                                            setPhotoPlayCountAndUpdateStoredData(num);
+                                                                        }}
+                                                                    >
+                                                                        {num}
+                                                                    </button>
+                                                                ))
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                )
+                                            }
+                                    </div>
+                                ))
+                            }
+                        </div>
+                        <div className='Photo_toolbarMeta'>
+                            <span>{imageList.length} 张</span>
+                            <span>{photoPlayCount} 格播放</span>
+                        </div>
+                    </div>
                 </div>
                 <ImageList
                     // sx={{ width: 1, height: 1 }}

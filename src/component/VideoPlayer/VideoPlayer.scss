@@ -577,3 +577,440 @@
         @include customButtonBasic;
     }
 }
+
+.VideoPlayer_container {
+	background-color: #f7f8fb;
+
+	button {
+		font: inherit;
+	}
+
+	.VideoPlayer_diaplay_container {
+		max-height: calc(100% - 124px);
+		padding: 14px;
+		background:
+			radial-gradient(circle at center, rgba(255, 255, 255, .04), transparent 42%),
+			#101114;
+
+		.VideoPlayer_video_element {
+			width: 100%;
+			height: 100%;
+			object-fit: contain;
+			border-radius: 10px;
+			background-color: #050506;
+			box-shadow: 0 12px 32px rgba(0, 0, 0, .32);
+		}
+
+		.no-video-placeholder {
+			max-width: 360px;
+			height: auto;
+			min-height: 220px;
+			padding: 28px;
+			border: 1px solid rgba(255, 255, 255, .08);
+			border-radius: 12px;
+			background-color: rgba(255, 255, 255, .045);
+			color: rgba(255, 255, 255, .82);
+			text-align: center;
+			box-shadow: 0 12px 32px rgba(0, 0, 0, .18);
+
+			> svg {
+				margin-bottom: 12px;
+				color: rgba(255, 255, 255, .62);
+				font-size: 42px;
+			}
+
+			p {
+				margin: 0;
+				color: #fff;
+				font-size: 18px;
+				font-weight: 600;
+			}
+
+			span {
+				max-width: 280px;
+				margin-top: 8px;
+				color: rgba(255, 255, 255, .62);
+				font-size: 13px;
+				line-height: 1.5;
+			}
+
+			.VideoPlayer_empty_add_btn {
+				@include customButtonBasic;
+				margin-top: 18px;
+				padding: 8px 14px;
+			}
+		}
+	}
+
+	.VideoPlayer_controller_outer_container {
+		flex: 0 0 124px;
+		padding: 10px 16px 12px;
+		border-top: 1px solid #e2e6ee;
+		border-bottom: none;
+		background-color: rgba(255, 255, 255, .96);
+		display: grid;
+		grid-template-columns: 1fr;
+		grid-template-rows: 28px 1fr;
+		gap: 8px;
+		box-shadow: 0 -8px 24px rgba(15, 23, 42, .045);
+	}
+
+	.VideoPlayer_progress_container {
+		width: 100%;
+		display: grid;
+		grid-template-columns: 48px minmax(0, 1fr) 48px;
+		align-items: center;
+		gap: 10px;
+		padding: 0;
+		margin: 0;
+
+		.VideoPlayer_time_current,
+		.VideoPlayer_time_total {
+			width: auto;
+			color: #6b7280;
+			font-size: 12px;
+			font-variant-numeric: tabular-nums;
+			text-align: center;
+			user-select: none;
+		}
+
+		.VideoPlayer_progress_bar {
+			height: 4px;
+			margin: 0;
+			background-color: #e5e9f0;
+			border-radius: 999px;
+			position: relative;
+			cursor: pointer;
+			transition: $custom_transition;
+
+			&::before {
+				content: '';
+				position: absolute;
+				top: -8px;
+				right: 0;
+				bottom: -8px;
+				left: 0;
+			}
+
+			&:hover,
+			&.dragging {
+				height: 6px;
+			}
+
+			.VideoPlayer_progress_completed {
+				position: absolute;
+				left: 0;
+				top: 0;
+				height: 100%;
+				background-color: $color_main;
+				border-radius: 999px;
+				transition: width .1s ease;
+
+				.VideoPlayer_progress_handle {
+					position: absolute;
+					right: -6px;
+					top: 50%;
+					width: 12px;
+					height: 12px;
+					border: 2px solid $color_main;
+					border-radius: 50%;
+					background-color: #fff;
+					box-shadow: 0 2px 8px rgba($color_main, .28);
+					opacity: 0;
+					transform: translateY(-50%) scale(.75);
+					transition: $custom_transition;
+				}
+			}
+
+			&:hover,
+			&.dragging {
+				.VideoPlayer_progress_handle {
+					opacity: 1;
+					transform: translateY(-50%) scale(1);
+				}
+			}
+		}
+	}
+
+	.VideoPlayer_controlRow {
+		min-width: 0;
+		display: grid;
+		grid-template-columns: minmax(220px, 1fr) auto minmax(44px, 1fr);
+		align-items: center;
+		gap: 16px;
+	}
+
+	.VideoPlayer_info_container {
+		min-width: 0;
+		display: grid;
+		grid-template-columns: 42px minmax(0, 1fr);
+		grid-template-rows: none;
+		align-items: center;
+		gap: 10px;
+
+		.VideoPlayer_info_cover_container {
+			width: 42px;
+			height: 42px;
+			border-radius: 10px;
+			background-color: rgba($color_main, .08);
+			color: $color_main;
+			overflow: hidden;
+			@include flexCenter;
+
+			img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				display: block;
+			}
+
+			svg {
+				font-size: 22px;
+			}
+		}
+
+		.VideoPlayer_info_text {
+			min-width: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+		}
+
+		.VideoPlayer_info_title_container {
+			color: #20242c;
+			font-size: 14px;
+			font-weight: 600;
+			line-height: 1.25;
+			@include textEllipsis;
+		}
+
+		.VideoPlayer_info_meta_container {
+			color: #7b8493;
+			font-size: 12px;
+			line-height: 1.2;
+			@include textEllipsis;
+		}
+	}
+
+	.VideoPlayer_controller_container {
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		.VideoPlayer_controller_buttons {
+			margin: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 12px;
+		}
+	}
+
+	.VideoPlayer_control_button,
+	.VideoPlayer_playlist_button {
+		width: 34px;
+		height: 34px;
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		background-color: transparent;
+		color: #4b5563;
+		cursor: pointer;
+		@include flexCenter;
+		@include buttonInteraction;
+
+		&:hover {
+			background-color: rgba($color_main, .08);
+			color: $color_main;
+			transform: translateY(-1px);
+		}
+
+		&:active {
+			transform: scale(.94);
+		}
+
+		svg {
+			font-size: 22px;
+		}
+	}
+
+	.VideoPlayer_control_button.play_button {
+		width: 44px;
+		height: 44px;
+		background-color: $color_main;
+		color: #fff;
+		box-shadow: 0 6px 16px rgba($color_main, .24);
+
+		&:hover {
+			background-color: darken($color_main, 7%);
+			color: #fff;
+			transform: translateY(-1px) scale(1.03);
+		}
+
+		svg {
+			font-size: 27px;
+		}
+	}
+
+	.VideoPlayer_volume_container {
+		position: relative;
+		@include flexCenter;
+
+		.VideoPlayer_volume_slider_container {
+			position: absolute;
+			bottom: calc(100% + 8px);
+			left: 50%;
+			padding: 9px 8px;
+			border: 1px solid #e5e7eb;
+			border-radius: 999px;
+			background-color: #fff;
+			box-shadow: 0 8px 20px rgba(15, 23, 42, .12);
+			opacity: 0;
+			visibility: hidden;
+			transform: translateX(-50%) translateY(8px);
+			transition: $custom_transition;
+			z-index: 20;
+
+			&.show {
+				opacity: 1;
+				visibility: visible;
+				transform: translateX(-50%) translateY(0);
+			}
+
+			&::after {
+				content: '';
+				position: absolute;
+				left: 50%;
+				bottom: -5px;
+				width: 8px;
+				height: 8px;
+				background-color: #fff;
+				border-right: 1px solid #e5e7eb;
+				border-bottom: 1px solid #e5e7eb;
+				transform: translateX(-50%) rotate(45deg);
+			}
+
+			.VideoPlayer_volume_slider {
+				-webkit-appearance: none;
+				width: 92px;
+				height: 4px;
+				border-radius: 999px;
+				outline: none;
+				background: linear-gradient(to right,
+					$color_main 0%,
+					$color_main var(--volume-percentage),
+					#e5e7eb var(--volume-percentage),
+					#e5e7eb 100%);
+
+				&::-webkit-slider-thumb {
+					-webkit-appearance: none;
+					width: 12px;
+					height: 12px;
+					border: 2px solid $color_main;
+					border-radius: 50%;
+					background-color: #fff;
+					cursor: pointer;
+				}
+			}
+		}
+	}
+
+	.VideoPlayer_buttons_container {
+		display: flex;
+		justify-content: flex-end;
+
+		.VideoPlayer_playlist_button {
+			border: 1px solid #e5e7eb;
+			background-color: #fff;
+
+			&.active {
+				border-color: rgba($color_main, .24);
+				background-color: rgba($color_main, .08);
+				color: $color_main !important;
+			}
+		}
+	}
+}
+
+.VideoPlayer_playlist {
+	right: -330px;
+	top: 88px;
+	width: 306px;
+	height: calc(100vh - 160px);
+	max-height: 560px;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+
+	&.VideoPlayer_playlist_open {
+		right: 18px;
+	}
+
+	.VideoPlayer_playlist_header {
+		padding: 14px 14px 12px;
+		background-color: #fbfbfd;
+
+		.VideoPlayer_playlist_title {
+			font-size: 15px;
+			font-weight: 650;
+		}
+	}
+
+	.VideoPlayer_playlist_items {
+		.VideoPlayer_playlist_empty {
+			height: 240px;
+		}
+
+		.VideoPlayer_playlist_item {
+			min-height: 58px;
+			padding: 10px 12px;
+			border-bottom: 1px solid #f0f2f5;
+			gap: 8px;
+
+			&.VideoPlayer_playlist_item_playing {
+				position: relative;
+				background-color: rgba($color_main, .06);
+
+				&::before {
+					content: '';
+					position: absolute;
+					left: 0;
+					top: 10px;
+					bottom: 10px;
+					width: 3px;
+					border-radius: 0 999px 999px 0;
+					background-color: $color_main;
+				}
+			}
+
+			.VideoPlayer_playlist_item_info {
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+			}
+
+			.VideoPlayer_playlist_item_title {
+				font-size: 13px;
+				font-weight: 500;
+				line-height: 1.25;
+			}
+
+			.VideoPlayer_playlist_item_meta {
+				color: #8b93a1;
+				font-size: 12px;
+				line-height: 1.2;
+				@include textEllipsis;
+			}
+		}
+	}
+
+	.VideoPlayer_playlist_footer {
+		padding: 12px;
+		background-color: #fbfbfd;
+	}
+
+	.VideoPlayer_playlist_add_btn {
+		width: 100%;
+	}
+}

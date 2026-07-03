@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';//最近播放
 import FavoriteIcon from '@mui/icons-material/Favorite';//收藏
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import PhotoIcon from '@mui/icons-material/Photo';
@@ -14,11 +15,6 @@ const LeftNav = () => {
 	return (
 		<div className='sideBar_container'>
 			<div className={`sideBar ${expandStatus? 'sideBar-expand': ''}`}>
-				{/* <NavLink to="/" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					Home
-				</NavLink> */}
 				{/* <div className='sideTitle'>
 					媒体
 				</div> */}
@@ -28,6 +24,12 @@ const LeftNav = () => {
 				>
 					<MenuIcon className='nav-icon'/>
 				</div>
+				<NavLink to="/" className={({ isActive }) =>
+					isActive ? 'nav-item active' : 'nav-item'
+				}>
+					<HomeRoundedIcon className='nav-icon'/>
+					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>首页</div>
+				</NavLink>
 				<NavLink to="/music" className={({ isActive }) =>
 					isActive ? 'nav-item active' : 'nav-item'
 				}>

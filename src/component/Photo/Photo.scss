@@ -166,3 +166,173 @@
         }
     }
 }
+
+.Photo_container {
+    .Photo_imageListContainer {
+        .Photo_imageListHeader {
+            height: 48px;
+            padding: 6px;
+            align-items: center;
+            background: #f7f8fb;
+            border-bottom: 1px solid #e5e7eb;
+            gap: 0;
+
+            .Photo_toolbar {
+                width: 100%;
+                min-width: 0;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
+
+            .Photo_toolbarButtons {
+                min-width: 0;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .Photo_buttonGroup {
+                height: 32px;
+                display: inline-flex;
+                align-items: center;
+            }
+
+            .Photo_buttonGroup_combo {
+                border: 1px solid #dfe3ea;
+                border-radius: 8px;
+                background-color: #fff;
+                overflow: visible;
+
+                > .Photo_button {
+                    border-radius: 7px 0 0 7px;
+                    border: none;
+                }
+            }
+
+            .Photo_button {
+                min-width: 32px;
+                width: 32px;
+                height: 32px;
+                padding: 0;
+                border: 1px solid #dfe3ea;
+                border-radius: 8px;
+                background-color: #fff;
+                color: #4b5563;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+                transition: $custom_transition;
+
+                &:hover {
+                    border-color: rgba($color_main, .35);
+                    background-color: rgba($color_main, .06);
+                    color: $color_main;
+                    transform: translateY(-1px);
+                }
+
+                &:active {
+                    transform: scale(.96);
+                }
+
+                svg {
+                    font-size: 19px;
+                }
+            }
+
+            .Photo_button_danger {
+                &:hover {
+                    border-color: rgba(#ef4444, .32);
+                    background-color: rgba(#ef4444, .08);
+                    color: #dc2626;
+                }
+            }
+
+            .Photo_secondaryButton_container {
+                height: 32px;
+
+                .photo_secondaryButton {
+                    width: 28px;
+                    min-width: 28px;
+                    border-width: 0 0 0 1px;
+                    border-color: #e5e7eb;
+                    border-radius: 0 7px 7px 0;
+                    box-shadow: none;
+                }
+
+                .Photo_subButton_sideAttach {
+                    width: 28px;
+
+                    &::before {
+                        display: none;
+                    }
+                }
+
+                .Photo_subButton_playCount.active {
+                    background-color: rgba($color_main, .08);
+                    color: $color_main;
+                }
+
+                .Photo_playCountMenu {
+                    right: 0;
+                    width: 138px;
+                    border-radius: 8px;
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 4px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
+
+                    .Photo_playCountItem {
+                        width: 28px;
+                        height: 28px;
+                        padding: 0;
+                        border: none;
+                        border-radius: 6px;
+                        background-color: transparent;
+                        color: #4b5563;
+                        cursor: pointer;
+                        font-size: 12px;
+                        line-height: 1;
+
+                        &:hover {
+                            background-color: rgba($color_main, .08);
+                            color: $color_main;
+                        }
+
+                        &.active {
+                            background-color: $color_main;
+                            color: #fff;
+                            font-weight: 600;
+                        }
+                    }
+                }
+
+                .Photo_playCountMenu.open {
+                    max-height: 128px;
+                    padding: 8px;
+                }
+            }
+
+            .Photo_toolbarMeta {
+                min-width: 74px;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 2px;
+                color: #6b7280;
+                font-size: 11px;
+                line-height: 1.15;
+                user-select: none;
+
+                span {
+                    max-width: 100%;
+                    white-space: nowrap;
+                }
+            }
+        }
+    }
+}
