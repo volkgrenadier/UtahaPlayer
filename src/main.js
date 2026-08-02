@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = re
 const { parseFile } = require('music-metadata') //node.js的库
 const path = require('path');
 const fs = require('fs');
+const { fileURLToPath } = require('url');
 const { lyricFileType, musicFileType } = require('./config/config.js')
 const { needsTranscoding, getOutputPath } = require("./config/videoConfig.js");
 const { imageTypeList } = require('./config/photoConfig.js');
@@ -11,6 +12,14 @@ const ffprobeStatic = require('ffprobe-static');
 const ffmpegStatic = require('ffmpeg-static');
 
 const { attachThumbs } = require('./thumbnailHelper.js');
+
+function normalizeFilePathForFs(filePath) {
+	if (!filePath || typeof filePath !== 'string') return '';
+	if (/^file:\/\//i.test(filePath)) {
+		return fileURLToPath(filePath);
+	}
+	return filePath;
+}
 
 // 更鲁棒的二进制解析：优先使用导出路径，其次尝试 resourcesPath 下的 asar.unpacked 路径
 function resolveBinary(pkgName, exportedPath) {
@@ -702,6 +711,14 @@ function listenEvent() {
 	ipcMain.handle('save-lyrics-association', saveLyricsAssociation); // 保存歌词关联
 
 	// ========视频处理==============
+	ipcMain.handle('check-file-exists', (event, filePath) => {
+		try {
+			return fs.existsSync(normalizeFilePathForFs(filePath));
+		} catch (err) {
+			console.error('检查文件存在性失败:', err);
+			return false;
+		}
+	});
 	ipcMain.handle('get-video-list', getVideoList)  //  获取播放列表
 	ipcMain.handle('get-video-file-path', getVideoPath) // 获取视频文件路径
 	ipcMain.handle('select-video-file', chooseVideoFile); // 选择单个视频文件

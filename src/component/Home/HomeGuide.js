@@ -1,19 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import MusicNoteIcon from '@mui/icons-material/MusicNote'
 import VideocamIcon from '@mui/icons-material/Videocam'
 import PhotoIcon from '@mui/icons-material/Photo'
-import QueueMusicIcon from '@mui/icons-material/QueueMusic'
-import MovieCreationIcon from '@mui/icons-material/MovieCreation'
-import CollectionsIcon from '@mui/icons-material/Collections'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
-import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates'
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
-import SlideshowIcon from '@mui/icons-material/Slideshow'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import './HomeGuide.scss'
+
+const createCollectionReadState = (state) => ({
+    music: state,
+    video: state,
+    photo: state
+})
 
 const defaultHomeData = {
     musicList: [],
@@ -22,7 +22,8 @@ const defaultHomeData = {
     photoPlayCount: 4,
     loading: true,
     apiReady: true,
-    loadError: false
+    loadError: false,
+    collectionReadState: createCollectionReadState('pending')
 }
 
 const safeArray = (value) => Array.isArray(value) ? value : []
@@ -53,9 +54,9 @@ const getPhotoPlayCount = (value) => {
     return Number.isFinite(count) && count > 0 ? count : 4
 }
 
-const callElectronFeature = (feature, fallback) => {
+const callElectronFeature = (feature) => {
     if (typeof feature !== 'function') {
-        return Promise.resolve(fallback)
+        return Promise.reject(new Error('Electron feature is unavailable'))
     }
 
     try {
@@ -65,8 +66,25 @@ const callElectronFeature = (feature, fallback) => {
     }
 }
 
+const getReadState = (featureAvailable, result, isValidResult) => {
+    if (!featureAvailable) return 'unavailable'
+    return result.status === 'fulfilled' && isValidResult(result.value) ? 'ready' : 'failed'
+}
+
+const getCollectionStatus = (readState, count, unit) => {
+    if (readState === 'pending') return '正在读取'
+    if (readState === 'unavailable') return '当前环境不可访问'
+    if (readState === 'failed') return '未完整读取，暂无法确认内容'
+    return count > 0 ? `已收录 ${count} ${unit}` : '暂未收录内容'
+}
+
+const getCollectionPreviewMessage = (readState) => {
+    if (readState === 'unavailable') return '当前环境无法访问此媒体库'
+    if (readState === 'failed') return '此媒体库未完整读取，暂无法确认内容'
+    return ''
+}
+
 const HomeGuide = () => {
-    const navigate = useNavigate()
     const [homeData, setHomeData] = useState(defaultHomeData)
 
     useEffect(() => {
@@ -79,29 +97,46 @@ const HomeGuide = () => {
                 setHomeData({
                     ...defaultHomeData,
                     loading: false,
-                    apiReady: false
+                    apiReady: false,
+                    collectionReadState: createCollectionReadState('unavailable')
                 })
                 return
             }
 
+            const featureAvailability = {
+                music: typeof electronFeatures.getMusicList === 'function',
+                video: typeof electronFeatures.getVideoList === 'function',
+                photo: typeof electronFeatures.getImageListShowConfig === 'function'
+            }
+
             const [musicResult, videoResult, imageResult] = await Promise.allSettled([
-                callElectronFeature(electronFeatures.getMusicList, []),
-                callElectronFeature(electronFeatures.getVideoList, []),
-                callElectronFeature(electronFeatures.getImageListShowConfig, {})
+                callElectronFeature(electronFeatures.getMusicList),
+                callElectronFeature(electronFeatures.getVideoList),
+                callElectronFeature(electronFeatures.getImageListShowConfig)
             ])
 
             if (isUnmounted) return
 
-            const imageConfig = imageResult.status === 'fulfilled' && imageResult.value ? imageResult.value : {}
+            const collectionReadState = {
+                music: getReadState(featureAvailability.music, musicResult, Array.isArray),
+                video: getReadState(featureAvailability.video, videoResult, Array.isArray),
+                photo: getReadState(
+                    featureAvailability.photo,
+                    imageResult,
+                    value => Boolean(value && Array.isArray(value.slideImagesCache))
+                )
+            }
+            const imageConfig = collectionReadState.photo === 'ready' ? imageResult.value : {}
 
             setHomeData({
-                musicList: musicResult.status === 'fulfilled' ? safeArray(musicResult.value) : [],
-                videoList: videoResult.status === 'fulfilled' ? safeArray(videoResult.value) : [],
+                musicList: collectionReadState.music === 'ready' ? safeArray(musicResult.value) : [],
+                videoList: collectionReadState.video === 'ready' ? safeArray(videoResult.value) : [],
                 imageList: safeArray(imageConfig.slideImagesCache),
                 photoPlayCount: getPhotoPlayCount(imageConfig.photoPlayCount),
                 loading: false,
                 apiReady: true,
-                loadError: [musicResult, videoResult, imageResult].some(result => result.status === 'rejected')
+                loadError: Object.values(collectionReadState).some(state => state !== 'ready'),
+                collectionReadState
             })
         }
 
@@ -110,7 +145,8 @@ const HomeGuide = () => {
             setHomeData({
                 ...defaultHomeData,
                 loading: false,
-                loadError: true
+                loadError: true,
+                collectionReadState: createCollectionReadState('failed')
             })
         })
 
@@ -128,379 +164,322 @@ const HomeGuide = () => {
             musicCount,
             videoCount,
             imageCount,
-            totalCount: musicCount + videoCount + imageCount,
-            photoPlayCount: homeData.photoPlayCount
+            totalCount: musicCount + videoCount + imageCount
         }
-    }, [homeData])
+    }, [homeData.imageList.length, homeData.musicList.length, homeData.videoList.length])
 
-    const primaryGuide = useMemo(() => {
-        if (homeData.loading) {
-            return {
-                title: '正在读取你的本地内容',
-                description: '首页会根据已有音乐、视频和图片给出下一步建议。',
-                route: null,
-                actionText: '读取中',
-                Icon: TipsAndUpdatesIcon
-            }
-        }
+    const headerStats = useMemo(() => [
+        { key: 'total', label: '总项', value: stats.totalCount, unit: '项' },
+        { key: 'music', label: '音乐', value: stats.musicCount, unit: '首' },
+        { key: 'video', label: '视频', value: stats.videoCount, unit: '个' },
+        { key: 'photo', label: '图片', value: stats.imageCount, unit: '张' }
+    ], [stats])
 
-        if (!homeData.apiReady) {
-            return {
-                title: '请在 Electron 应用中使用完整能力',
-                description: '当前没有连接到本地文件能力，只能看到基础引导信息。',
-                route: null,
-                actionText: '等待本地能力',
-                Icon: InfoOutlinedIcon
-            }
-        }
-
-        if (stats.totalCount === 0) {
-            return {
-                title: '先把本地内容放进来',
-                description: '从音乐、视频或图片任意一条线开始。导入后，首页会把可继续处理的内容放到这里。',
-                route: '/music',
-                actionText: '从音乐开始',
-                Icon: AddCircleOutlineIcon
-            }
-        }
-
-        if (stats.musicCount > 0) {
-            const firstMusic = homeData.musicList[0]
-            return {
-                title: '继续整理音乐',
-                description: `音乐列表已有 ${stats.musicCount} 首，可从「${getMediaTitle(firstMusic, '未命名音乐')}」开始处理播放、歌词或唱片效果。`,
-                route: '/music',
-                actionText: '进入音乐',
-                Icon: QueueMusicIcon
-            }
-        }
-
-        if (stats.videoCount > 0) {
-            const firstVideo = homeData.videoList[0]
-            return {
-                title: '继续处理视频',
-                description: `视频列表已有 ${stats.videoCount} 个，可从「${getMediaTitle(firstVideo, '未命名视频')}」开始检查格式或播放。`,
-                route: '/video',
-                actionText: '进入视频',
-                Icon: MovieCreationIcon
-            }
-        }
-
-        return {
-            title: '继续处理图片',
-            description: `图片缓存已有 ${stats.imageCount} 张，幻灯片当前按 ${stats.photoPlayCount} 格显示。`,
-            route: '/photo',
-            actionText: '进入图片',
-            Icon: CollectionsIcon
-        }
-    }, [homeData, stats])
-
-    const guideCards = useMemo(() => [
+    const collectionDefinitions = useMemo(() => [
         {
             key: 'music',
             route: '/music',
-            title: stats.musicCount > 0 ? '管理音乐列表' : '添加音乐',
-            description: stats.musicCount > 0
-                ? `${stats.musicCount} 首音乐可播放，也可以继续补歌词和封面。`
-                : '导入本地音频后，可以播放、查看歌词和切换播放效果。',
+            title: '音乐',
+            count: stats.musicCount,
+            unit: '首',
+            readState: homeData.collectionReadState.music,
+            status: getCollectionStatus(homeData.collectionReadState.music, stats.musicCount, '首'),
+            actionText: '浏览音乐库',
+            emptyText: '音乐库尚未收录内容',
+            previewKind: 'music',
             Icon: MusicNoteIcon,
-            actionText: stats.musicCount > 0 ? '去音乐页' : '添加音乐'
+            items: homeData.musicList.slice(0, 3)
         },
         {
             key: 'video',
             route: '/video',
-            title: stats.videoCount > 0 ? '检查视频列表' : '添加视频',
-            description: stats.videoCount > 0
-                ? `${stats.videoCount} 个视频在列表中，进入后可播放或处理格式兼容。`
-                : '导入本地视频后，首页会提醒你列表里可继续处理的内容。',
+            title: '视频',
+            count: stats.videoCount,
+            unit: '个',
+            readState: homeData.collectionReadState.video,
+            status: getCollectionStatus(homeData.collectionReadState.video, stats.videoCount, '个'),
+            actionText: '浏览视频库',
+            emptyText: '视频库尚未收录内容',
+            previewKind: 'video',
             Icon: VideocamIcon,
-            actionText: stats.videoCount > 0 ? '去视频页' : '添加视频'
+            items: homeData.videoList.slice(0, 3)
         },
         {
             key: 'photo',
             route: '/photo',
-            title: stats.imageCount > 0 ? '查看图片缓存' : '打开图片',
-            description: stats.imageCount > 0
-                ? `${stats.imageCount} 张图片已缓存，幻灯片一次显示 ${stats.photoPlayCount} 格。`
-                : '打开图片或文件夹后，可以编辑单张图片，也可以播放幻灯片。',
+            title: '图片',
+            count: stats.imageCount,
+            unit: '张',
+            readState: homeData.collectionReadState.photo,
+            status: getCollectionStatus(homeData.collectionReadState.photo, stats.imageCount, '张'),
+            actionText: '浏览图片库',
+            emptyText: '图片库尚未收录内容',
+            previewKind: 'photo',
             Icon: PhotoIcon,
-            actionText: stats.imageCount > 0 ? '去图片页' : '打开图片'
+            items: homeData.imageList.slice(0, 4)
         }
-    ], [stats])
+    ], [homeData.collectionReadState, homeData.imageList, homeData.musicList, homeData.videoList, stats])
 
-    const usefulNotes = useMemo(() => {
-        const notes = []
-
-        if (homeData.loadError) {
-            notes.push({
-                key: 'load-error',
-                tone: 'warning',
-                title: '部分本地列表读取失败',
-                detail: '首页已保留可用内容，进入对应页面后可以重新触发读取。'
-            })
+    const homeNotice = useMemo(() => {
+        if (homeData.loading) {
+            return '正在读取本地媒体库。'
         }
 
         if (!homeData.apiReady) {
-            notes.push({
-                key: 'api',
-                tone: 'warning',
-                title: '本地能力未连接',
-                detail: '文件选择、媒体读取和播放需要在 Electron 窗口中使用。'
-            })
+            return '当前预览无法访问本地媒体库，数值以 0 显示。'
         }
 
-        notes.push({
-            key: 'music',
-            tone: stats.musicCount > 0 ? 'ready' : 'idle',
-            title: stats.musicCount > 0 ? '音乐可以直接播放' : '音乐列表为空',
-            detail: stats.musicCount > 0 ? `已读取 ${stats.musicCount} 首音乐。` : '进入音乐页添加本地音频。'
-        })
+        if (homeData.loadError) {
+            return '部分媒体内容未读取，已保留可用的媒体库信息。'
+        }
 
-        notes.push({
-            key: 'video',
-            tone: stats.videoCount > 0 ? 'ready' : 'idle',
-            title: stats.videoCount > 0 ? '视频列表可继续处理' : '视频列表为空',
-            detail: stats.videoCount > 0 ? `已读取 ${stats.videoCount} 个视频。` : '进入视频页添加本地视频。'
-        })
+        return ''
+    }, [homeData.apiReady, homeData.loadError, homeData.loading])
 
-        notes.push({
-            key: 'photo',
-            tone: stats.imageCount > 0 ? 'ready' : 'idle',
-            title: stats.imageCount > 0 ? '图片缓存可用于图墙' : '图片缓存为空',
-            detail: stats.imageCount > 0 ? `已缓存 ${stats.imageCount} 张图片，幻灯片 ${stats.photoPlayCount} 格。` : '进入图片页打开图片或文件夹。'
-        })
+    const headerDescription = useMemo(() => {
+        if (homeData.loading) {
+            return '正在汇总本地媒体库。'
+        }
 
-        return notes
-    }, [homeData, stats])
+        if (!homeData.apiReady) {
+            return '请在 Utaha Player 桌面应用中查看本地媒体库。'
+        }
 
-    const musicPreviewList = useMemo(() => homeData.musicList.slice(0, 4), [homeData.musicList])
-    const videoPreviewList = useMemo(() => homeData.videoList.slice(0, 4), [homeData.videoList])
-    const imagePreviewList = useMemo(() => homeData.imageList.slice(0, 6), [homeData.imageList])
+        if (homeData.loadError && stats.totalCount === 0) {
+            return '暂未能完整读取本地媒体库，请稍后重试。'
+        }
 
-    const handleNavigate = (route) => {
-        if (!route) return
-        navigate(route)
+        if (stats.totalCount === 0) {
+            return '当前媒体库还没有收录内容。'
+        }
+
+        return `当前收录 ${stats.totalCount} 项本地媒体。`
+    }, [homeData.apiReady, homeData.loadError, homeData.loading, stats.totalCount])
+
+    const libraryState = useMemo(() => {
+        if (homeData.loading || stats.totalCount > 0) {
+            return null
+        }
+
+        if (!homeData.apiReady) {
+            return {
+                key: 'api-unavailable',
+                title: '本地媒体库暂不可访问',
+                description: '请在 Utaha Player 桌面应用中查看和管理本地内容。'
+            }
+        }
+
+        if (homeData.loadError) {
+            return {
+                key: 'load-incomplete',
+                title: '媒体库暂未完整读取',
+                description: '部分本地内容未能读取，请稍后重试或进入对应媒体库查看。'
+            }
+        }
+
+        return {
+            key: 'empty',
+            title: '媒体库还没有内容',
+            description: '选择一个媒体库开始浏览和管理本地内容。'
+        }
+    }, [homeData.apiReady, homeData.loadError, homeData.loading, stats.totalCount])
+
+    const renderLoadingPreview = () => (
+        <div className='HomeGuide_previewLoading'>
+            <span className='HomeGuide_loadingLine HomeGuide_loadingLine_wide' />
+            <span className='HomeGuide_loadingLine' />
+            <span className='HomeGuide_loadingLine HomeGuide_loadingLine_short' />
+            <span className='HomeGuide_loadingText'>正在读取内容</span>
+        </div>
+    )
+
+    const renderCollectionPreview = (collection) => {
+        if (homeData.loading) {
+            return renderLoadingPreview()
+        }
+
+        const readStateMessage = getCollectionPreviewMessage(collection.readState)
+
+        if (readStateMessage) {
+            return (
+                <div className='HomeGuide_cardEmpty HomeGuide_cardEmpty_unavailable'>
+                    <InfoOutlinedIcon aria-hidden='true' />
+                    <span>{readStateMessage}</span>
+                </div>
+            )
+        }
+
+        if (collection.items.length === 0) {
+            return (
+                <div className='HomeGuide_cardEmpty'>
+                    <FolderOpenIcon aria-hidden='true' />
+                    <span>{collection.emptyText}</span>
+                </div>
+            )
+        }
+
+        if (collection.previewKind === 'photo') {
+            return (
+                <div className='HomeGuide_imagePreviewGrid'>
+                    {
+                        collection.items.map((image, index) => {
+                            const imageSrc = getImageSource(image)
+                            const imageTitle = getMediaTitle(image, `图片 ${index + 1}`)
+
+                            return (
+                                <div className='HomeGuide_imagePreviewItem' key={imageSrc || image?.id || index}>
+                                    {
+                                        imageSrc
+                                            ? <img src={imageSrc} alt={imageTitle} loading='lazy' />
+                                            : <ImageOutlinedIcon aria-hidden='true' />
+                                    }
+                                </div>
+                            )
+                        })
+                    }
+                </div>
+            )
+        }
+
+        return (
+            <div className='HomeGuide_previewList'>
+                {
+                    collection.items.map((item, index) => {
+                        const title = getMediaTitle(item, collection.previewKind === 'music' ? '未命名音乐' : '未命名视频')
+                        const isMusic = collection.previewKind === 'music'
+                        const meta = isMusic
+                            ? item?.artist || '本地音乐'
+                            : item?.codec || item?.format || getFileName(item?.path) || '本地视频'
+
+                        return (
+                            <div className='HomeGuide_previewItem' key={item?.path || item?.id || index}>
+                                <div className={`HomeGuide_previewCover HomeGuide_previewCover_${collection.previewKind}`}>
+                                    {
+                                        isMusic && item?.coverUrl
+                                            ? <img src={item.coverUrl} alt={`${title} 的封面`} />
+                                            : isMusic
+                                                ? <MusicNoteIcon aria-hidden='true' />
+                                                : <VideocamIcon aria-hidden='true' />
+                                    }
+                                </div>
+                                <div className='HomeGuide_previewText'>
+                                    <strong title={title}>{title}</strong>
+                                    <span title={meta}>{meta}</span>
+                                </div>
+                            </div>
+                        )
+                    })
+                }
+            </div>
+        )
     }
 
-    const renderGuideButton = (route, text) => (
-        <button
-            className='HomeGuide_actionButton'
-            type='button'
-            disabled={!route}
-            onClick={() => handleNavigate(route)}
-        >
-            <span>{text}</span>
-            <ArrowForwardIcon />
-        </button>
-    )
+    const renderCollectionCard = (collection) => {
+        const Icon = collection.Icon
 
-    const renderEmptyContent = (text, actionText, route) => (
-        <div className='HomeGuide_emptyContent'>
-            <FolderOpenIcon />
-            <span>{text}</span>
-            {renderGuideButton(route, actionText)}
-        </div>
-    )
-
-    const PrimaryIcon = primaryGuide.Icon
+        return (
+            <Link
+                className={`HomeGuide_collectionCard HomeGuide_collectionCard_${collection.key}`}
+                key={collection.key}
+                to={collection.route}
+                aria-label={`${collection.actionText}，${collection.status}`}
+            >
+                <span className='HomeGuide_cardTop'>
+                    <span className='HomeGuide_cardIcon'>
+                        <Icon aria-hidden='true' />
+                    </span>
+                    <span className='HomeGuide_cardCount'>
+                        <strong>{collection.count}</strong>
+                        <em>{collection.unit}</em>
+                    </span>
+                </span>
+                <span className='HomeGuide_cardHeading'>
+                    <span className='HomeGuide_cardTitle'>{collection.title}</span>
+                    <span className='HomeGuide_cardStatus'>{collection.status}</span>
+                </span>
+                <div className='HomeGuide_cardPreview'>
+                    {renderCollectionPreview(collection)}
+                </div>
+                <span className='HomeGuide_cardAction'>
+                    {collection.actionText}
+                    <ArrowForwardIcon aria-hidden='true' />
+                </span>
+            </Link>
+        )
+    }
 
     return (
-        <div className='HomeGuide_container'>
-            <section className='HomeGuide_nextStep'>
-                <div className='HomeGuide_nextIcon'>
-                    <PrimaryIcon />
-                </div>
-                <div className='HomeGuide_nextContent'>
-                    <span className='HomeGuide_sectionLabel'>下一步</span>
-                    <h1>{primaryGuide.title}</h1>
-                    <p>{primaryGuide.description}</p>
-                </div>
-                {renderGuideButton(primaryGuide.route, primaryGuide.actionText)}
-            </section>
+        <main className='HomeGuide_container' aria-busy={homeData.loading}>
+            <div className='HomeGuide_content'>
+                <header className='HomeGuide_header'>
+                    <div className='HomeGuide_headerCopy'>
+                        <h1>媒体库</h1>
+                        <p>{headerDescription}</p>
+                    </div>
+                    <dl className='HomeGuide_headerStats' aria-label='媒体库统计'>
+                        {
+                            headerStats.map((stat) => (
+                                <div className='HomeGuide_headerStat' key={stat.key}>
+                                    <dt>{stat.label}</dt>
+                                    <dd>
+                                        <strong>{stat.value}</strong>
+                                        <span>{stat.unit}</span>
+                                    </dd>
+                                </div>
+                            ))
+                        }
+                    </dl>
+                </header>
 
-            <div className='HomeGuide_layout'>
-                <main className='HomeGuide_main'>
-                    <section className='HomeGuide_panel HomeGuide_guidePanel'>
-                        <div className='HomeGuide_panelHeader'>
-                            <div>
-                                <span className='HomeGuide_sectionLabel'>开始操作</span>
-                                <h2>你现在可以做这些事</h2>
+                {
+                    homeNotice && (
+                        <div className='HomeGuide_notice' role='status' aria-live='polite'>
+                            <InfoOutlinedIcon aria-hidden='true' />
+                            <span>{homeNotice}</span>
+                        </div>
+                    )
+                }
+
+                {
+                    libraryState ? (
+                        <section
+                            className={`HomeGuide_emptyLibrary HomeGuide_emptyLibrary_${libraryState.key}`}
+                            aria-labelledby='HomeGuide_emptyTitle'
+                            aria-live='polite'
+                        >
+                            <div className='HomeGuide_emptyLibraryIcon'>
+                                <FolderOpenIcon aria-hidden='true' />
                             </div>
-                        </div>
-                        <div className='HomeGuide_guideList'>
-                            {
-                                guideCards.map((card) => {
-                                    const Icon = card.Icon
-                                    return (
-                                        <button
-                                            className={`HomeGuide_guideCard HomeGuide_guideCard_${card.key}`}
-                                            key={card.key}
-                                            type='button'
-                                            onClick={() => handleNavigate(card.route)}
-                                        >
-                                            <span className='HomeGuide_guideIcon'>
-                                                <Icon />
-                                            </span>
-                                            <span className='HomeGuide_guideInfo'>
-                                                <strong>{card.title}</strong>
-                                                <em>{card.description}</em>
-                                            </span>
-                                            <span className='HomeGuide_guideAction'>
-                                                {card.actionText}
-                                                <ArrowForwardIcon />
-                                            </span>
-                                        </button>
-                                    )
-                                })
-                            }
-                        </div>
-                    </section>
-
-                    <section className='HomeGuide_panel HomeGuide_continuePanel'>
-                        <div className='HomeGuide_panelHeader'>
-                            <div>
-                                <span className='HomeGuide_sectionLabel'>已有内容</span>
-                                <h2>可继续处理</h2>
-                            </div>
-                            <span className='HomeGuide_panelHint'>只展示真实读取到的列表内容</span>
-                        </div>
-
-                        <div className='HomeGuide_continueGrid'>
-                            <div className='HomeGuide_continueColumn'>
-                                <button className='HomeGuide_columnTitle' type='button' onClick={() => handleNavigate('/music')}>
-                                    <MusicNoteIcon />
-                                    <span>音乐</span>
-                                </button>
+                            <h2 id='HomeGuide_emptyTitle'>{libraryState.title}</h2>
+                            <p>{libraryState.description}</p>
+                            <div className='HomeGuide_emptyActions'>
                                 {
-                                    musicPreviewList.length > 0 ? (
-                                        <div className='HomeGuide_itemList'>
-                                            {
-                                                musicPreviewList.map((music, index) => (
-                                                    <div className='HomeGuide_mediaItem' key={music?.path || music?.id || index}>
-                                                        <div className='HomeGuide_itemCover HomeGuide_itemCover_music'>
-                                                            {
-                                                                music?.coverUrl
-                                                                    ? <img src={music.coverUrl} alt={getMediaTitle(music, '音乐封面')} />
-                                                                    : <MusicNoteIcon />
-                                                            }
-                                                        </div>
-                                                        <div className='HomeGuide_itemInfo'>
-                                                            <strong>{getMediaTitle(music, '未命名音乐')}</strong>
-                                                            <span>{music?.artist || '未知艺术家'}</span>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            }
-                                        </div>
-                                    ) : renderEmptyContent('还没有音乐。', '去添加', '/music')
+                                    collectionDefinitions.map((collection) => {
+                                        const Icon = collection.Icon
+
+                                        return (
+                                            <Link
+                                                className={`HomeGuide_emptyAction HomeGuide_emptyAction_${collection.key}`}
+                                                key={collection.key}
+                                                to={collection.route}
+                                            >
+                                                <Icon aria-hidden='true' />
+                                                <span>{collection.actionText}</span>
+                                                <ArrowForwardIcon aria-hidden='true' />
+                                            </Link>
+                                        )
+                                    })
                                 }
                             </div>
-
-                            <div className='HomeGuide_continueColumn'>
-                                <button className='HomeGuide_columnTitle' type='button' onClick={() => handleNavigate('/video')}>
-                                    <VideocamIcon />
-                                    <span>视频</span>
-                                </button>
-                                {
-                                    videoPreviewList.length > 0 ? (
-                                        <div className='HomeGuide_itemList'>
-                                            {
-                                                videoPreviewList.map((video, index) => (
-                                                    <div className='HomeGuide_mediaItem' key={video?.path || video?.id || index}>
-                                                        <div className='HomeGuide_itemCover HomeGuide_itemCover_video'>
-                                                            <MovieCreationIcon />
-                                                        </div>
-                                                        <div className='HomeGuide_itemInfo'>
-                                                            <strong>{getMediaTitle(video, '未命名视频')}</strong>
-                                                            <span>{video?.codec || video?.format || getFileName(video?.path) || '本地视频'}</span>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            }
-                                        </div>
-                                    ) : renderEmptyContent('还没有视频。', '去添加', '/video')
-                                }
-                            </div>
-
-                            <div className='HomeGuide_continueColumn'>
-                                <button className='HomeGuide_columnTitle' type='button' onClick={() => handleNavigate('/photo')}>
-                                    <PhotoIcon />
-                                    <span>图片</span>
-                                </button>
-                                {
-                                    imagePreviewList.length > 0 ? (
-                                        <div className='HomeGuide_imageGrid'>
-                                            {
-                                                imagePreviewList.map((image, index) => {
-                                                    const imageSrc = getImageSource(image)
-                                                    return (
-                                                        <div className='HomeGuide_imageItem' key={imageSrc || index}>
-                                                            {
-                                                                imageSrc
-                                                                    ? <img src={imageSrc} alt={getMediaTitle(image, `图片 ${index + 1}`)} loading='lazy' />
-                                                                    : <PhotoIcon />
-                                                            }
-                                                        </div>
-                                                    )
-                                                })
-                                            }
-                                        </div>
-                                    ) : renderEmptyContent('还没有图片。', '去打开', '/photo')
-                                }
-                            </div>
-                        </div>
-                    </section>
-                </main>
-
-                <aside className='HomeGuide_aside'>
-                    <section className='HomeGuide_panel HomeGuide_infoPanel'>
-                        <div className='HomeGuide_panelHeader'>
-                            <div>
-                                <span className='HomeGuide_sectionLabel'>有用信息</span>
-                                <h2>当前状态</h2>
-                            </div>
-                        </div>
-                        <div className='HomeGuide_noteList'>
-                            {
-                                usefulNotes.map((note) => (
-                                    <div className={`HomeGuide_noteItem HomeGuide_noteItem_${note.tone}`} key={note.key}>
-                                        <CheckCircleOutlineIcon />
-                                        <div>
-                                            <strong>{note.title}</strong>
-                                            <span>{note.detail}</span>
-                                        </div>
-                                    </div>
-                                ))
-                            }
-                        </div>
-                    </section>
-
-                    <section className='HomeGuide_panel HomeGuide_shortcutPanel'>
-                        <div className='HomeGuide_panelHeader'>
-                            <div>
-                                <span className='HomeGuide_sectionLabel'>快捷入口</span>
-                                <h2>常用动作</h2>
-                            </div>
-                        </div>
-                        <button className='HomeGuide_shortcut' type='button' onClick={() => handleNavigate('/music')}>
-                            <QueueMusicIcon />
-                            <span>打开音乐列表</span>
-                            <ArrowForwardIcon />
-                        </button>
-                        <button className='HomeGuide_shortcut' type='button' onClick={() => handleNavigate('/video')}>
-                            <MovieCreationIcon />
-                            <span>打开视频列表</span>
-                            <ArrowForwardIcon />
-                        </button>
-                        <button className='HomeGuide_shortcut' type='button' onClick={() => handleNavigate('/photo')}>
-                            <SlideshowIcon />
-                            <span>打开图片与幻灯片</span>
-                            <ArrowForwardIcon />
-                        </button>
-                    </section>
-                </aside>
+                        </section>
+                    ) : (
+                        <section className='HomeGuide_collectionGrid' aria-label='媒体库分类'>
+                            {collectionDefinitions.map(renderCollectionCard)}
+                        </section>
+                    )
+                }
             </div>
-        </div>
+        </main>
     )
 }
 

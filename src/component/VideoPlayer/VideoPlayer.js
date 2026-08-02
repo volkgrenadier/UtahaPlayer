@@ -12,12 +12,24 @@ import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import CloseIcon from '@mui/icons-material/Close';
 import MovieCreationIcon from '@mui/icons-material/MovieCreation';
+import Replay10Icon from '@mui/icons-material/Replay10';
+import Forward10Icon from '@mui/icons-material/Forward10';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import { useNotification } from '../../utils/NotificationProvider';
 import { MAXVOLUME } from '../../config/reactConfig';
 
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const isSameVideo = (left, right) => Boolean(left && right && (
+	(left.id && right.id && left.id === right.id) ||
+	(left.path && right.path && left.path === right.path)
+));
+
 const VideoPlayer = () => {
 	// 视频播放器引用
+	const playerContainerRef = useRef(null);
 	const videoRef = useRef(null);
 	const progressBarRef = useRef(null);
 	const volumeContainerRef = useRef(null);
@@ -41,10 +53,16 @@ const VideoPlayer = () => {
 	// 播放列表显示状态
 	const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
 	const [isButtonAnimating, setIsButtonAnimating] = useState(null);
+	const [isFullscreen, setIsFullscreen] = useState(false);
 	// 错误提示框
 	const notifyContext = useNotification();
+	const notifyRef = useRef(notifyContext.notify);
 	// 新增播放列表引用
 	const playlistRef = useRef(null);
+
+	useEffect(() => {
+		notifyRef.current = notifyContext.notify;
+	}, [notifyContext.notify]);
 
 
 	// 按钮点击动画
@@ -130,6 +148,21 @@ const VideoPlayer = () => {
 		setIsPlaying(false);
 	};
 
+	const updateVideoTiming = useCallback(() => {
+		const videoElement = videoRef.current;
+		if (!videoElement) return;
+
+		const duration = videoElement.duration;
+		const current = videoElement.currentTime || 0;
+
+		setCurrentTime(current);
+
+		if (Number.isFinite(duration) && duration > 0) {
+			setTotalTime(duration);
+			setProgress(clamp((current / duration) * 100, 0, 100));
+		}
+	}, []);
+
 
 	// useEffect(() => {
 	// 	const initializeVolume = async () => {
@@ -152,50 +185,16 @@ const VideoPlayer = () => {
 
 	useEffect(() => {
 		const videoElement = videoRef.current;
-		if (!videoElement) return;
-
-		const updateProgress = () => {
-			const duration = videoElement.duration;
-			const current = videoElement.currentTime;
-
-			// 🔥 修复：先更新时间，再计算进度
-			if (current && !isNaN(current)) {
-				setCurrentTime(current);
-			}
-
-			// 🔥 修复：正确计算进度百分比
-			if (duration && !isNaN(duration) && duration !== Infinity && duration > 0) {
-				setTotalTime(duration);
-
-				// 🔥 使用当前时间计算进度（不是之前的 currentTime 状态）
-				const progressPercent = (current / duration) * 100;
-				setProgress(progressPercent);
-			}
-		};
-
-		// 添加事件监听
-		videoElement.addEventListener('timeupdate', updateProgress);
-		videoElement.addEventListener('play', handlePlay);
-		videoElement.addEventListener('pause', handlePause);
-		videoElement.addEventListener('error', handleError);
-		videoElement.addEventListener('canplay', handleCanPlay);
-		videoElement.addEventListener('loadeddata', handleLoadedData);
-
 
 		return () => {
-			videoElement.removeEventListener('timeupdate', updateProgress);
-			videoElement.removeEventListener('play', handlePlay);
-			videoElement.removeEventListener('pause', handlePause);
-			videoElement.removeEventListener('error', handleError);
-			videoElement.removeEventListener('canplay', handleCanPlay);
-			videoElement.removeEventListener('loadeddata', handleLoadedData);
+			if (!videoElement) return;
 
 			// 停止播放并释放资源
 			videoElement.pause();
 			videoElement.src = ''; // 清空视频源
 
 		};
-	}, []); // 🔥 移除 notifyContext 依赖，避免无限循环
+	}, []);
 
 
 	// 初始化加载视频列表
@@ -206,20 +205,11 @@ const VideoPlayer = () => {
 				if (list && Array.isArray(list)) {
 					setVideoList(list);
 					if (list.length > 0) {
-						let index = list.findIndex(it => it.id === currentVideo?.id)
-						if (index === -1) {
-							index = 0;
-						}
+						const index = 0;
 						setCurrentVideo(list[index]);
-
-						// 🔥 添加自动播放逻辑
-						if (!currentVideo) {
-							console.log('没有当前视频，自动播放第一个');
-							setTimeout(() => {
-								playSelectedVideo(list[index]);
-								setIsPlaying(true);
-							}, 200);
-						}
+						setCurrentTime(0);
+						setTotalTime(0);
+						setProgress(0);
 					}
 				}
 			} catch (error) {
@@ -239,30 +229,30 @@ const VideoPlayer = () => {
 		// 监听转码开始事件
 		const transcodeStartListener = window.electronFeatures.onMessage('video-transcode-start', (data) => {
 			const fileName = window.electronFeatures.getBaseName(data.file);
-			notifyContext.notify.info(`开始转码视频 ${fileName} (${data.current}/${data.total})`, 2000);
+			notifyRef.current.info(`开始转码视频 ${fileName} (${data.current}/${data.total})`, 2000);
 		});
 
 		// 监听转码成功事件
 		const transcodeSuccessListener = window.electronFeatures.onMessage('video-transcode-success', (data) => {
 			const fileName = window.electronFeatures.getBaseName(data.original);
 			if (data.total && data.current) {
-				notifyContext.notify.success(`视频 ${fileName} 转码完成！(${data.current}/${data.total})`);
+				notifyRef.current.success(`视频 ${fileName} 转码完成！(${data.current}/${data.total})`);
 			} else {
-				notifyContext.notify.success(`视频 ${fileName} 转码完成！`);
+				notifyRef.current.success(`视频 ${fileName} 转码完成！`);
 			}
 		});
 
 		// 监听转码进度事件
 		const transcodeProgressListener = window.electronFeatures.onMessage('video-transcode-progress', (data) => {
 			const fileName = window.electronFeatures.getBaseName(data.file);
-			notifyContext.notify.info(`正在转码 ${fileName}: ${data.percent}%`, 1000);
+			notifyRef.current.info(`正在转码 ${fileName}: ${data.percent}%`, 1000);
 		});
 
 		// 监听转码失败事件
 		const transcodeErrorListener = window.electronFeatures.onMessage('video-transcode-error', (data) => {
 			const fileName = window.electronFeatures.getBaseName(data.file);
 			const errorMsg = data.error || '未知错误';
-			notifyContext.notify.error(`视频 ${fileName} 转码失败: ${errorMsg}`, 5000);
+			notifyRef.current.error(`视频 ${fileName} 转码失败: ${errorMsg}`, 5000);
 			console.error('转码失败详情:', data);
 		});
 
@@ -323,10 +313,16 @@ const VideoPlayer = () => {
 			setTemporaryProgress(clampedProgress);
 			updateDisplayTime(clampedProgress);
 		};
-		const handleMouseUp = (event) => {
-			if (isDragging && temporaryProgress != null) {
-				handleDragEnd(event);
+		const handleMouseUp = () => {
+			if (isDragging && temporaryProgress != null && currentVideo && videoRef.current && Number.isFinite(videoRef.current.duration) && videoRef.current.duration > 0) {
+				const duration = videoRef.current.duration;
+				const newTime = (temporaryProgress / 100) * duration;
+				videoRef.current.currentTime = newTime;
+				setCurrentTime(newTime);
+				setProgress(temporaryProgress);
 			}
+			setTemporaryProgress(null);
+			setIsDragging(false);
 		};
 		if (isDragging) {
 			document.addEventListener('mousemove', handleMouseMove);
@@ -336,7 +332,7 @@ const VideoPlayer = () => {
 			document.removeEventListener('mousemove', handleMouseMove);
 			document.removeEventListener('mouseup', handleMouseUp);
 		};
-	}, [isDragging, temporaryProgress])
+	}, [isDragging, temporaryProgress, currentVideo])
 
 	useLayoutEffect(() => {
 		const getUserConfig = async () => {
@@ -367,7 +363,7 @@ const VideoPlayer = () => {
 				{
 					label: '顺序播放',
 					value: 'sequential',
-					icon: <RepeatIcon />
+					icon: <PlaylistPlayIcon />
 				},
 				{
 					label: '列表循环',
@@ -375,7 +371,7 @@ const VideoPlayer = () => {
 					icon: <RepeatIcon />
 				},
 				{
-					label: '单曲循环',
+					label: '单个循环',
 					value: 'repeat-one',
 					icon: <RepeatOneIcon />
 				},
@@ -391,6 +387,10 @@ const VideoPlayer = () => {
 	const getCurrentModeIcon = () => {
 		const mode = mainControlButtons[0].iconList.find(icon => icon.value === currentMode);
 		return mode ? mode.icon : <RepeatIcon />;
+	}
+	const getCurrentModeLabel = () => {
+		const mode = mainControlButtons[0].iconList.find(icon => icon.value === currentMode);
+		return mode ? mode.label : '播放模式';
 	}
 
 
@@ -441,6 +441,12 @@ const VideoPlayer = () => {
 
 	// 切换播放状态
 	const togglePlay = () => {
+		if (!currentVideo && videoList.length > 0) {
+			playSelectedVideo(videoList[0]);
+			animateButton('play');
+			return;
+		}
+
 		if (currentVideo && videoRef.current) {
 			if (isPlaying) {
 				setIsPlaying(false);
@@ -461,6 +467,99 @@ const VideoPlayer = () => {
 			}
 			animateButton('play');
 		}
+	};
+
+	const seekBy = (seconds) => {
+		const videoElement = videoRef.current;
+		if (!currentVideo || !videoElement || !Number.isFinite(videoElement.duration) || videoElement.duration <= 0) {
+			return;
+		}
+
+		const nextTime = clamp(videoElement.currentTime + seconds, 0, videoElement.duration);
+		videoElement.currentTime = nextTime;
+		setCurrentTime(nextTime);
+		setProgress(clamp((nextTime / videoElement.duration) * 100, 0, 100));
+		animateButton(seconds < 0 ? 'rewind' : 'forward');
+	};
+
+	const changeVolumeBy = (delta) => {
+		const nextVolume = clamp(volumeLevel + delta, 0, 100);
+		setVolumeLevel(nextVolume);
+		setIsMuted(nextVolume === 0);
+
+		if (nextVolume > 0) {
+			setLastVolume(nextVolume);
+		}
+
+		if (videoRef.current) {
+			videoRef.current.muted = nextVolume === 0;
+			videoRef.current.volume = ((nextVolume / 100) * MAXVOLUME) / 100;
+		}
+
+		window.electronFeatures.updateUserConfig('video.volume', nextVolume);
+	};
+
+	const toggleFullscreen = async () => {
+		const target = playerContainerRef.current;
+		if (!target) return;
+
+		try {
+			if (!document.fullscreenElement) {
+				await target.requestFullscreen();
+			} else {
+				await document.exitFullscreen();
+			}
+			animateButton('fullscreen');
+		} catch (error) {
+			console.error('切换全屏失败:', error);
+			notifyContext.notify.warning('无法切换全屏');
+		}
+	};
+
+	const handlePlayerKeyDown = (event) => {
+		const interactiveSelector = 'input, textarea, select';
+		if (event.target.closest(interactiveSelector)) return;
+
+		switch (event.key.toLowerCase()) {
+			case ' ':
+			case 'k':
+				event.preventDefault();
+				togglePlay();
+				break;
+			case 'arrowleft':
+			case 'j':
+				event.preventDefault();
+				seekBy(-10);
+				break;
+			case 'arrowright':
+			case 'l':
+				event.preventDefault();
+				seekBy(10);
+				break;
+			case 'arrowup':
+				event.preventDefault();
+				changeVolumeBy(5);
+				break;
+			case 'arrowdown':
+				event.preventDefault();
+				changeVolumeBy(-5);
+				break;
+			case 'm':
+				event.preventDefault();
+				toggleMute();
+				break;
+			case 'f':
+				event.preventDefault();
+				toggleFullscreen();
+				break;
+			default:
+				break;
+		}
+	};
+
+	const focusPlayerContainer = (event) => {
+		if (event.target.closest('button, input, textarea, select')) return;
+		playerContainerRef.current?.focus();
 	};
 
 	// 点击外部关闭音量控制器和播放列表
@@ -486,6 +585,22 @@ const VideoPlayer = () => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
 	}, [showVolumeSlider, isPlaylistOpen, notifyContext])
+
+	useEffect(() => {
+		const handleFullscreenChange = () => {
+			const nextFullscreen = Boolean(document.fullscreenElement);
+			setIsFullscreen(nextFullscreen);
+			if (nextFullscreen) {
+				setIsPlaylistOpen(false);
+				setShowVolumeSlider(false);
+			}
+		};
+
+		document.addEventListener('fullscreenchange', handleFullscreenChange);
+		return () => {
+			document.removeEventListener('fullscreenchange', handleFullscreenChange);
+		};
+	}, []);
 
 	// 切换播放列表显示状态
 	const togglePlaylist = () => {
@@ -532,44 +647,12 @@ const VideoPlayer = () => {
 						console.log('找到的新添加视频:', newlyAddedVideo);
 
 						if (newlyAddedVideo) {
-							// 验证文件是否真的存在
-							try {
-								const fileExists = await window.electronFeatures.checkFileExists(newlyAddedVideo.path);
-								console.log('文件是否存在:', fileExists, '路径:', newlyAddedVideo.path);
-
-								if (fileExists) {
-									setCurrentVideo(newlyAddedVideo);
-
-									// 等待一帧后开始播放
-									setTimeout(() => {
-										if (videoRef.current) {
-											console.log('开始播放新视频，路径:', newlyAddedVideo.path);
-											videoRef.current.load();
-											videoRef.current.play()
-												.then(() => {
-													setIsPlaying(true);
-													console.log('新视频播放成功');
-												})
-												.catch(err => {
-													console.error('播放新视频失败:', err);
-													setIsPlaying(false);
-													notifyContext.notify.error('视频播放失败: ' + err.message);
-												});
-										}
-									}, 100);
-								} else {
-									console.error('新添加的文件不存在:', newlyAddedVideo.path);
-									notifyContext.notify.error(`添加的视频文件不存在\n路径: ${newlyAddedVideo.path}`);
-								}
-							} catch (checkError) {
-								console.error('检查文件存在性失败:', checkError);
-								notifyContext.notify.error('无法验证文件是否存在');
-							}
+							playSelectedVideo(newlyAddedVideo);
 						} else {
 							console.error('在更新列表中找不到新添加的视频');
 							// 尝试直接使用第一个视频
 							if (updatedList.length > 0) {
-								setCurrentVideo(updatedList[updatedList.length - 1]); // 使用最后一个（刚添加的）
+								playSelectedVideo(updatedList[updatedList.length - 1]); // 使用最后一个（刚添加的）
 							}
 						}
 					}
@@ -604,7 +687,7 @@ const VideoPlayer = () => {
 		// 通知主进程从列表中删除视频
 		window.electronFeatures.sendMessage('remove-from-videolist', video.id);
 		// 判断删除的是否是当前正在播放的视频
-		const isDeletingCurrentVideo = currentVideo && (currentVideo.id === video.id || currentVideo.path === video.path);
+		const isDeletingCurrentVideo = isSameVideo(currentVideo, video);
 
 		if (isDeletingCurrentVideo) {
 			// 删除的是当前播放的视频
@@ -656,8 +739,22 @@ const VideoPlayer = () => {
 
 	// 播放上一个视频
 	const handlePrevious = async () => {
+		if (!currentVideo && videoList.length > 0) {
+			playSelectedVideo(videoList[0]);
+			animateButton('prev');
+			return;
+		}
+
+		if (currentVideo && videoRef.current && videoRef.current.currentTime > 3) {
+			videoRef.current.currentTime = 0;
+			setCurrentTime(0);
+			setProgress(0);
+			animateButton('prev');
+			return;
+		}
+
 		if (videoList.length > 1 && currentVideo) {
-			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			const currentIndex = videoList.findIndex(video => isSameVideo(video, currentVideo));
 			if (currentIndex !== -1) {
 				const prevIndex = (currentIndex - 1 + videoList.length) % videoList.length;
 				setCurrentVideo(videoList[prevIndex]);
@@ -672,8 +769,20 @@ const VideoPlayer = () => {
 	}
 
 	const handleNext = async () => {
+		if (!currentVideo && videoList.length > 0) {
+			playSelectedVideo(videoList[0]);
+			animateButton('next');
+			return;
+		}
+
+		if (videoList.length === 1 && currentVideo && (currentMode === 'repeat' || currentMode === 'repeat-one')) {
+			playSelectedVideo(currentVideo);
+			animateButton('next');
+			return;
+		}
+
 		if (videoList.length > 1 && currentVideo) {
-			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			const currentIndex = videoList.findIndex(video => isSameVideo(video, currentVideo));
 			if (currentIndex !== -1) {
 				let nextIndex;
 				
@@ -749,7 +858,7 @@ const VideoPlayer = () => {
 	// 播放随机视频
 	const playRandomVideo = () => {
 		if (videoList.length > 1 && currentVideo) {
-			const currentIndex = videoList.findIndex(video => video.id === currentVideo.id);
+			const currentIndex = videoList.findIndex(video => isSameVideo(video, currentVideo));
 			let randomIndex;
 
 			// 确保不重复播放同一个视频
@@ -792,7 +901,7 @@ const VideoPlayer = () => {
 	}
 	// 更新显示时间
 	const updateDisplayTime = (progressPercent) => {
-		if (videoRef.current.duration) {
+		if (videoRef.current && Number.isFinite(videoRef.current.duration) && videoRef.current.duration > 0) {
 			const newTime = (progressPercent / 100) * videoRef.current.duration;
 			setCurrentTime(newTime);
 		}
@@ -801,7 +910,7 @@ const VideoPlayer = () => {
 	// 进度条拖拽
 	const handleProgressMouseDown = (event) => {
 		event.preventDefault();
-		if (!currentVideo || !currentVideo.id) {
+		if (!currentVideo || !progressBarRef.current || !videoRef.current || !Number.isFinite(videoRef.current.duration) || videoRef.current.duration <= 0) {
 			return;
 		}
 		setIsDragging(true);
@@ -819,46 +928,31 @@ const VideoPlayer = () => {
 	const handleProgressClick = (event) => {
 		if (isDragging) return; // 如果正在拖拽，不处理点击事件
 
+		if (!currentVideo || !videoRef.current || !Number.isFinite(videoRef.current.duration) || videoRef.current.duration <= 0) {
+			return;
+		}
+
 		const progressBar = event.currentTarget; //获取进度条元素
 		const clickPosition = event.clientX - progressBar.getBoundingClientRect().left;//计算点击位置
 		const newProgress = (clickPosition / progressBar.offsetWidth) * 100; //转换为百分比
 		const clampedProgress = Math.min(Math.max(newProgress, 0), 100); //限制在 0-100% 之间
 
-		if (videoRef.current && videoRef.current.duration) {
-			// 直接设置音频播放位置
-			videoRef.current.currentTime = (clampedProgress / 100) * videoRef.current.duration;
-			setProgress(clampedProgress);
-		}
+		videoRef.current.currentTime = (clampedProgress / 100) * videoRef.current.duration;
+		setCurrentTime(videoRef.current.currentTime);
+		setProgress(clampedProgress);
 	}
-	// 拖拽结束
-	const handleDragEnd = (event) => {
-		if (isDragging && temporaryProgress != null && currentVideo) {
-			const duration = videoRef.current.duration;
-			const newTime = (temporaryProgress / 100) * duration;
-			videoRef.current.currentTime = newTime;
-			setProgress(temporaryProgress);
-			setTemporaryProgress(null);
-		}
-		setIsDragging(false);
-	}
-
 	// 使用 useCallback 避免不必要的重渲染
 	const progressStyle = useCallback(() => {
 		if (isDragging && temporaryProgress !== null) {
-			return { width: `${temporaryProgress}%` };
+			return { width: `${clamp(temporaryProgress, 0, 100)}%` };
 		}
 
-		if (totalTime > 0 && currentTime >= 0) {
-			const percentage = (currentTime / totalTime) * 100;
-			return { width: `${Math.min(Math.max(percentage, 0), 100)}%` };
-		}
-
-		return { width: '0%' };
-	}, [isDragging, temporaryProgress, currentTime, totalTime]);
+		return { width: `${clamp(progress, 0, 100)}%` };
+	}, [isDragging, temporaryProgress, progress]);
 
 	// 处理音量变化
 	const handleVolumeChange = (event) => {
-		const newVolume = parseInt(event.target.value);
+		const newVolume = clamp(parseInt(event.target.value, 10) || 0, 0, 100);
 		setVolumeLevel(newVolume);
 
 		if (videoRef.current) {
@@ -879,7 +973,7 @@ const VideoPlayer = () => {
 
 	// 保存更新音量
 	const updateVolumeSave = (e) => {
-		const newVolume = parseInt(e.target.value);
+		const newVolume = clamp(parseInt(e.target.value, 10) || 0, 0, 100);
 		window.electronFeatures.updateUserConfig('video.volume', newVolume);
 	}
 	// 切换静音状态
@@ -914,21 +1008,6 @@ const VideoPlayer = () => {
 		setShowVolumeSlider(isHovering);
 	}
 
-	// 播放随机视频
-	const playRandomSong = () => {
-		if (videoList.length > 1) {
-			const currentIndex = currentVideo ? videoList.findIndex(video => video.id === currentVideo.id) : -1;
-			let randomIndex;
-
-			// 确保不重复播放同一首歌
-			do {
-				randomIndex = Math.floor(Math.random() * videoList.length);
-			} while (randomIndex === currentIndex && videoList.length > 1);
-
-			setCurrentVideo(videoList[randomIndex]);
-		}
-	};
-
 	// 切换播放模式
 	const togglePlayMode = () => {
 		const modes = mainControlButtons[0].iconList.map(icon => icon.value);
@@ -960,9 +1039,23 @@ const VideoPlayer = () => {
 		: videoList.length > 0
 			? `${videoList.length} 个视频在列表中`
 			: '添加视频文件后开始播放';
+	const currentModeLabel = getCurrentModeLabel();
+	const hasVideo = Boolean(currentVideo);
+	const canStartPlayback = hasVideo || videoList.length > 0;
+	const canSeek = hasVideo && totalTime > 0;
+	const hasPreviousAction = hasVideo || videoList.length > 0;
+	const hasNextAction = hasVideo || videoList.length > 0;
+	const progressValue = canSeek ? Math.round(currentTime) : 0;
+	const progressMax = canSeek ? Math.round(totalTime) : 0;
 
 	return (
-		<div className='VideoPlayer_container'>
+		<div
+			className='VideoPlayer_container'
+			ref={playerContainerRef}
+			tabIndex={0}
+			onKeyDown={handlePlayerKeyDown}
+			onMouseDown={focusPlayerContainer}
+		>
 			<div className="VideoPlayer_diaplay_container">
 				<video
 					ref={videoRef}
@@ -974,20 +1067,12 @@ const VideoPlayer = () => {
 					onError={handleError}
 					onCanPlay={handleCanPlay}
 					onLoadedData={handleLoadedData}
+					onLoadedMetadata={updateVideoTiming}
+					onDurationChange={updateVideoTiming}
 					style={{ display: currentVideo ? 'block' : 'none' }}
 					onEnded={handleVideoEnded}
 					className="VideoPlayer_video_element"
-					onTimeUpdate={() => {
-						// 直接在这里更新时间
-						if (videoRef.current) {
-							setCurrentTime(videoRef.current.currentTime);
-							// 🔥 只在总时长为0时才设置，避免重复设置
-							if (totalTime === 0 && videoRef.current.duration && !isNaN(videoRef.current.duration)) {
-								setTotalTime(videoRef.current.duration);
-								console.log('从 onTimeUpdate 获取总时长:', videoRef.current.duration);
-							}
-						}
-					}}
+					onTimeUpdate={updateVideoTiming}
 				/>
 				{
 					!currentVideo && (
@@ -1010,10 +1095,18 @@ const VideoPlayer = () => {
 				<div className="VideoPlayer_progress_container">
 					<div className="VideoPlayer_time_current">{formatTime(currentTime)}</div>
 					<div
-						className={`VideoPlayer_progress_bar ${isDragging ? 'dragging' : ''}`}
+						className={`VideoPlayer_progress_bar ${isDragging ? 'dragging' : ''} ${!canSeek ? 'disabled' : ''}`}
 						onClick={handleProgressClick}
 						onMouseDown={handleProgressMouseDown}
 						ref={progressBarRef}
+						role="slider"
+						aria-label="播放进度"
+						aria-valuemin={0}
+						aria-valuemax={progressMax}
+						aria-valuenow={progressValue}
+						aria-valuetext={`${formatTime(currentTime)} / ${formatTime(totalTime)}`}
+						aria-disabled={!canSeek}
+						tabIndex={canSeek ? 0 : -1}
 					>
 						<div className="VideoPlayer_progress_completed"
 							style={progressStyle()}
@@ -1038,26 +1131,70 @@ const VideoPlayer = () => {
 						</div>
 					</div>
 					<div className="VideoPlayer_controller_container">
-						<div className="VideoPlayer_controller_buttons">
+						<div className="VideoPlayer_center_controls">
 							<button
 								className={`VideoPlayer_control_button ${isButtonAnimating === 'mode' ? 'animate-click' : ''}`}
-								onClick={togglePlayMode}>
-								{getCurrentModeIcon()}
-							</button>
-							<button
-								className={`VideoPlayer_control_button ${isButtonAnimating === 'prev' ? 'animate-click' : ''}`}
-								onClick={handlePrevious}>
+								type="button"
+								onClick={handlePrevious}
+								disabled={!hasPreviousAction}
+								title="上一个 / 回到开头"
+								aria-label="上一个 / 回到开头"
+							>
 								<SkipPreviousIcon />
 							</button>
-							<button className={`VideoPlayer_control_button play_button ${isButtonAnimating === 'play' ? 'animate-click' : ''}`}
-								onClick={togglePlay}>
+							<button
+								className={`VideoPlayer_control_button ${isButtonAnimating === 'rewind' ? 'animate-click' : ''}`}
+								type="button"
+								onClick={() => seekBy(-10)}
+								disabled={!canSeek}
+								title="快退 10 秒"
+								aria-label="快退 10 秒"
+							>
+								<Replay10Icon />
+							</button>
+							<button
+								className={`VideoPlayer_control_button play_button ${isButtonAnimating === 'play' ? 'animate-click' : ''}`}
+								type="button"
+								onClick={togglePlay}
+								disabled={!canStartPlayback}
+								title={isPlaying ? '暂停' : '播放'}
+								aria-label={isPlaying ? '暂停' : '播放'}
+							>
 								{isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
 							</button>
 							<button
+								className={`VideoPlayer_control_button ${isButtonAnimating === 'forward' ? 'animate-click' : ''}`}
+								type="button"
+								onClick={() => seekBy(10)}
+								disabled={!canSeek}
+								title="快进 10 秒"
+								aria-label="快进 10 秒"
+							>
+								<Forward10Icon />
+							</button>
+							<button
 								className={`VideoPlayer_control_button ${isButtonAnimating === 'next' ? 'animate-click' : ''}`}
+								type="button"
 								onClick={handleNext}
+								disabled={!hasNextAction}
+								title="下一个"
+								aria-label="下一个"
 							>
 								<SkipNextIcon />
+							</button>
+						</div>
+					</div>
+					<div className="VideoPlayer_buttons_container">
+						<div className="VideoPlayer_aux_controls">
+							<button
+								className={`VideoPlayer_control_button VideoPlayer_mode_button ${isButtonAnimating === 'mode' ? 'animate-click' : ''}`}
+								type="button"
+								onClick={togglePlayMode}
+								title={currentModeLabel}
+								aria-label={`播放模式：${currentModeLabel}`}
+							>
+								{getCurrentModeIcon()}
+								<span className="VideoPlayer_mode_text">{currentModeLabel}</span>
 							</button>
 							<div className="VideoPlayer_volume_container"
 								onMouseEnter={() => handleVolumeHover(true)}
@@ -1066,7 +1203,10 @@ const VideoPlayer = () => {
 							>
 								<button
 									className={`VideoPlayer_control_button ${isButtonAnimating === 'volume' ? 'animate-click' : ''}`}
+									type="button"
 									onClick={toggleMute}
+									title={isMuted || volumeLevel === 0 ? '取消静音' : '静音'}
+									aria-label={isMuted || volumeLevel === 0 ? '取消静音' : '静音'}
 								>
 									{isMuted || volumeLevel === 0 ? <VolumeOffIcon /> : <VolumeUpIcon />}
 								</button>
@@ -1080,20 +1220,29 @@ const VideoPlayer = () => {
 										onMouseUp={updateVolumeSave}
 										className='VideoPlayer_volume_slider'
 										style={{ "--volume-percentage": `${volumeLevel}%` }}
+										aria-label="音量"
 									/>
 								</div>
 							</div>
+							<button
+								className={`VideoPlayer_playlist_button ${isPlaylistOpen ? 'active' : ''} ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`}
+								type="button"
+								onClick={togglePlaylist}
+								title="视频列表"
+								aria-label="视频列表"
+							>
+								<QueueMusicIcon />
+							</button>
+							<button
+								className={`VideoPlayer_control_button VideoPlayer_fullscreen_button ${isButtonAnimating === 'fullscreen' ? 'animate-click' : ''}`}
+								type="button"
+								onClick={toggleFullscreen}
+								title={isFullscreen ? '退出全屏' : '全屏'}
+								aria-label={isFullscreen ? '退出全屏' : '全屏'}
+							>
+								{isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+							</button>
 						</div>
-					</div>
-					<div className="VideoPlayer_buttons_container">
-						<button
-							className={`VideoPlayer_playlist_button ${isPlaylistOpen ? 'active' : ''} ${isButtonAnimating === 'playlist' ? 'animate-click' : ''}`}
-							type="button"
-							onClick={togglePlaylist}
-							title="视频列表"
-						>
-							<QueueMusicIcon />
-						</button>
 					</div>
 				</div>
 			</div>
@@ -1109,6 +1258,7 @@ const VideoPlayer = () => {
 					</h3>
 					<button
 						className="VideoPlayer_playlist_close_btn"
+						type="button"
 						onClick={togglePlaylist}
 					>
 						<CloseIcon fontSize="small" />
@@ -1121,6 +1271,7 @@ const VideoPlayer = () => {
 								<div className="VideoPlayer_playlist_empty_text">暂无视频</div>
 								<button
 									className="VideoPlayer_playlist_add_btn"
+									type="button"
 									onClick={handleSelectVideoFiles}
 								>
 									添加视频文件
@@ -1129,11 +1280,20 @@ const VideoPlayer = () => {
 						) : (videoList.map((video) => (
 							<div
 								key={video.path || video.id}
-								className={`VideoPlayer_playlist_item ${currentVideo && (currentVideo.path === video.path || currentVideo.id === video.id) ? 'VideoPlayer_playlist_item_playing' : ''}`}
-								onDoubleClick={() => {
-									console.log('双击播放列表项:', video.title); // 🔥 添加调试信息
+								className={`VideoPlayer_playlist_item ${isSameVideo(currentVideo, video) ? 'VideoPlayer_playlist_item_playing' : ''}`}
+								role="button"
+								tabIndex={0}
+								onClick={() => {
+									console.log('播放列表项播放:', video.title);
 									playSelectedVideo(video);
 								}}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault();
+										playSelectedVideo(video);
+									}
+								}}
+								aria-label={`播放 ${video.title || '视频'}`}
 							>
 								<div className="VideoPlayer_playlist_item_info">
 									<div className="VideoPlayer_playlist_item_title">
@@ -1145,6 +1305,7 @@ const VideoPlayer = () => {
 								</div>
 								<button
 									className="VideoPlayer_playlist_remove_btn"
+									type="button"
 									onClick={(e) => showRemoveVideoPopover(e, video)}
 									title="从播放列表中移除"
 								>
@@ -1161,6 +1322,7 @@ const VideoPlayer = () => {
 						<div className="VideoPlayer_playlist_footer">
 							<button
 								className="VideoPlayer_playlist_add_btn"
+								type="button"
 								onClick={handleSelectVideoFiles}
 							>
 								添加更多视频

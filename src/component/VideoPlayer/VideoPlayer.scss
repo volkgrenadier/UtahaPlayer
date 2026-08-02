@@ -1,600 +1,74 @@
 @import '../../style/public.scss';
 
-// 抽象通用样式
-@mixin textEllipsis {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.VideoPlayer_container,
+.VideoPlayer_container *,
+.VideoPlayer_container *::before,
+.VideoPlayer_container *::after,
+.VideoPlayer_playlist,
+.VideoPlayer_playlist *,
+.VideoPlayer_playlist *::before,
+.VideoPlayer_playlist *::after {
+	box-sizing: border-box;
 }
 
-// 按钮交互效果
-@mixin buttonInteraction {
-	transition: $custom_transition;
-	position: relative;
-
-	&:hover {
-		color: $color_main;
-		transform: scale(1.1);
-	}
-
-	&:active {
-		transform: scale(0.95);
-	}
-
-	&::after {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		width: 0;
-		height: 0;
-		background-color: rgba($color_main, 0.1);
-		border-radius: 50%;
-		transform: translate(-50%, -50%);
-		opacity: 0;
-		transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
-	}
-
-	&:active::after {
-		width: 35px;
-		height: 35px;
-		opacity: 1;
-	}
+@mixin videoTextEllipsis {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
-// 点击动画
+
 @keyframes buttonClick {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(0.92);
-    }
-    100% {
-        transform: scale(1);
-    }
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(.92);
+	}
+	100% {
+		transform: scale(1);
+	}
 }
 .animate-click {
-    animation: buttonClick 0.3s ease;
+	animation: buttonClick .24s ease;
 }
 
-
 .VideoPlayer_container {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
 	width: 100%;
 	height: 100%;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
 	overflow: hidden;
-	// background-color: black;
-	.VideoPlayer_diaplay_container {
-		flex: 1 1 auto;
-		width: 100%;
-		// 限制显示区域高度，留出足够空间给控制器
-		max-height: calc(100% - 100px); // 100px是控制器的高度
-		position: relative;
-		overflow: hidden;
-		// background-color: black;
-		display: flex; // 添加flex布局
-        align-items: center; // 垂直居中
-        justify-content: center; // 水平居中
-		.VideoPlayer_video_element{
-			width: 100%;
-			height: 100%;
-			// object-fit: contain;
-			// object-fit: cover;
-			// background-color: black;
-			display: block;
-		}
-
-		// 无视频时的占位符样式
-        .no-video-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #666;
-            background-color: #f5f5f5;
-            
-            p {
-                margin: 0;
-                font-size: 16px;
-            }
-        }
-	}
-
-	.VideoPlayer_controller_outer_container {
-		width: 100%;
-		flex: 0 0 100px;
-		border-top: 1px solid #e5e7eb;
-		border-bottom: 1px solid #e5e7eb;
-		// background-color: pink;
-		display: grid;
-		// 播放控制器三列控制
-		grid-template-columns: 240px 1fr 100px;
-		align-items: center;
-
-		.VideoPlayer_info_container {
-			display: grid;
-			grid-template-columns: 100px 1fr;
-			grid-template-rows: 50% 50%;
-			gap: 5px 0;
-			// background-color: red;
-			align-items: center;
-
-			.VideoPlayer_info_cover_container {
-				@include flexCenter;
-				grid-column: 1/2;
-				grid-row: 1/3;
-				overflow: hidden;
-
-				&>img {
-					width: 70%;
-					height: auto;
-					border-radius: $borderRadius;
-					user-select: none;
-					pointer-events: none;
-					-webkit-user-drag: none;
-				}
-			}
-		}
-
-		.VideoPlayer_controller_container {
-			display: flex;
-			flex-direction: column;
-			justify-content: center;
-			padding: 0 $sidePadding;
-
-			.VideoPlayer_controller_buttons {
-				@include flexCenter;
-				gap: 20px;
-				margin-bottom: 10px;
-
-				.VideoPlayer_control_button {
-					background: none;
-					border: none;
-					cursor: pointer;
-					@include flexCenter;
-					color: #333;
-					@include buttonInteraction;
-
-					&.play_button {
-						width: 40px;
-						height: 40px;
-						border-radius: 50%;
-						background-color: $color_main;
-						color: white;
-
-						&:hover {
-							background-color: darken($color_main, 10%);
-							transform: scale(1.08);
-							box-shadow: 0 2px 8px rgba($color_main, 0.4);
-						}
-
-						&:active {
-							transform: scale(0.95);
-							box-shadow: 0 1px 3px rgba($color_main, 0.3);
-						}
-
-						&::after {
-							background-color: rgba(white, 0.2);
-						}
-					}
-				}
-
-				.VideoPlayer_volume_container {
-					position: relative;
-					@include flexCenter;
-
-					.VideoPlayer_volume_slider_container {
-						position: absolute;
-						bottom: 100%;
-						left: 50%;
-						transform: translateX(-50%) translateY(10px);
-						background-color: white;
-						border-radius: 12px;
-						padding: 8px 6px;
-						box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-						z-index: 10;
-						opacity: 0;
-						visibility: hidden;
-						transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-
-						&.show {
-							opacity: 1;
-							visibility: visible;
-							transform: translateX(-50%) translateY(0);
-						}
-
-						&::after {
-							content: '';
-							position: absolute;
-							bottom: -4px;
-							left: 50%;
-							transform: translateX(-50%) rotate(45deg);
-							width: 8px;
-							height: 8px;
-							background-color: white;
-							box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.03);
-						}
-
-						.VideoPlayer_volume_slider {
-							-webkit-appearance: none;
-							width: 80px;
-							height: 3px;
-							border-radius: 2px;
-							outline: none;
-							background: linear-gradient(to right,
-									$color_main 0%,
-									$color_main var(--volume-percentage),
-									#e5e7eb var(--volume-percentage),
-									#e5e7eb 100%);
-
-							&::-webkit-slider-thumb {
-								-webkit-appearance: none;
-								appearance: none;
-								width: 10px;
-								height: 10px;
-								border-radius: 50%;
-								background: white;
-								border: 1px solid $color_main;
-								cursor: pointer;
-								transition: all 0.15s ease;
-
-								&:hover {
-									transform: scale(1.2);
-									box-shadow: 0 0 3px rgba($color_main, 0.4);
-								}
-							}
-
-							&::-moz-range-thumb {
-								width: 10px;
-								height: 10px;
-								border-radius: 50%;
-								background: white;
-								border: 1px solid $color_main;
-								cursor: pointer;
-								transition: all 0.15s ease;
-
-								&:hover {
-									transform: scale(1.2);
-									box-shadow: 0 0 3px rgba($color_main, 0.4);
-								}
-							}
-						}
-					}
-				}
-			}
-
-			.VideoPlayer_progress_container {
-				display: flex;
-				align-items: center;
-				gap: 5px;
-				padding: 8px 0;
-				margin-top: -5px;
-
-				.VideoPlayer_time_current,
-				.VideoPlayer_time_total {
-					font-size: $fontSize_small;
-					color: #666;
-					width: 42px;
-					text-align: center;
-					font-variant-numeric: tabular-nums;
-					user-select: none;
-					font-weight: 500;
-				}
-
-				.VideoPlayer_progress_bar {
-					flex: 1;
-					height: 3px;
-					background-color: rgba(#e5e7eb, 0.8);
-					border-radius: 4px;
-					position: relative;
-					cursor: pointer;
-					transition: $custom_transition;
-					margin: 0 4px;
-
-					&::before {
-						content: '';
-						position: absolute;
-						top: -8px;
-						left: -4px;
-						right: -4px;
-						bottom: -8px;
-						z-index: 0;
-					}
-
-					&:hover,
-					&.dragging {
-						height: 5px;
-					}
-
-					// 已播放区域
-					.VideoPlayer_progress_completed {
-						position: absolute;
-						left: 0;
-						top: 0;
-						height: 100%;
-						background-color: $color_main;
-						border-radius: 4px;
-						transition: width 0.1s ease;
-						z-index: 2;
-
-						// 拖动手柄
-						.VideoPlayer_progress_handle {
-							position: absolute;
-							right: -5px;
-							top: 50%;
-							transform: translate(0, -50%) scale(0);
-							width: 10px;
-							height: 10px;
-							border-radius: 50%;
-							background: white;
-							box-shadow: 0 0 3px rgba(0, 0, 0, 0.2);
-							opacity: 0;
-							transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-								opacity 0.2s ease,
-								box-shadow 0.2s ease;
-							z-index: 3;
-						}
-					}
-
-					&:hover {
-						.VideoPlayer_progress_completed {
-							.VideoPlayer_progress_handle {
-								transform: translate(0, -50%) scale(1);
-								opacity: 1;
-							}
-						}
-					}
-
-					&.dragging {
-						.VideoPlayer_progress_completed {
-							background-color: darken($color_main, 5%);
-
-							.VideoPlayer_progress_handle {
-								transform: translate(0, -50%) scale(1.2);
-								opacity: 1;
-								box-shadow: 0 0 6px rgba($color_main, 0.6);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		.VideoPlayer_buttons_container {
-			@include flexCenter;
-            .VideoPlayer_playlist_button {
-                cursor: pointer;
-                padding: 8px;
-                color: #666;
-                @include buttonInteraction;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                @include flexCenter;
-                
-                &:hover {
-                    background-color: rgba($color_main, 0.1);
-                }
-                
-                &:active {
-                    background-color: rgba($color_main, 0.2);
-                }
-
-				// 播放列表按钮样式增强
-				&.active {
-					color: $color_main !important;
-					background-color: rgba($color_main, 0.1);
-				}
-            }
-		}
-	}
-}
-
-// 播放列表面板
-.VideoPlayer_playlist {
-    position: fixed;
-    right: -280px; // 初始位置在屏幕外
-    top: 100px;
-    width: 260px;
-    height: calc(100vh - 200px);
-    max-height: 500px;
-    background: white;
-    border-radius: $borderRadius;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    transition: right 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 1000;
-    overflow: hidden;
-    min-width: 250px;
-    min-height: 300px;
-    
-    &.VideoPlayer_playlist_open {
-        right: 20px;
-    }
-    
-    // 播放列表标题栏
-    .VideoPlayer_playlist_header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px;
-        border-bottom: 1px solid #f0f0f0;
-        
-        .VideoPlayer_playlist_title {
-            margin: 0;
-            font-size: $fontSize;
-            font-weight: 500;
-            color: #333;
-            user-select: none;
-            span {
-                color: #666;
-                font-size: $fontSize_small;
-                font-weight: normal;
-                margin-left: 5px;
-            }
-        }
-        
-        .VideoPlayer_playlist_close_btn {
-            @include buttonInteraction;
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #666;
-            padding: 4px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            
-            &:hover {
-                background-color: rgba(0, 0, 0, 0.05);
-            }
-        }
-    }
-
-	// 列表项容器
-	.VideoPlayer_playlist_items{
-		flex: 1;
-		overflow-y: auto;
-        padding: 0;
-
-		// 滚动条样式
-        &::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        &::-webkit-scrollbar-track {
-            background: #f5f5f5;
-        }
-        
-        &::-webkit-scrollbar-thumb {
-            background: #e0e0e0;
-            border-radius: 4px;
-        }
-        
-        &::-webkit-scrollbar-thumb:hover {
-            background: #d0d0d0;
-        }
-
-		// 列表为空时的提示
-        .VideoPlayer_playlist_empty {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 200px;
-            padding: 20px;
-            
-            .VideoPlayer_playlist_empty_text {
-                color: #999;
-                margin-bottom: 15px;
-            }
-        }
-
-		// 单个列表项
-		.VideoPlayer_playlist_item {
-            display: flex;
-            align-items: center;
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #f9f9f9;
-            transition: background-color 0.2s ease;
-            
-            &:hover {
-                background-color: #f9f9f9;
-            }
-            
-            &.VideoPlayer_playlist_item_playing {
-                background-color: rgba($color_main, 0.05);
-                
-                .VideoPlayer_playlist_item_title {
-                    color: $color_main;
-                    font-weight: 500;
-                }
-            }
-            // 歌曲信息
-            .VideoPlayer_playlist_item_info {
-                flex: 1;
-                min-width: 0; // 解决子元素无法正常应用text-overflow的问题
-                
-                .VideoPlayer_playlist_item_title {
-                    @include forbiddenSelect;
-                    @include textEllipsis;
-                    font-size: $fontSize_small;
-                    color: #333;
-                    margin-bottom: 4px;
-                }
-            }
-            
-            //  歌曲移除按钮
-            .VideoPlayer_playlist_remove_btn {
-                @include forbiddenSelect;
-                $remove_btn_size: 24px;
-                width: $remove_btn_size;
-                height: $remove_btn_size;
-                background: none;
-                border: none;
-                color: #ccc;
-                font-size: 14px;
-                cursor: pointer;
-                opacity: 0;
-                transition: all 0.2s ease;
-                padding: 10px;
-                border-radius: 50%;
-                display: flex;
-                flex: 0 0 auto;
-                align-items: center;
-                justify-content: center;
-                margin-left: 5px;
-                &:hover {
-                    color: #ff4d4f;
-                    background-color: rgba(#ff4d4f, 0.1);
-                }
-            }
-            
-            &:hover {
-                .VideoPlayer_playlist_remove_btn {
-                    opacity: 1;
-                }
-            }
-        }
-	}
-
-	// 底部操作区
-    .VideoPlayer_playlist_footer {
-        padding: 12px;
-        border-top: 1px solid #f0f0f0;
-        text-align: center;
-    }
-    
-    // 添加视频按钮
-    .VideoPlayer_playlist_add_btn {
-        @include customButtonBasic;
-    }
-}
-
-.VideoPlayer_container {
 	background-color: #f7f8fb;
+	color: #20242c;
+
+	&:focus {
+		outline: none;
+	}
 
 	button {
 		font: inherit;
 	}
 
 	.VideoPlayer_diaplay_container {
-		max-height: calc(100% - 124px);
+		flex: 1 1 auto;
+		min-height: 0;
+		width: 100%;
 		padding: 14px;
+		position: relative;
+		overflow: hidden;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		background:
-			radial-gradient(circle at center, rgba(255, 255, 255, .04), transparent 42%),
+			radial-gradient(circle at center, rgba(255, 255, 255, .05), transparent 42%),
 			#101114;
 
 		.VideoPlayer_video_element {
 			width: 100%;
 			height: 100%;
+			display: block;
 			object-fit: contain;
 			border-radius: 10px;
 			background-color: #050506;
@@ -602,8 +76,7 @@
 		}
 
 		.no-video-placeholder {
-			max-width: 360px;
-			height: auto;
+			width: min(360px, calc(100% - 24px));
 			min-height: 220px;
 			padding: 28px;
 			border: 1px solid rgba(255, 255, 255, .08);
@@ -612,6 +85,10 @@
 			color: rgba(255, 255, 255, .82);
 			text-align: center;
 			box-shadow: 0 12px 32px rgba(0, 0, 0, .18);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
 
 			> svg {
 				margin-bottom: 12px;
@@ -643,31 +120,30 @@
 	}
 
 	.VideoPlayer_controller_outer_container {
-		flex: 0 0 124px;
-		padding: 10px 16px 12px;
+		flex: 0 0 auto;
+		width: 100%;
+		max-width: 100%;
+		min-height: 126px;
+		padding: 10px 18px 14px;
 		border-top: 1px solid #e2e6ee;
-		border-bottom: none;
-		background-color: rgba(255, 255, 255, .96);
-		display: grid;
-		grid-template-columns: 1fr;
-		grid-template-rows: 28px 1fr;
-		gap: 8px;
+		background-color: rgba(255, 255, 255, .97);
 		box-shadow: 0 -8px 24px rgba(15, 23, 42, .045);
+		display: grid;
+		grid-template-rows: 30px minmax(58px, 1fr);
+		gap: 10px;
+		overflow: hidden;
 	}
 
 	.VideoPlayer_progress_container {
 		width: 100%;
 		display: grid;
-		grid-template-columns: 48px minmax(0, 1fr) 48px;
+		grid-template-columns: 52px minmax(0, 1fr) 52px;
 		align-items: center;
 		gap: 10px;
-		padding: 0;
-		margin: 0;
 
 		.VideoPlayer_time_current,
 		.VideoPlayer_time_total {
-			width: auto;
-			color: #6b7280;
+			color: #667085;
 			font-size: 12px;
 			font-variant-numeric: tabular-nums;
 			text-align: center;
@@ -675,26 +151,36 @@
 		}
 
 		.VideoPlayer_progress_bar {
-			height: 4px;
-			margin: 0;
-			background-color: #e5e9f0;
-			border-radius: 999px;
+			height: 5px;
 			position: relative;
+			border-radius: 999px;
+			background-color: #e5e9f0;
 			cursor: pointer;
 			transition: $custom_transition;
 
 			&::before {
 				content: '';
 				position: absolute;
-				top: -8px;
+				top: -9px;
 				right: 0;
-				bottom: -8px;
+				bottom: -9px;
 				left: 0;
 			}
 
 			&:hover,
-			&.dragging {
-				height: 6px;
+			&.dragging,
+			&:focus-visible {
+				height: 7px;
+			}
+
+			&.disabled {
+				cursor: default;
+				opacity: .58;
+			}
+
+			&:focus-visible {
+				outline: 2px solid rgba($color_main, .28);
+				outline-offset: 8px;
 			}
 
 			.VideoPlayer_progress_completed {
@@ -723,10 +209,21 @@
 			}
 
 			&:hover,
-			&.dragging {
+			&.dragging,
+			&:focus-visible {
 				.VideoPlayer_progress_handle {
 					opacity: 1;
 					transform: translateY(-50%) scale(1);
+				}
+			}
+
+			&.disabled {
+				.VideoPlayer_progress_completed {
+					background-color: #aeb6c5;
+				}
+
+				.VideoPlayer_progress_handle {
+					display: none;
 				}
 			}
 		}
@@ -735,22 +232,21 @@
 	.VideoPlayer_controlRow {
 		min-width: 0;
 		display: grid;
-		grid-template-columns: minmax(220px, 1fr) auto minmax(44px, 1fr);
+		grid-template-columns: minmax(160px, 1fr) auto minmax(0, 1fr);
 		align-items: center;
-		gap: 16px;
+		gap: 18px;
 	}
 
 	.VideoPlayer_info_container {
 		min-width: 0;
 		display: grid;
-		grid-template-columns: 42px minmax(0, 1fr);
-		grid-template-rows: none;
+		grid-template-columns: 44px minmax(0, 1fr);
 		align-items: center;
 		gap: 10px;
 
 		.VideoPlayer_info_cover_container {
-			width: 42px;
-			height: 42px;
+			width: 44px;
+			height: 44px;
 			border-radius: 10px;
 			background-color: rgba($color_main, .08);
 			color: $color_main;
@@ -765,7 +261,7 @@
 			}
 
 			svg {
-				font-size: 22px;
+				font-size: 23px;
 			}
 		}
 
@@ -779,55 +275,84 @@
 		.VideoPlayer_info_title_container {
 			color: #20242c;
 			font-size: 14px;
-			font-weight: 600;
+			font-weight: 650;
 			line-height: 1.25;
-			@include textEllipsis;
+			@include videoTextEllipsis;
 		}
 
 		.VideoPlayer_info_meta_container {
 			color: #7b8493;
 			font-size: 12px;
 			line-height: 1.2;
-			@include textEllipsis;
+			@include videoTextEllipsis;
 		}
 	}
 
 	.VideoPlayer_controller_container {
-		padding: 0;
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
 
-		.VideoPlayer_controller_buttons {
-			margin: 0;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 12px;
-		}
+	.VideoPlayer_center_controls,
+	.VideoPlayer_aux_controls {
+		min-width: 0;
+		max-width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+	}
+
+	.VideoPlayer_aux_controls {
+		justify-content: flex-end;
+	}
+
+	.VideoPlayer_buttons_container {
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		overflow: hidden;
 	}
 
 	.VideoPlayer_control_button,
 	.VideoPlayer_playlist_button {
-		width: 34px;
-		height: 34px;
+		width: 36px;
+		height: 36px;
 		padding: 0;
-		border: none;
-		border-radius: 50%;
+		border: 1px solid transparent;
+		border-radius: 999px;
 		background-color: transparent;
 		color: #4b5563;
 		cursor: pointer;
+		transition: $custom_transition;
 		@include flexCenter;
-		@include buttonInteraction;
 
-		&:hover {
+		&:hover:not(:disabled) {
+			border-color: rgba($color_main, .16);
 			background-color: rgba($color_main, .08);
 			color: $color_main;
 			transform: translateY(-1px);
 		}
 
-		&:active {
+		&:active:not(:disabled) {
 			transform: scale(.94);
+		}
+
+		&:focus-visible {
+			outline: 2px solid rgba($color_main, .28);
+			outline-offset: 2px;
+		}
+
+		&:disabled {
+			color: #c2c8d2;
+			cursor: not-allowed;
+			transform: none;
+			background-color: transparent;
+			border-color: transparent;
+			box-shadow: none;
 		}
 
 		svg {
@@ -836,21 +361,56 @@
 	}
 
 	.VideoPlayer_control_button.play_button {
-		width: 44px;
-		height: 44px;
+		width: 48px;
+		height: 48px;
 		background-color: $color_main;
 		color: #fff;
-		box-shadow: 0 6px 16px rgba($color_main, .24);
+		box-shadow: 0 8px 18px rgba($color_main, .25);
 
-		&:hover {
+		&:hover:not(:disabled) {
 			background-color: darken($color_main, 7%);
 			color: #fff;
 			transform: translateY(-1px) scale(1.03);
 		}
 
-		svg {
-			font-size: 27px;
+		&:disabled {
+			background-color: #d8dde6;
+			color: #fff;
 		}
+
+		svg {
+			font-size: 28px;
+		}
+	}
+
+	.VideoPlayer_mode_button {
+		width: 112px;
+		min-width: 112px;
+		padding: 0 10px;
+		gap: 6px;
+		border-color: #e5e7eb;
+		background-color: #fff;
+		justify-content: flex-start;
+
+		.VideoPlayer_mode_text {
+			max-width: 58px;
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 1;
+			@include videoTextEllipsis;
+		}
+	}
+
+	.VideoPlayer_playlist_button,
+	.VideoPlayer_fullscreen_button {
+		border-color: #e5e7eb;
+		background-color: #fff;
+	}
+
+	.VideoPlayer_playlist_button.active {
+		border-color: rgba($color_main, .24);
+		background-color: rgba($color_main, .08);
+		color: $color_main !important;
 	}
 
 	.VideoPlayer_volume_container {
@@ -859,7 +419,7 @@
 
 		.VideoPlayer_volume_slider_container {
 			position: absolute;
-			bottom: calc(100% + 8px);
+			bottom: calc(100% + 9px);
 			left: 50%;
 			padding: 9px 8px;
 			border: 1px solid #e5e7eb;
@@ -893,7 +453,7 @@
 
 			.VideoPlayer_volume_slider {
 				-webkit-appearance: none;
-				width: 92px;
+				width: 96px;
 				height: 4px;
 				border-radius: 999px;
 				outline: none;
@@ -915,33 +475,47 @@
 			}
 		}
 	}
+}
 
-	.VideoPlayer_buttons_container {
-		display: flex;
-		justify-content: flex-end;
+.VideoPlayer_container:fullscreen {
+	background-color: #0d0f13;
 
-		.VideoPlayer_playlist_button {
-			border: 1px solid #e5e7eb;
-			background-color: #fff;
+	.VideoPlayer_diaplay_container {
+		padding: 0;
+		height: 100%;
+		background: #000;
+	}
 
-			&.active {
-				border-color: rgba($color_main, .24);
-				background-color: rgba($color_main, .08);
-				color: $color_main !important;
-			}
-		}
+	.VideoPlayer_video_element {
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	.VideoPlayer_controller_outer_container {
+		display: none;
+	}
+
+	.VideoPlayer_playlist {
+		display: none;
 	}
 }
 
 .VideoPlayer_playlist {
-	right: -330px;
+	position: fixed;
+	right: -340px;
 	top: 88px;
-	width: 306px;
-	height: calc(100vh - 160px);
-	max-height: 560px;
+	width: 318px;
+	height: min(560px, calc(100vh - 160px));
+	min-height: 320px;
 	border: 1px solid #e5e7eb;
 	border-radius: 10px;
+	background-color: #fff;
 	box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	transition: right .24s ease;
+	z-index: 1000;
 
 	&.VideoPlayer_playlist_open {
 		right: 18px;
@@ -949,24 +523,95 @@
 
 	.VideoPlayer_playlist_header {
 		padding: 14px 14px 12px;
+		border-bottom: 1px solid #eef1f5;
 		background-color: #fbfbfd;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 
 		.VideoPlayer_playlist_title {
+			margin: 0;
+			color: #20242c;
 			font-size: 15px;
 			font-weight: 650;
+			user-select: none;
+
+			span {
+				margin-left: 5px;
+				color: #7b8493;
+				font-size: 12px;
+				font-weight: 500;
+			}
+		}
+
+		.VideoPlayer_playlist_close_btn {
+			width: 30px;
+			height: 30px;
+			padding: 0;
+			border: none;
+			border-radius: 50%;
+			background-color: transparent;
+			color: #667085;
+			cursor: pointer;
+			transition: $custom_transition;
+			@include flexCenter;
+
+			&:hover {
+				background-color: #eef2f7;
+				color: #20242c;
+			}
 		}
 	}
 
 	.VideoPlayer_playlist_items {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		padding: 4px 0;
+
+		&::-webkit-scrollbar {
+			width: 4px;
+		}
+
+		&::-webkit-scrollbar-track {
+			background: #f5f6f8;
+		}
+
+		&::-webkit-scrollbar-thumb {
+			background: #d9dee8;
+			border-radius: 4px;
+		}
+
 		.VideoPlayer_playlist_empty {
 			height: 240px;
+			padding: 20px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+
+			.VideoPlayer_playlist_empty_text {
+				margin-bottom: 14px;
+				color: #98a2b3;
+				font-size: 13px;
+			}
 		}
 
 		.VideoPlayer_playlist_item {
 			min-height: 58px;
 			padding: 10px 12px;
 			border-bottom: 1px solid #f0f2f5;
+			display: flex;
+			align-items: center;
 			gap: 8px;
+			cursor: pointer;
+			transition: background-color .18s ease;
+
+			&:hover,
+			&:focus-visible {
+				background-color: #f7f9fc;
+				outline: none;
+			}
 
 			&.VideoPlayer_playlist_item_playing {
 				position: relative;
@@ -982,35 +627,146 @@
 					border-radius: 0 999px 999px 0;
 					background-color: $color_main;
 				}
+
+				.VideoPlayer_playlist_item_title {
+					color: $color_main;
+					font-weight: 650;
+				}
 			}
 
 			.VideoPlayer_playlist_item_info {
+				min-width: 0;
+				flex: 1;
 				display: flex;
 				flex-direction: column;
 				gap: 4px;
 			}
 
 			.VideoPlayer_playlist_item_title {
+				color: #20242c;
 				font-size: 13px;
 				font-weight: 500;
 				line-height: 1.25;
+				@include forbiddenSelect;
+				@include videoTextEllipsis;
 			}
 
 			.VideoPlayer_playlist_item_meta {
 				color: #8b93a1;
 				font-size: 12px;
 				line-height: 1.2;
-				@include textEllipsis;
+				@include videoTextEllipsis;
+			}
+
+			.VideoPlayer_playlist_remove_btn {
+				width: 28px;
+				height: 28px;
+				padding: 0;
+				border: none;
+				border-radius: 50%;
+				background-color: transparent;
+				color: #b5bdca;
+				cursor: pointer;
+				opacity: 0;
+				flex: 0 0 auto;
+				transition: $custom_transition;
+				@include flexCenter;
+
+				&:hover,
+				&:focus-visible {
+					opacity: 1;
+					color: #ef4444;
+					background-color: rgba(#ef4444, .1);
+					outline: none;
+				}
+			}
+
+			&:hover,
+			&:focus-within {
+				.VideoPlayer_playlist_remove_btn {
+					opacity: 1;
+				}
 			}
 		}
 	}
 
 	.VideoPlayer_playlist_footer {
 		padding: 12px;
+		border-top: 1px solid #eef1f5;
 		background-color: #fbfbfd;
 	}
 
 	.VideoPlayer_playlist_add_btn {
+		@include customButtonBasic;
 		width: 100%;
+	}
+}
+
+@media (max-width: 980px) {
+	.VideoPlayer_container {
+		.VideoPlayer_controller_outer_container {
+			min-height: 166px;
+			grid-template-rows: 30px auto;
+		}
+
+		.VideoPlayer_controlRow {
+			grid-template-columns: 1fr;
+			gap: 10px;
+		}
+
+		.VideoPlayer_info_container {
+			order: 2;
+		}
+
+		.VideoPlayer_controller_container {
+			order: 1;
+		}
+
+		.VideoPlayer_buttons_container {
+			order: 3;
+			justify-content: center;
+		}
+	}
+}
+
+@media (max-width: 720px) {
+	.VideoPlayer_container {
+		.VideoPlayer_diaplay_container {
+			padding: 8px;
+
+			.VideoPlayer_video_element {
+				border-radius: 8px;
+			}
+		}
+
+		.VideoPlayer_progress_container {
+			grid-template-columns: 46px minmax(0, 1fr) 46px;
+			gap: 8px;
+		}
+
+		.VideoPlayer_center_controls,
+		.VideoPlayer_aux_controls {
+			gap: 6px;
+		}
+
+		.VideoPlayer_mode_button {
+			min-width: 38px;
+			padding: 0;
+
+			.VideoPlayer_mode_text {
+				display: none;
+			}
+		}
+	}
+
+	.VideoPlayer_playlist {
+		top: 72px;
+		right: -100%;
+		width: calc(100vw - 32px);
+		height: calc(100vh - 132px);
+
+		&.VideoPlayer_playlist_open {
+			right: 16px;
+		}
 	}
 }
