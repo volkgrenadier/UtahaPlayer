@@ -1,4 +1,4 @@
-import { useRoutes } from 'react-router-dom'
+import { Navigate, useRoutes } from 'react-router-dom'
 import HomeGuide from '../Home/HomeGuide'
 import Music from '../Music/Music'
 import Video from '../Video/Video'
@@ -13,7 +13,8 @@ const Routes = () => {
 		{ path: '/video', element: <Video /> },
 		{ path: '/photo', element: <Photo /> },
 		{ path: '/collect', element: <Collect /> },
-		{ path: '/resently', element: <Resently /> },
+		{ path: '/recent', element: <Resently /> },
+		{ path: '/resently', element: <Navigate replace to="/recent" /> },
 		{ path: '/slideshow', element: <PhotoSlideShow /> },
 	])
 	return routes

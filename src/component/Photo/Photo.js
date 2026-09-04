@@ -1,499 +1,439 @@
-import React, { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
-import ImageList from '@mui/material/ImageList';
-import ImageListItem from '@mui/material/ImageListItem';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Divider from '@mui/material/Divider';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import SmartDisplayIcon from '@mui/icons-material/SmartDisplay';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import PlaylistRemoveIcon from '@mui/icons-material/PlaylistRemove';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import Tooltip from '@mui/material/Tooltip';
-import { useNotification } from '../../utils/NotificationProvider.js';
-import PhotoEditor from './PhotoEditor/PhotoEditor.js';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { unstable_usePrompt as usePrompt, useLocation } from 'react-router-dom'
+import ImageList from '@mui/material/ImageList'
+import ImageListItem from '@mui/material/ImageListItem'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import ListItemIcon from '@mui/material/ListItemIcon'
+import ListItemText from '@mui/material/ListItemText'
+import Divider from '@mui/material/Divider'
+import Tooltip from '@mui/material/Tooltip'
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
+import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined'
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
+import PlaylistRemoveIcon from '@mui/icons-material/PlaylistRemove'
+import SmartDisplayIcon from '@mui/icons-material/SmartDisplay'
+import { useNotification } from '../../utils/NotificationProvider.js'
+import { toFileUrl } from '../../utils/mediaUrl.js'
+import { findRequestedMedia } from '../../utils/mediaSelection.js'
+import PhotoEditor from './PhotoEditor/PhotoEditor.js'
+import PhotoPreview from './PhotoPreview/PhotoPreview.js'
 import './Photo.scss'
 
-import testImage from '../../assets/2.jpg';
-import testImage2 from '../../assets/1.jpg';
+const imagePath = (image) => image?.path || image?.sourcePath || image?.src || image?.url || ''
+const imagePreview = (image) => toFileUrl(image?.thumbnailUrl || image?.thumb || image?.url || image?.src || image?.path || '')
+
+const comparablePath = (image) => imagePath(image).replace(/\\/g, '/').toLocaleLowerCase()
+
+const imageTitle = (image) => {
+    if (image?.title) return image.title
+    const path = imagePath(image).split(/[?#]/)[0]
+    return decodeURIComponent(path.split(/[\\/]/).pop() || '未命名图片')
+}
+
+const normalizeImages = (list = []) => list.map((item) => {
+    return typeof item === 'string'
+        ? { src: item, path: item, title: imageTitle({ src: item }) }
+        : { ...item, title: imageTitle(item) }
+})
+
+const mergeImages = (current = [], incoming = []) => {
+    const merged = new Map()
+    current.forEach((image) => {
+        const key = comparablePath(image)
+        if (key) merged.set(key, image)
+    })
+    incoming.forEach((image) => {
+        const normalized = typeof image === 'string' ? { src: image, path: image } : image
+        const key = comparablePath(normalized)
+        if (key) merged.set(key, { ...merged.get(key), ...normalized })
+    })
+    return normalizeImages([...merged.values()])
+}
 
 const Photo = () => {
-    // 当前选中的图片
-    const [selectedImage, setSelectedImage] = useState(null);
-    // 图片列表
-    // const [imageList, setImageList] = useState([
-    //     {
-    //         src: testImage,
-    //         title: 'Breakfast',
-    //         rows: 2,
-    //         cols: 2,
-    //     },
-    //     {
-    //         src: testImage2,
-    //         title: 'Burger',
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Camera',
-    //     },
-    //     {
-    //         src: testImage2,
-    //         title: 'Coffee',
-    //         cols: 2,
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Hats',
-    //         cols: 2,
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Honey',
-    //         author: '@arwinneil',
-    //         rows: 2,
-    //         cols: 2,
-    //     },
-    //     {
-    //         src: testImage2,
-    //         title: 'Basketball',
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Fern',
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Mushrooms',
-    //         rows: 2,
-    //         cols: 2,
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Tomato basil',
-    //     },
-    //     {
-    //         src: testImage2,
-    //         title: 'Sea star',
-    //     },
-    //     {
-    //         src: testImage,
-    //         title: 'Bike',
-    //         cols: 2,
-    //     },
-    // ])
-    const [imageList, setImageList] = useState([]);
-    const [photoPlayCount, setPhotoPlayCount] = useState(4);
-    const playCountButtonRef = useRef(null);
-    // 展开的二级菜单的索引
-    const [activeMenu, setActiveMenu] = useState(null);
-    // 右键菜单状态：记录鼠标位置和右键点击的目标图片，null 表示菜单关闭
-    const [contextMenu, setContextMenu] = useState(null);
-    // 通知组件
+	const location = useLocation()
+	const routeRequestRef = useRef(location.state || {})
+    const [selectedImage, setSelectedImage] = useState(null)
+    const [workspaceMode, setWorkspaceMode] = useState('preview')
+    const [imageList, setImageList] = useState([])
+    const [photoPlayCount, setPhotoPlayCount] = useState(4)
+    const [activeMenu, setActiveMenu] = useState(null)
+    const [contextMenu, setContextMenu] = useState(null)
+    const [editorDirty, setEditorDirty] = useState(false)
+    const [libraryState, setLibraryState] = useState({ status: 'loading', message: '' })
+    const playCountButtonRef = useRef(null)
     const notifyContext = useNotification()
-    const buttonList = [
-        {
-            icon: <AddPhotoAlternateIcon />,
-            tooltip: '打开图片',
-            onClick: async () => {
-                let res = await window.electronFeatures.getImages()
-                if (res && res.length > 0) {
-                    let newImageList = [...imageList, ...res];
-                    let updatedImageList = updateImagesRowsAndCols(newImageList);
-                    setImageList(updatedImageList)
-                } else {
-                    console.warn('没有找到图片文件')
-                }
-            }
-        },
-        {
-            icon: <FolderOpenIcon />,
-            tooltip: '打开文件夹',
-            onClick: async () => {
-                let res = await window.electronFeatures.getImages('directory')
-                if (res && res.length > 0) {
-                    let newImageList = [...imageList, ...res];
-                    let updatedImageList = updateImagesRowsAndCols(newImageList);
-                    console.log(updatedImageList)
-                    setImageList(updatedImageList)
-                } else {
-                    console.warn('没有找到图片文件')
-                }
-            }
-        },
-        {
-            icon: <SmartDisplayIcon />,
-            tooltip: '播放',
-            onClick: async () => {
-                // 播放
-                if (imageList.length > 0) {
-                    window.electronFeatures.sendMessage('open-slide-show', {
-                        imageList,
-                        photoPlayCount
-                    })
-                }
-            },
-            secondButton: {
-                icon: <ArrowDropDownIcon />,
-                tooltip: '播放数量设置',
-                ref: playCountButtonRef,
-                className: 'Photo_subButton_sideAttach Photo_subButton_playCount',
-                // 用于标识哪个二级菜单被打开了
-                secondaryMenuName: 'photoPlayCount',
-                valueRange: [1, 12],
-                onClick: async (e) => {
-                    e.stopPropagation();
-                    setActiveMenu(prev =>
-                        prev === 'photoPlayCount' ? null : 'photoPlayCount'
-                    );
-                }
-            }
-        },
-        {
-            icon: <PlaylistRemoveIcon />,
-            tooltip: '清空图片列表',
-            tone: 'danger',
-            onClick: async () => {
-                handleClearImages();
-            }
-        }
-    ]
-    /**
-     * @description 处理图片列表，根据图片的索引生成图片的行数和列数，其生成是行数和列数要满足排布方式，排布方式为：以每四张图片为"一组"，每组的总行数为2，列数为4，奇数组四张图片占据的行列数分别为：
-     * 1. 第一张图片占据2行2列
-     * 2. 第二张图片占据1行1列
-     * 3. 第三张图片占据1行1列
-     * 4. 第四张图片占据1行2列
-     * 偶数组四张图片占据的行列数分别为：
-     * 1. 第一张图片占据1行2列
-     * 2. 第二张图片占据2行2列
-     * 3. 第三张图片占据1行1列
-     * 4. 第四张图片占据1行1列
-     * @param {number} list 图片列表
-     */
-    const updateImagesRowsAndCols = (list = []) => {
-        let oldList = Array.isArray(list) ? [...list] : [];
-        let updatedList = oldList.map((item, index) => {
-            let groupIndex = Math.floor(index / 4); // 计算当前图片所在的组
-            let isOddGroup = groupIndex % 2 === 1; // 判断当前组是奇数组还是偶数组
-            let rows, cols;
-            let imageSeq = index + 1; // 从1开始计数
-            if (isOddGroup) {
-                // 奇数组
-                if (imageSeq % 4 === 1) {
-                    rows = 2;
-                    cols = 2;
-                } else if (imageSeq % 4 === 2 || imageSeq % 4 === 3) {
-                    rows = 1;
-                    cols = 1;
-                } else {
-                    rows = 1;
-                    cols = 2;
-                }
-            } else {
-                // 偶数组
-                if (imageSeq % 4 === 1) {
-                    rows = 1;
-                    cols = 2;
-                } else if (imageSeq % 4 === 2) {
-                    rows = 2;
-                    cols = 2;
-                } else {
-                    rows = 1;
-                    cols = 1;
-                }
-            }
-            let obj = {
-                rows: 1,
-                cols: 1,
-            }
-            if (typeof(item) === 'string') {
-                obj.src = item;
-            } else {
-                obj = {
-                    ...item,
-                    rows: rows,
-                    cols: cols
-                }
-            }
-            return obj
-        })
-        return updatedList;
-    }
 
-    /**
-     * @description 生成图片的 srcset 属性
-     * @param {string} src 图片源地址
-     * @param {number} size 图片的宽高
-     * @param {number} rows 图片的行数，默认为1
-     * @param {number} cols 图片的列数，默认为1
-     * @returns {object} 包含 src 和 srcSet 属性的对象
-     */
-    const srcset = useCallback((src, size, rows = 1, cols = 1) => {
-        // 本地文件路径无法通过查询参数裁剪
-        // 直接返回原始 src，避免浏览器以 src + srcSet 双倍加载原始大图
-        const isLocalFile = !src.startsWith('http://') && !src.startsWith('https://');
-        if (isLocalFile) {
-            return { src };
-        }
-        return {
-            src: `${src}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format`,
-            srcSet: `${src}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format&dpr=2 2x`,
-        }
+	usePrompt({
+		when: editorDirty,
+		message: '当前图片有未保存的编辑。离开图片工作区将放弃这些更改，是否继续？'
+	})
+
+    const persistImageList = useCallback((list) => {
+        window.electronFeatures?.updateSlideShowConfig?.(list, undefined)
     }, [])
 
-
-    /**
-     * @description 组件加载完成后，获取缓存的图片和播放信息设置，设置图片列表的行列数
-     */
-    useLayoutEffect(() => {
-        window.electronFeatures.getImageListShowConfig().then(cachedConfig => {
-            if (cachedConfig) {
-                const updatedImageList = updateImagesRowsAndCols(cachedConfig.slideImagesCache || []);
-                setImageList(updatedImageList);
-                setPhotoPlayCount(cachedConfig.photoPlayCount || 4);
-                console.log(updatedImageList)
-            } else {
-                setImageList([]);
+    useEffect(() => {
+        let active = true
+        const loadLibrary = async () => {
+            try {
+                const cachedConfig = await window.electronFeatures?.getImageListShowConfig?.()
+                if (!active) return
+                const images = normalizeImages(cachedConfig?.slideImagesCache || [])
+                setImageList(images)
+				const request = routeRequestRef.current
+				const requestedImage = findRequestedMedia(images, request)
+				if (requestedImage) {
+                    setSelectedImage(requestedImage)
+                    setWorkspaceMode('preview')
+                }
+                setPhotoPlayCount(cachedConfig?.photoPlayCount || 4)
+                setLibraryState({ status: 'ready', message: '' })
+            } catch (error) {
+                if (!active) return
+                setImageList([])
+                setLibraryState({
+                    status: 'error',
+                    message: error?.message || '无法读取图片库',
+                })
             }
-        }).catch(err => {
-            console.error('获取图片列表幻灯片播放配置失败', err);
-            setImageList([]);
-        });
-    }, []);
-
-    /**
-     * @description 点击图片时，设置当前选中的图片，并重置图片的放大和移动状态
-     * @param {object} item 图片对象
-     */
-    const handleImageClick = (item) => {
-        setSelectedImage(item);
-        // resetImageTransform();
-    }
-    /**
-     * @description 从图片列表中移除图片，如果当前选中的图片被移除，则重置图片放大和移动状态并将当前选中的图片为null
-     * @param {object} item 图片对象
-     */
-    const handleRemoveImage = (item) => {
-        const updatedImageList = imageList.filter(image => image.src !== item.src);
-        let updatedImageListWithRowsAndCols = updateImagesRowsAndCols(updatedImageList);
-        setImageList(updatedImageListWithRowsAndCols);
-        window.electronFeatures.updateSlideShowConfig(updatedImageListWithRowsAndCols, undefined);
-        if (selectedImage && selectedImage.src === item.src) {
-            setSelectedImage(null);
         }
-    }
-    /**
-     * @description 清除图片列表
-     * 
-     */
-    const handleClearImages = () => {
-        setImageList([]);
-        setSelectedImage(null);
-        window.electronFeatures.updateSlideShowConfig([], undefined);
-        // resetImageTransform();
-    }
-    /**
-     * @description 选择播放数量的二级菜单项时，设置播放数量，并关闭二级菜单
-     */
-    const setPhotoPlayCountAndUpdateStoredData = (count) => {
-        setPhotoPlayCount(count);
-        window.electronFeatures.updateSlideShowConfig(undefined, count);
-        setActiveMenu(null);
-    }
+        loadLibrary()
+        return () => { active = false }
+    }, [])
 
-    // ── 右键菜单 ──────────────────────────────────────
+    const confirmDiscard = useCallback((action) => {
+        if (!editorDirty) return true
+        return window.confirm(`当前图片有未保存的编辑。${action}将放弃这些更改，是否继续？`)
+    }, [editorDirty])
 
-    /**
-     * @description 打开右键菜单，阻止浏览器默认菜单，记录鼠标位置和目标图片
-     * @param {MouseEvent} e
-     * @param {object} item 右键点击的图片对象
-     */
-    const handleContextMenu = (e, item) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setContextMenu({ mouseX: e.clientX, mouseY: e.clientY, item });
-    }
-
-    /**
-     * @description 关闭右键菜单
-     */
-    const handleContextMenuClose = () => {
-        setContextMenu(null);
-    }
-
-    /**
-     * @description 右键菜单 → 从列表中移除，不影响本地文件
-     */
-    const handleContextRemove = () => {
-        handleRemoveImage(contextMenu.item);
-        handleContextMenuClose();
-    }
-
-    /**
-     * @description 右键菜单 → 删除本地图片
-     * 从列表移除后，通知主进程删除本地文件并更新幻灯片配置
-     */
-    const handleContextDeleteLocal = () => {
-        const targetSrc = contextMenu.item.src;
-        const updatedImageList = imageList.filter(image => image.src !== targetSrc);
-        let updatedImageListWithRowsAndCols = updateImagesRowsAndCols(updatedImageList);
-        setImageList(updatedImageListWithRowsAndCols);
-        if (selectedImage && selectedImage.src === targetSrc) {
-            setSelectedImage(null);
-            // resetImageTransform();
+    const addImages = useCallback(async (mode) => {
+        try {
+            const result = await window.electronFeatures?.getImages?.(mode)
+            if (!result?.length) return
+            setImageList((current) => {
+                const next = mergeImages(current, result)
+                persistImageList(next)
+                return next
+            })
+            setLibraryState({ status: 'ready', message: '' })
+        } catch (error) {
+            notifyContext.notify.error(error?.message || '导入图片失败')
         }
-        window.electronFeatures.deleteImageFile(targetSrc, updatedImageListWithRowsAndCols)
-        .then((res) => {
-            if (res && res.success) {
-                notifyContext.notify.regularNotify.info(res.message || '图片删除成功')
-            } else {                
-                notifyContext.notify.regularNotify.error(res.message || '图片删除失败')
-            }
-            
-        }).catch(err => {
-            notifyContext.notify.regularNotify.error('图片删除失败')
+    }, [notifyContext.notify, persistImageList])
+
+    const handleImageClick = useCallback((item) => {
+        const alreadySelected = comparablePath(item) === comparablePath(selectedImage)
+        if (alreadySelected && workspaceMode === 'preview') return
+        if (workspaceMode === 'edit' && !confirmDiscard(alreadySelected ? '返回预览' : '切换图片')) return
+        setSelectedImage(item)
+        setWorkspaceMode('preview')
+        setEditorDirty(false)
+        window.electronFeatures?.recordMediaActivity?.({
+            mediaId: item.id,
+            path: imagePath(item),
+            type: 'photo',
+        }).catch(() => undefined)
+    }, [confirmDiscard, selectedImage, workspaceMode])
+
+    const enterEditor = useCallback(() => {
+        if (!selectedImage) return
+        setEditorDirty(false)
+        setWorkspaceMode('edit')
+    }, [selectedImage])
+
+    const returnToPreview = useCallback(() => {
+        if (!confirmDiscard('退出编辑')) return
+        setEditorDirty(false)
+        setWorkspaceMode('preview')
+    }, [confirmDiscard])
+
+    const removeImage = useCallback((item) => {
+        const removingSelected = comparablePath(item) === comparablePath(selectedImage)
+        if (removingSelected && !confirmDiscard('移除图片')) return false
+        setImageList((current) => {
+            const next = normalizeImages(current.filter((image) => comparablePath(image) !== comparablePath(item)))
+            persistImageList(next)
+            return next
         })
-        handleContextMenuClose();
-    }
+        if (removingSelected) {
+            setSelectedImage(null)
+            setWorkspaceMode('preview')
+            setEditorDirty(false)
+        }
+        return true
+    }, [confirmDiscard, persistImageList, selectedImage])
+
+    const clearImages = useCallback(() => {
+        if (!imageList.length) return
+        if (!confirmDiscard('清空图片库')) return
+        setImageList([])
+        setSelectedImage(null)
+        setWorkspaceMode('preview')
+        setEditorDirty(false)
+        persistImageList([])
+    }, [confirmDiscard, imageList.length, persistImageList])
+
+    const openSlideShow = useCallback(() => {
+        if (!imageList.length) return
+        window.electronFeatures?.openSlideShow?.(imageList, photoPlayCount)
+    }, [imageList, photoPlayCount])
+
+    const updatePlayCount = useCallback((count) => {
+        setPhotoPlayCount(count)
+        window.electronFeatures?.updateSlideShowConfig?.(undefined, count)
+        setActiveMenu(null)
+    }, [])
+
+    const handleContextMenu = useCallback((event, item) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setContextMenu({ mouseX: event.clientX, mouseY: event.clientY, item })
+    }, [])
+
+    const handleContextRemove = useCallback(() => {
+        if (!contextMenu) return
+        if (removeImage(contextMenu.item)) setContextMenu(null)
+    }, [contextMenu, removeImage])
+
+    const handleContextDeleteLocal = useCallback(async () => {
+        if (!contextMenu) return
+        const target = contextMenu.item
+        const targetPath = imagePath(target)
+        const removingSelected = comparablePath(target) === comparablePath(selectedImage)
+        if (removingSelected && !confirmDiscard('删除本地文件')) return
+        if (!window.confirm(`确定要永久删除“${imageTitle(target)}”吗？此操作无法撤销。`)) return
+
+        const next = normalizeImages(imageList.filter((image) => comparablePath(image) !== comparablePath(target)))
+        try {
+            const result = await window.electronFeatures?.deleteImageFile?.(targetPath, next)
+            if (!result?.success) {
+                notifyContext.notify.error(result?.message || '图片删除失败')
+                return
+            }
+            setImageList(next)
+            if (removingSelected) {
+                setSelectedImage(null)
+                setWorkspaceMode('preview')
+                setEditorDirty(false)
+            }
+            notifyContext.notify.info(result.message || '图片已删除')
+            setContextMenu(null)
+        } catch (error) {
+            notifyContext.notify.error(error?.message || '图片删除失败')
+        }
+    }, [confirmDiscard, contextMenu, imageList, notifyContext.notify, selectedImage])
+
+    const handleSaved = useCallback((canonicalImage, details) => {
+        const outputPath = details?.outputPath || imagePath(canonicalImage)
+        if (!outputPath) return
+        const normalized = {
+            ...canonicalImage,
+            path: canonicalImage?.path || outputPath,
+            src: canonicalImage?.src || canonicalImage?.url || outputPath,
+            title: imageTitle(canonicalImage || { path: outputPath }),
+        }
+
+        setImageList((current) => {
+            let next
+            if (details?.mode === 'overwrite') {
+                const sourceKey = comparablePath({ path: details.sourcePath })
+                let replaced = false
+                next = current.map((image) => {
+                    if (comparablePath(image) !== sourceKey) return image
+                    replaced = true
+                    return { ...image, ...normalized }
+                })
+                if (!replaced) next.push(normalized)
+                next = normalizeImages(next)
+            } else {
+                next = mergeImages(current, [normalized])
+            }
+            persistImageList(next)
+            return next
+        })
+
+        setEditorDirty(false)
+        setSelectedImage({ ...normalized, editorRevision: Date.now() })
+        setWorkspaceMode('preview')
+        window.electronFeatures?.recordMediaActivity?.({
+            mediaId: normalized.id,
+            path: imagePath(normalized),
+            type: 'photo',
+        }).catch(() => undefined)
+        notifyContext.notify.info(
+            details?.mode === 'overwrite' ? '原图已更新' : '图片副本已加入图库',
+        )
+    }, [notifyContext.notify, persistImageList])
+
+    const selectedKey = comparablePath(selectedImage)
+    const toolbarButtons = useMemo(() => ([
+        { label: '添加图片', icon: <AddPhotoAlternateIcon />, onClick: () => addImages('file') },
+        { label: '添加文件夹', icon: <FolderOpenIcon />, onClick: () => addImages('directory') },
+        { label: '播放幻灯片', icon: <SmartDisplayIcon />, onClick: openSlideShow, disabled: !imageList.length, combo: true },
+        { label: '清空图片库', icon: <PlaylistRemoveIcon />, onClick: clearImages, disabled: !imageList.length, danger: true },
+    ]), [addImages, clearImages, imageList.length, openSlideShow])
 
     return (
-        <div className='Photo_container'>
-            <div className="Photo_imageListContainer">
-                <div className="Photo_imageListHeader">
-                    <div className='Photo_toolbar'>
-                        <div className='Photo_toolbarButtons'>
-                            {
-                                buttonList.map((button, index) => (
-                                    <div className={`Photo_buttonGroup ${button.secondButton ? 'Photo_buttonGroup_combo' : ''}`} key={index}>
-                                        <Tooltip key={index} title={button.tooltip}>
-                                            <button
-                                                className={`Photo_button ${button.tone === 'danger' ? 'Photo_button_danger' : ''}`}
-                                                type='button'
-                                                aria-label={button.tooltip}
-                                                onClick={button.onClick}
-                                            >
-                                                {button.icon}
-                                            </button>
-                                        </Tooltip>
-                                            {
-                                                button.secondButton && (
-                                                    <div className='Photo_secondaryButton_container'>
-                                                        <Tooltip title={button.secondButton.tooltip}>
-                                                            <button
-                                                                ref={button.secondButton.ref}
-                                                                className={`Photo_button photo_secondaryButton ${button.secondButton.className} ${
-                                                                    activeMenu === button.secondButton.secondaryMenuName? 'active' : ''
-                                                                }`}
-                                                                type='button'
-                                                                aria-label={button.secondButton.tooltip}
-                                                                onClick={button.secondButton.onClick}
-                                                            >
-                                                                {button.secondButton.icon}
-                                                            </button>
-                                                        </Tooltip>
-                                                        <div className={`Photo_playCountMenu ${activeMenu === button.secondButton.secondaryMenuName ? 'open' : ''}`}>
-                                                            {
-                                                                button.secondButton.valueRange &&
-                                                                Array.from(
-                                                                    { length: button.secondButton.valueRange[1] - button.secondButton.valueRange[0] + 1 },
-                                                                    (_, i) => i + button.secondButton.valueRange[0]
-                                                                ).map((num) => (
-                                                                    <button
-                                                                        key={num}
-                                                                        className={`Photo_playCountItem ${
-                                                                            photoPlayCount === num ? 'active' : ''
-                                                                        }`}
-                                                                        type='button'
-                                                                        onClick={() => {
-                                                                            setPhotoPlayCountAndUpdateStoredData(num);
-                                                                        }}
-                                                                    >
-                                                                        {num}
-                                                                    </button>
-                                                                ))
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                )
-                                            }
-                                    </div>
-                                ))
-                            }
-                        </div>
-                        <div className='Photo_toolbarMeta'>
-                            <span>{imageList.length} 张</span>
-                            <span>{photoPlayCount} 格播放</span>
+        <div className="Photo_container">
+            <aside className="Photo_libraryPanel">
+                <div className="Photo_libraryTitle">
+                    <div>
+                        <PhotoLibraryOutlinedIcon />
+                        <div className="Photo_libraryTitleText">
+                            <strong>图片库</strong>
+                            <small>本地作品墙</small>
                         </div>
                     </div>
+                    <span>{imageList.length}</span>
                 </div>
-                <ImageList
-                    // sx={{ width: 1, height: 1 }}
-                    className='Photo_imageList'
-                    variant="quilted"
-                    cols={4}
-                    rowHeight={121}
-                >
-                    {
-                        imageList.map((item) => (
-                            <ImageListItem 
-                                className='Photo_imageListItem'
-                                key={item.src} 
-                                cols={item.cols || 1} 
-                                rows={item.rows || 1}
-                                onClick={() => handleImageClick(item)}
-                                onContextMenu={(e) => handleContextMenu(e, item)}
-                            >
-                                <img
-                                    src={item.thumb || item.src}
-                                    alt={item.title}
-                                    loading="lazy"
-                                />
-                            </ImageListItem>
-                        ))
-                    }
-                </ImageList>
-            </div>
 
-            {/* 右键菜单 */}
+                <div className="Photo_imageListHeader">
+                    <div className="Photo_toolbarButtons">
+                        {toolbarButtons.map((button) => (
+                            <div className={`Photo_buttonGroup ${button.combo ? 'combo' : ''}`} key={button.label}>
+                                <Tooltip title={button.label}>
+                                    <span>
+                                        <button
+                                            className={`Photo_button ${button.danger ? 'danger' : ''}`}
+                                            type="button"
+                                            aria-label={button.label}
+                                            onClick={button.onClick}
+                                            disabled={button.disabled}
+                                        >
+                                            {button.icon}
+                                        </button>
+                                    </span>
+                                </Tooltip>
+                                {button.combo && (
+                                    <div className="Photo_secondaryButtonContainer">
+                                        <Tooltip title="每屏图片数量">
+                                            <button
+                                                ref={playCountButtonRef}
+                                                className={`Photo_button Photo_countButton ${activeMenu === 'photoPlayCount' ? 'active' : ''}`}
+                                                type="button"
+                                                aria-label="每屏图片数量"
+                                                aria-expanded={activeMenu === 'photoPlayCount'}
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    setActiveMenu((current) => current === 'photoPlayCount' ? null : 'photoPlayCount')
+                                                }}
+                                            >
+                                                <ArrowDropDownIcon />
+                                            </button>
+                                        </Tooltip>
+                                        <div className={`Photo_playCountMenu ${activeMenu === 'photoPlayCount' ? 'open' : ''}`}>
+                                            {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                                                <button
+                                                    key={count}
+                                                    className={photoPlayCount === count ? 'active' : ''}
+                                                    type="button"
+                                                    onClick={() => updatePlayCount(count)}
+                                                >
+                                                    {count}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <span className="Photo_playCountMeta">每屏 {photoPlayCount} 张</span>
+                </div>
+
+                <div className="Photo_libraryContent">
+                    {libraryState.status === 'loading' && (
+                        <div className="Photo_libraryMessage"><span className="Photo_loadingDot" />正在读取图片库…</div>
+                    )}
+                    {libraryState.status === 'error' && (
+                        <div className="Photo_libraryMessage error">
+                            <BrokenImageOutlinedIcon />
+                            <span>{libraryState.message}</span>
+                        </div>
+                    )}
+                    {libraryState.status === 'ready' && imageList.length === 0 && (
+                        <div className="Photo_emptyLibrary">
+                            <div className="Photo_emptyIcon"><PhotoLibraryOutlinedIcon /></div>
+                            <strong>建立你的本地图片库</strong>
+                            <p>图片只会保留在这台设备上，可随时编辑或播放幻灯片。</p>
+                            <button type="button" onClick={() => addImages('file')}>
+                                <AddPhotoAlternateIcon />添加本地图片
+                            </button>
+                            <button className="secondary" type="button" onClick={() => addImages('directory')}>
+                                <FolderOpenIcon />添加文件夹
+                            </button>
+                        </div>
+                    )}
+                    {imageList.length > 0 && (
+                        <ImageList className="Photo_imageList" variant="masonry" cols={2} gap={8}>
+                            {imageList.map((item) => {
+                                const itemKey = comparablePath(item)
+                                const title = imageTitle(item)
+                                return (
+                                    <ImageListItem
+                                        className={`Photo_imageListItem ${itemKey === selectedKey ? 'selected' : ''}`}
+                                        key={item.id || itemKey}
+                                    >
+                                        <button
+                                            className="Photo_imageCard"
+                                            type="button"
+                                            aria-label={`预览 ${title}`}
+                                            aria-pressed={itemKey === selectedKey}
+                                            onClick={() => handleImageClick(item)}
+                                            onContextMenu={(event) => handleContextMenu(event, item)}
+                                        >
+                                            <img src={imagePreview(item)} alt="" loading="lazy" />
+                                            <span className="Photo_itemLabel">
+                                                <strong>{title}</strong>
+                                            </span>
+                                        </button>
+                                    </ImageListItem>
+                                )
+                            })}
+                        </ImageList>
+                    )}
+                </div>
+            </aside>
+
             <Menu
-                open={!!contextMenu}
-                onClose={handleContextMenuClose}
+                open={Boolean(contextMenu)}
+                onClose={() => setContextMenu(null)}
                 anchorReference="anchorPosition"
-                anchorPosition={
-                    contextMenu
-                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-                        : undefined
-                }
+                anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
             >
                 <MenuItem onClick={handleContextRemove}>
-                    <ListItemIcon>
-                        <DeleteOutlineIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>从列表中移除</ListItemText>
+                    <ListItemIcon><DeleteOutlineIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>从图片库移除</ListItemText>
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={handleContextDeleteLocal} sx={{ color: 'error.main' }}>
-                    <ListItemIcon sx={{ color: 'error.main' }}>
-                        <DeleteForeverIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>删除本地图片</ListItemText>
+                    <ListItemIcon sx={{ color: 'error.main' }}><DeleteForeverIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>永久删除本地文件</ListItemText>
                 </MenuItem>
             </Menu>
 
-            <div 
-                className="Photo_displayArea"
-            >
-                {selectedImage ? (
-                    <PhotoEditor selectedImage={selectedImage} />
+            <main className="Photo_displayArea">
+                {workspaceMode === 'edit' ? (
+                    <PhotoEditor
+                        selectedImage={selectedImage}
+                        onDirtyChange={setEditorDirty}
+                        onSaved={handleSaved}
+                        onExit={returnToPreview}
+                    />
                 ) : (
-                    <div className="Photo_placeholder">请选择一张图片</div>
+                    <PhotoPreview
+                        image={selectedImage}
+                        onEdit={enterEditor}
+                        onPlaySlideshow={openSlideShow}
+                    />
                 )}
-            </div>
+            </main>
         </div>
     )
 }

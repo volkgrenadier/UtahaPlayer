@@ -118,22 +118,18 @@ export const NotificationProvider = ({children}) => {
                                 onClose={() => closeNotification(it.id)}
                                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
                                 ContentProps={{
-                                    sx: {
-                                        backgroundColor: it.messageType === 'error' ? '#f44336' : 
-                                                       it.messageType === 'success' ? '#4caf50' :
-                                                       it.messageType === 'warning' ? '#ff9800' : '#2196f3',
-                                        color: 'white',
-                                        fontWeight: 500
-                                    }
+                                    className: `Notification_toast Notification_toast_${it.messageType}`,
+                                    role: 'status'
                                 }}
                             />
                         )
                     } else {
                         return (
-                            <Popover 
+                            <Popover
                                 key={it.id}
                                 open={notificationOpen}
                                 anchorEl={anchorEl}
+                                PaperProps={{ className: 'Notification_popover' }}
                                 anchorOrigin={{
                                     vertical: 'bottom',
                                     horizontal: 'right',
@@ -161,8 +157,9 @@ export const NotificationProvider = ({children}) => {
                                         mr: 1
                                     }}
                                 >
-                                    <button 
-                                        className='Notification_popover_button_comfirm' 
+                                    <button
+                                        className='Notification_popover_button_comfirm'
+                                        type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             it.onConfirm()
@@ -173,7 +170,8 @@ export const NotificationProvider = ({children}) => {
                                             it.confirmText
                                         }
                                     </button>
-                                    <button className='Notification_popover_button_cancel' 
+                                    <button className='Notification_popover_button_cancel'
+                                        type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             it.onCancel()

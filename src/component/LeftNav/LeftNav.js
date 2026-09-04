@@ -1,71 +1,45 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';//最近播放
-import FavoriteIcon from '@mui/icons-material/Favorite';//收藏
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import MusicNoteIcon from '@mui/icons-material/MusicNote';
-import VideocamIcon from '@mui/icons-material/Videocam';
-import PhotoIcon from '@mui/icons-material/Photo';
-import MenuIcon from '@mui/icons-material/Menu';
+import React from 'react'
+import { NavLink } from 'react-router-dom'
+import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded'
+import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded'
+import VideocamRoundedIcon from '@mui/icons-material/VideocamRounded'
+import PhotoRoundedIcon from '@mui/icons-material/PhotoRounded'
+import './LeftNav.scss'
 
-import './LeftNav.scss';
+const navItems = [
+    { to: '/', label: '首页', Icon: HomeRoundedIcon, end: true },
+    { to: '/music', label: '音乐', Icon: MusicNoteRoundedIcon },
+    { to: '/video', label: '视频', Icon: VideocamRoundedIcon },
+    { to: '/photo', label: '图片', Icon: PhotoRoundedIcon },
+    { to: '/collect', label: '收藏', Icon: FavoriteRoundedIcon },
+    { to: '/recent', label: '最近', Icon: AccessTimeRoundedIcon }
+]
 
-const LeftNav = () => {
-	const [expandStatus, setExpandStatus] = useState(false)
-	return (
-		<div className='sideBar_container'>
-			<div className={`sideBar ${expandStatus? 'sideBar-expand': ''}`}>
-				{/* <div className='sideTitle'>
-					媒体
-				</div> */}
-				<div 
-					className={`nav-expandButton ${expandStatus? 'nav-expandButton-expanded': ''}`}
-					onClick={() => setExpandStatus(!expandStatus)}
-				>
-					<MenuIcon className='nav-icon'/>
-				</div>
-				<NavLink to="/" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					<HomeRoundedIcon className='nav-icon'/>
-					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>首页</div>
-				</NavLink>
-				<NavLink to="/music" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					<MusicNoteIcon className='nav-icon'/>
-					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>音乐</div>
-				</NavLink>
-				<NavLink to="/video" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					<VideocamIcon className='nav-icon'/>
-					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>视频</div>
-				</NavLink>
-				<NavLink to="/photo" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					<PhotoIcon className='nav-icon'/>
-					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>图片</div>
-				</NavLink>
-				<NavLink to="/collect" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					<FavoriteIcon className='nav-icon'/>
-					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>收藏</div>
-				</NavLink>
-				<NavLink to="/resently" className={({ isActive }) =>
-					isActive ? 'nav-item active' : 'nav-item'
-				}>
-					<AccessTimeIcon className='nav-icon'/>
-					<div className={`nav-txt ${expandStatus? 'nav-txt-show': ''}`}>最近播放</div>
-				</NavLink>
+const preventNavigationDrag = (event) => event.preventDefault()
 
-			</div>
-		</div>
-		
-	)
-
-}
+const LeftNav = () => (
+    <aside className="sideBar_container" aria-label="主导航">
+        <nav className="sideBar">
+            <div className="sideBar_sectionLabel">媒体库</div>
+            {navItems.map(({ to, label, Icon, end }) => (
+                <NavLink
+                    key={to}
+                    to={to}
+                    end={end}
+                    draggable={false}
+                    onDragStart={preventNavigationDrag}
+                    aria-label={label}
+                    title={label}
+                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                >
+                    <Icon className="nav-icon" aria-hidden="true" />
+                    <span className="nav-txt">{label}</span>
+                </NavLink>
+            ))}
+        </nav>
+    </aside>
+)
 
 export default LeftNav

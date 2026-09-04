@@ -11,10 +11,8 @@ import './ScrollTitle.scss';
  * @retruns {JSX.Element} 滚动标题组件
  */
 const ScrollTitle = ({title, hoverScroll, handleClick = false, speed = 20, itemClassName=''}) => {
-    speed = speed > 0 ? speed : 20
+    const normalizedSpeed = speed > 0 ? speed : 20
     const containerRef = useRef(null)
-    const contentRef = useRef(null)
-    const [scrolling, setScrolling] = useState(false)
     const [shouldAnimate, setShouldAnimate] = useState(false)
     const [cssVariables, setCssVariables] = useState({
         '--scroll-distance': '0px',
@@ -26,16 +24,12 @@ const ScrollTitle = ({title, hoverScroll, handleClick = false, speed = 20, itemC
     useEffect(() => {
         let needAnimate = containerRef.current.scrollWidth > containerRef.current.clientWidth
         let scrollDistance = containerRef.current.scrollWidth - containerRef.current.clientWidth
-        console.log(`cssVariables-${title}`, {
-            '--scroll-distance': `-${scrollDistance}px`,
-            '--scroll-duration': `${Math.abs(scrollDistance)/speed}s`,
-        })
         setCssVariables({
             '--scroll-distance': `-${scrollDistance}px`,
-            '--scroll-duration': `${Math.abs(scrollDistance)/speed}s`,
+            '--scroll-duration': `${Math.abs(scrollDistance)/normalizedSpeed}s`,
         })
         setShouldAnimate(needAnimate)
-    }, [title])
+    }, [normalizedSpeed, title])
     return (
         <div 
             className={`ScrollTitle_container`}
@@ -48,7 +42,6 @@ const ScrollTitle = ({title, hoverScroll, handleClick = false, speed = 20, itemC
                     ${shouldAnimate && hoverScroll ? 'ScrollTitle_content_hoverScroll' : ''} 
                     ${itemClassName}
                 `}
-                ref={contentRef}
                 onClick={ handleClick ? (e) => handleClick(e) : null }
             >
                 { title }

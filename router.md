@@ -2,20 +2,15 @@
 
 ## 首页
 
-|            | path         | 组件名称       |
-| ---------- | ------------ | -------------- |
-| 首页       | /            | <Home/>        |
-| 音乐       | /music       | <Music />      |
-| 收藏       | /collect     | <Collect />    |
-| 最近播放   | /resently    | <Resrntly />   |
-| 照片       | /picture     | <Picture/>     |
-| 音乐播放器 | /musicplayer | <MusicPlayer/> |
+| 页面     | path         | 组件名称         |
+| -------- | ------------ | ---------------- |
+| 首页     | /            | `<HomeGuide />`  |
+| 音乐     | /music       | `<Music />`      |
+| 视频     | /video       | `<Video />`      |
+| 图片     | /photo       | `<Photo />`      |
+| 收藏     | /collect     | `<Collect />`    |
+| 最近     | /recent      | `<Resently />`   |
+| 图片幻灯片 | /slideshow | `<PhotoSlideShow />` |
 
-## 我的收藏
-
-|      | path | 组件名称 |
-| ---- | ---- | -------- |
-| 全部 |      |          |
-| 音乐 |      |          |
-| 视频 |      |          |
+旧地址 `/resently` 会重定向到 `/recent`，用于兼容已有书签。
 

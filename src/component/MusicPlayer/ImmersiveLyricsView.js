@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { clickCopy } from '../../utils/toolsFunction';
 import './ImmersiveLyricsView.scss';
 
 /**
@@ -7,8 +6,8 @@ import './ImmersiveLyricsView.scss';
  * 苹果风格设计的沉浸式歌词展示，支持动态背景色
  * 
  * @param {Object} props
- * @param {string} props.albumColor - 专辑主色调 (例如 "#8E2DE2")
- * @param {string} props.secondaryColor - 专辑次要色调 (例如 "#4A00E0")
+ * @param {string} props.albumColor - 专辑主色调
+ * @param {string} props.secondaryColor - 专辑次要色调
  * @param {string} props.title - 歌曲标题
  * @param {string} props.artist - 歌手名称
  * @param {Array} props.lyrics - 歌词数组 [{time: 时间秒数, text: "歌词文本"}, ...]
@@ -16,8 +15,8 @@ import './ImmersiveLyricsView.scss';
  * @param {function} props.onSeek - (可选) 当用户点击特定歌词时的回调函数
  */
 const ImmersiveLyricsView = ({
-    albumColor = "#8E2DE2",
-    secondaryColor = "#4A00E0",
+    albumColor = "#6d3155",
+    secondaryColor = "#30223a",
     title = "未知歌曲",
     artist = "未知艺术家",
     lyrics = [],

@@ -1,36 +1,34 @@
-# electron+react桌面应用
+# Utaha Player
 
-#### Description
-这是我的第一个桌面应用
+Utaha Player is a local-first Electron media center for music, video, and photos. It keeps media files and activity data on the device and provides one unified library, global music playback, resumable video sessions, and a safe source-resolution photo editor.
 
-#### Software Architecture
-Software architecture description
+## Highlights
 
-#### Installation
+- Content-first home with Continue, Recently Used, and Recently Added sections
+- Global music session and persistent mini player
+- Video progress restore and completion tracking
+- Source-pixel photo editing with full undo/redo
+- Save Copy by default, verified and rollback-safe overwrite when explicitly selected
+- Bounded media IPC, disk thumbnail cache, unified search, recent activity, and favorites
+- Native Electron title-bar dragging and Windows Mica when available
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Development
 
-#### Instructions
+```powershell
+npm install
+npm start
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+Start Electron in another terminal:
 
-#### Contribution
+```powershell
+npm run electron
+```
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+Run validation:
 
-
-#### Gitee Feature
-
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+```powershell
+npm test -- --watchAll=false --runInBand
+npx eslint src --ext .js --max-warnings=0
+npm run build
+```

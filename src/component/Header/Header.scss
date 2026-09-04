@@ -1,34 +1,82 @@
 @import '../../style/public.scss';
+
 .Header_container {
-    @include flexCenter;
-    width: calc(100% - $sidePadding*2);
-    height: 50px;
-    background-color: $color_main_bg;
-    justify-content: space-between;
-    padding: 0 $sidePadding;
-    .Header_info_container {
-        user-select: none;
-    }
-    $button_margin: 5px;
-    .Header_buttons_container {
-        @include flexCenter;
-        .Header_button {
-            width: 30px;
-            height: 30px;
-            margin: 0 $button_margin;
-            border: none;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: $custom_transition;
-            &:hover {
-                color: $color_main;
-            }
-            &:active {
-                transform: scale(0.85);
-            }
+    width: 100%;
+    height: var(--utaha-titlebar-height);
+    min-width: 0;
+    padding: 0 max(16px, env(titlebar-area-x, 0px));
+    padding-right: max(16px, calc(100vw - env(titlebar-area-x, 100vw) - env(titlebar-area-width, 0px)));
+    border-bottom: 1px solid var(--utaha-border);
+    background: rgba(244, 239, 244, .92);
+    backdrop-filter: blur(18px) saturate(.9);
+    display: flex;
+    align-items: center;
+    user-select: none;
+    app-region: drag;
+    -webkit-app-region: drag;
+    z-index: 1000;
+}
+
+.Header_brand {
+    min-width: max-content;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.Header_mark {
+    width: 27px;
+    height: 27px;
+    border-radius: 8px;
+    background: var(--utaha-ink);
+    color: var(--utaha-inverse-text);
+    display: inline-grid;
+    place-items: center;
+
+    svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+
+        path:last-child {
+            stroke: var(--utaha-accent-bright);
         }
+    }
+}
+
+.Header_title {
+    color: var(--utaha-text);
+    font-size: 13px;
+    font-weight: 760;
+    letter-spacing: -.01em;
+}
+
+.Header_divider {
+    width: 1px;
+    height: 14px;
+    background: var(--utaha-border-strong);
+}
+
+.Header_subtitle {
+    color: var(--utaha-text-subtle);
+    font-family: var(--utaha-font-editorial);
+    font-size: 12px;
+}
+
+.Header_dragSurface {
+    min-width: 24px;
+    height: 100%;
+    flex: 1 1 auto;
+}
+
+@media (max-width: 720px) {
+    .Header_subtitle,
+    .Header_divider {
+        display: none;
     }
 }

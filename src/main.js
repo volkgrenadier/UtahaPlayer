@@ -1,17 +1,43 @@
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, dialog, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, nativeImage } = require('electron');
 const { parseFile } = require('music-metadata') //node.js的库
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { fileURLToPath } = require('url');
 const { lyricFileType, musicFileType } = require('./config/config.js')
 const { needsTranscoding, getOutputPath } = require("./config/videoConfig.js");
 const { imageTypeList } = require('./config/photoConfig.js');
+const { createMainWindowOptions } = require('./main/windowOptions.js');
+const { collectMediaFiles } = require('./main/mediaImportHelpers.js');
 
 const ffmpeg = require('fluent-ffmpeg');
 const ffprobeStatic = require('ffprobe-static');
 const ffmpegStatic = require('ffmpeg-static');
 
-const { attachThumbs } = require('./thumbnailHelper.js');
+const {
+	attachThumbs,
+	generateThumb,
+	generateThumbFromDataUrl,
+	setThumbnailCacheDirectory,
+} = require('./thumbnailHelper.js');
+const {
+	buildHomeSummary,
+	findMediaRecord,
+	getFavorites,
+	getPathKey,
+	getRecentActivity,
+	migrateUserConfig,
+	recordMediaActivity,
+	removeMediaRecord,
+	replaceMediaRecords,
+	searchLibrary,
+	setMediaFavorite,
+	syncLegacyLibraries,
+	toMediaSummary,
+	updatePlaybackProgress,
+	upsertMediaRecords,
+} = require('./main/mediaLibrary.js');
+const { getEditedCopyDefaultName, rasterToBuffer, writeFileAtomically } = require('./main/imageSaveHelpers.js');
 
 function normalizeFilePathForFs(filePath) {
 	if (!filePath || typeof filePath !== 'string') return '';
@@ -55,17 +81,89 @@ const ffprobePathResolved = resolveBinary('ffprobe-static', ffprobeExport);
 ffmpeg.setFfmpegPath(ffmpegPathResolved);
 ffmpeg.setFfprobePath(ffprobePathResolved);
 
-console.log('FFmpeg 路径解析结果:', ffmpegPathResolved);
-console.log('FFprobe 路径解析结果:', ffprobePathResolved);
-
 
 let ElectronStore;
 let store;
 let userSavedConfig;
 let userConfig = {}
+
+function migrateEmbeddedThumbnailUrls(config) {
+	const photos = config?.photo?.photoLibrary?.slideImagesCache;
+	if (!Array.isArray(photos)) return;
+	for (const photo of photos) {
+		if (typeof photo?.thumb !== 'string' || !photo.thumb.startsWith('data:image/')) continue;
+		const filePath = photo.path || photo.src;
+		const cachedUrl = generateThumbFromDataUrl(photo.thumb, filePath || crypto.randomUUID());
+		if (cachedUrl) {
+			photo.thumbnailUrl = cachedUrl;
+			photo.thumb = cachedUrl;
+		}
+	}
+}
+
+function migrateCanonicalEmbeddedThumbnails(config) {
+	for (const record of config?.mediaLibrary?.records || []) {
+		const embeddedUrl = [record.thumbnailUrl, record.thumb, record.coverUrl]
+			.find((value) => typeof value === 'string' && value.startsWith('data:image/'));
+		if (!embeddedUrl) continue;
+		const cachedUrl = generateThumbFromDataUrl(embeddedUrl, record.path || record.id);
+		record.thumbnailUrl = cachedUrl || null;
+		if (record.type === 'music') record.coverUrl = cachedUrl || null;
+		delete record.thumb;
+	}
+}
+
+function updateMediaThumbnail(record, options = {}) {
+	if (!record) return false;
+	let thumbnailUrl = record.thumbnailUrl;
+	if (record.type === 'photo' && fs.existsSync(record.path)) {
+		thumbnailUrl = generateThumb(record.path, options);
+	} else if (typeof record.coverUrl === 'string' && record.coverUrl.startsWith('data:image/')) {
+		thumbnailUrl = generateThumbFromDataUrl(record.coverUrl, record.id, options);
+	}
+	if (!thumbnailUrl || thumbnailUrl === record.thumbnailUrl) return false;
+	record.thumbnailUrl = thumbnailUrl;
+	if (record.type === 'music' && typeof record.coverUrl === 'string' && record.coverUrl.startsWith('data:')) {
+		record.coverUrl = thumbnailUrl;
+	}
+	return true;
+}
+
+function persistUserConfig(nextConfig = userConfig) {
+	userConfig = syncLegacyLibraries(nextConfig);
+	store.set('userConfig', userConfig);
+}
+
+function notifyLibraryUpdated(type) {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	mainWindow.webContents.send(`${type}-list-updated`, (
+		type === 'music'
+			? userConfig.music.musicLibrary.musicList
+			: type === 'video'
+				? userConfig.video.videoLibrary.videoList
+				: userConfig.photo.photoLibrary.slideImagesCache
+	));
+	mainWindow.webContents.send('library-updated', { type });
+}
+
+function hydrateSummariesWithThumbnails(items) {
+	let changed = false;
+	for (const item of Array.isArray(items) ? items : []) {
+		const record = findMediaRecord(userConfig, item.id, item.type);
+		if (!record) continue;
+		changed = updateMediaThumbnail(record) || changed;
+		item.thumbnailUrl = record.thumbnailUrl || null;
+		item.thumb = record.thumbnailUrl || null;
+		if (item.type === 'music') item.coverUrl = record.thumbnailUrl || null;
+	}
+	if (changed) persistUserConfig();
+	return items;
+}
+
 async function initStore() {
 	ElectronStore = await import('electron-store').then(module => module.default)
 	store = new ElectronStore()
+	setThumbnailCacheDirectory(path.join(app.getPath('userData'), 'thumbnails'));
 	userSavedConfig = store.get('userConfig', {
 		music: {
 			// 存储音乐文件信息的对象
@@ -74,7 +172,7 @@ async function initStore() {
 				musicFolders: []
 			},
 			volume: 25, // 音量范围 0-100
-			playerEffect: 'ImmersiveLyrics' // 播放器效果
+			playerEffect: 'VinylPlayer' // 播放器效果
 		},
 		video: {
 			// 存储视频文件信息的对象
@@ -91,94 +189,17 @@ async function initStore() {
 			photoPlayCount: 4
 		}
 	}) // 读取用户配置文件
-	userConfig = userSavedConfig
+	migrateEmbeddedThumbnailUrls(userSavedConfig);
+	userConfig = migrateUserConfig(userSavedConfig);
+	migrateCanonicalEmbeddedThumbnails(userConfig);
+	persistUserConfig();
 }
 
 let mainWindow = null;
 let slideWindow = null
-let movingInterval = null;
-let lastUpdateTime = 0;
-const UPDATE_INTERVAL = 16; // 约等于 60fps (1000/60 ≈ 16.67ms)
 //  歌词文件类型列表
 const lyricFileTypeList = lyricFileType.map(item => item.type)
-//  图片幻灯片播放设置
-let slideImagesConfig = {
-	photoPlayCount: 4, // 同时显示的图片数量
-	slideImagesCache: []
-}
-/**
- * 应用级系统型事件处理函数
- */
-//  关闭app
-function closeApp() {
-	app.quit()
-}
-//  最小化窗口
-function minimizeWindow() {
-	mainWindow.minimize();
-}
-//  最大化窗口
-function maximizeWindow() {
-	if (mainWindow.isMaximized()) {
-		mainWindow.unmaximize(); //  true means window has been restored, for Header.js
-	}
-	else {
-		mainWindow.maximize();   //  false means window has been maximized, for Header.js
-	}
-}
-//  移动窗口
-function moveWin(e, canMove) {
-	let winStartPosition = { x: 0, y: 0 };
-	let cursorStartPosition = { x: 0, y: 0 };
-
-	// console.log(canMove)
-	if (canMove) {
-		//  读取窗口原位置，每次调用函数的时候都要获取一次
-		const winPosition = mainWindow.getPosition();
-		winStartPosition = { x: winPosition[0], y: winPosition[1] };
-		cursorStartPosition = screen.getCursorScreenPoint();
-
-		// To avoid some unforeseeable bugs, for example changing window size while draging window
-		//  get window size and position
-		const windowBounds = mainWindow.getBounds()
-
-		if (!movingInterval) {
-			//  新增计时器
-
-			movingInterval = setInterval(() => {
-				const currentTime = Date.now();
-
-				// 节流处理，确保不会更新太频繁
-				if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
-					return;
-				}
-				lastUpdateTime = currentTime;
-
-				// 获取当前鼠标位置
-				const cursorNowPosition = screen.getCursorScreenPoint();
-
-				// 计算新的窗口位置
-				const winNewPosX = winStartPosition.x + cursorNowPosition.x - cursorStartPosition.x;
-				const winNewPosY = winStartPosition.y + cursorNowPosition.y - cursorStartPosition.y;
-
-				// 检查位置是否真的发生变化，避免不必要的更新
-				if (windowBounds.x !== winNewPosX || windowBounds.y !== winNewPosY) {
-					// 为了防止拖动过程中的bug，使用setBounds
-					mainWindow.setBounds({
-						x: winNewPosX,
-						y: winNewPosY,
-						width: windowBounds.width,
-						height: windowBounds.height
-					})
-				}
-			}, 8)
-		}
-	}
-	else {
-		clearInterval(movingInterval);
-		movingInterval = null;
-	}
-}
+const videoFileTypeList = ['mp4', 'webm', 'ogg', 'ogv', 'm4v', 'mkv', 'avi'];
 /**
  * @description 更新用户配置
  * @param {*} _ 
@@ -240,9 +261,15 @@ function updateUserConfig(_, dataObj) {
 			...newConfig
 		}
 	}
-	// console.log('更新后的配置', JSON.stringify(userConfig.music.volume))
-	//  更新配置文件
-	store.set('userConfig', userConfig)
+	const attrNames = Array.isArray(dataObj.attrName) ? dataObj.attrName : [dataObj.attrName];
+	const attrValues = Array.isArray(dataObj.attrName) && Array.isArray(dataObj.value)
+		? dataObj.value
+		: [dataObj.value];
+	const photoListIndex = attrNames.indexOf('photo.photoLibrary.slideImagesCache');
+	if (photoListIndex !== -1 && Array.isArray(attrValues[photoListIndex])) {
+		userConfig = replaceMediaRecords(userConfig, 'photo', attrValues[photoListIndex]);
+	}
+	persistUserConfig();
 }
 /**
  * 
@@ -252,15 +279,12 @@ function updateUserConfig(_, dataObj) {
  * 
  */
 function getUserConfig(e, attrName) {
+	if (!attrName) return userConfig;
 	let attrArr = attrName.split('.')
 	let obj = {
 		...userConfig
 	}
 	// console.log('属性数组和obj', attrArr, obj)
-	//  如果没有传入属性名称，直接返回整个配置对象
-	if (!attrName) {
-		return userConfig
-	}
 	//  如果传入了属性名称，返回对应的属性值
 	for (let i = 0; i < attrArr.length; i++) {
 		for (const key in obj) {
@@ -383,18 +407,18 @@ async function getMusicInfo(event, filePaths) {
  * @description 更新配置文件
  */
 function updateSavedUserConfig() {
-	store.set('userConfig', userConfig)
+	persistUserConfig(migrateUserConfig(userConfig));
 }
 // 添加音乐到播放列表
 function addMusicToLibrary(event, MusicList) {
 	try {
-		// console.log(MusicList)
-		userConfig.music.musicLibrary.musicList = [...userConfig.music.musicLibrary.musicList, ...MusicList]
-		updateSavedUserConfig()
-		// 通知渲染进程
-		if (mainWindow) {
-			mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
+		userConfig = upsertMediaRecords(userConfig, 'music', MusicList, { markImported: true });
+		for (const item of Array.isArray(MusicList) ? MusicList : []) {
+			const record = findMediaRecord(userConfig, item.path || item.id, 'music');
+			updateMediaThumbnail(record);
 		}
+		persistUserConfig();
+		notifyLibraryUpdated('music');
 	} catch (error) {
 		console.error('添加音乐到播放列表失败:', error);
 	}
@@ -403,14 +427,11 @@ function addMusicToLibrary(event, MusicList) {
 
 // 从播放列表中移除歌曲
 function removeFromPlaylist(event, songId) {
-	const index = userConfig.music.musicLibrary.musicList.findIndex(song => song.id === songId);
-	if (index !== -1) {
-		userConfig.music.musicLibrary.musicList.splice(index, 1);
-		updateSavedUserConfig()
-		// 通知渲染进程
-		if (mainWindow) {
-			mainWindow.webContents.send('music-list-updated', userConfig.music.musicLibrary.musicList);
-		}
+	const existing = findMediaRecord(userConfig, songId, 'music');
+	if (existing) {
+		userConfig = removeMediaRecord(userConfig, 'music', songId);
+		persistUserConfig();
+		notifyLibraryUpdated('music');
 	}
 }
 
@@ -426,8 +447,13 @@ async function loadLyricsFile(event, filePath) {
 		}
 
 		for (const index in possibleLrcPaths) {
+			const lyricPath = possibleLrcPaths[index];
+			if (!fs.existsSync(lyricPath)) {
+				continue;
+			}
+
 			try {
-				const stats = fs.statSync(possibleLrcPaths[index]);
+				const stats = fs.statSync(lyricPath);
 				if (stats.isFile()) {
 					let content;
 					let handlerRes = {}
@@ -443,31 +469,29 @@ async function loadLyricsFile(event, filePath) {
 								extName: {string} 歌词文件扩展名,
 							}
 						 */
-						handlerRes = lyricFileType[index].handler(possibleLrcPaths[index]);// 按照handler处理文件的结果
+						handlerRes = lyricFileType[index].handler(lyricPath);// 按照handler处理文件的结果
 						handlerRes.extName = lyricFileTypeList[index]; // 添加扩展名
 						if (handlerRes.success) {
 							content = handlerRes.lyricStrData;
 						} else {
 							console.error('歌词解析失败:', handlerRes.error);
 							return {
-								lyricPath: possibleLrcPaths[index],
+								lyricPath,
 								lyricData: [],
 							};
 						}
 					} else {
-						content = fs.readFileSync(possibleLrcPaths[index], 'utf8');
+						content = fs.readFileSync(lyricPath, 'utf8');
 					}
 
 					return {
 						...handlerRes,
-						lyricPath: possibleLrcPaths[index],
+						lyricPath,
 						lyricData: parseLyrics(content),
 					}
 				}
 			} catch (err) {
-				// 文件不存在，继续检查下一个可能路径
-				console.log('歌词文件不存在:', possibleLrcPaths[index]);
-				continue;
+				console.warn('读取候选歌词文件失败:', lyricPath, err.message);
 			}
 		}
 
@@ -547,7 +571,7 @@ async function selectLyricsFile() {
 			let handlerRes = {}
 			let index = -1 // 当前歌词文件类型的索引
 			for (let i = 0; i < lyricFileTypeList.length; i++) {
-				let extNameRegStr = `\.(${lyricFileTypeList[i]})$`
+				let extNameRegStr = `\\.(${lyricFileTypeList[i]})$`
 				let extNameReg = new RegExp(extNameRegStr, 'i')
 				if (extNameReg.test(filePath)) {
 					index = i
@@ -566,10 +590,8 @@ async function selectLyricsFile() {
 						extName: {string} 歌词文件扩展名,
 					}
 					*/
-				console.log('得到的index', index, lyricFileType[index].handler)
 				handlerRes = await lyricFileType[index].handler(filePath);// 按照handler处理文件的结果
 				handlerRes.extName = lyricFileTypeList[index]; // 添加扩展名
-				console.log('处理结果', JSON.stringify(handlerRes))
 				if (handlerRes.success) {
 					content = handlerRes.lyricStrData;
 				} else {
@@ -581,7 +603,6 @@ async function selectLyricsFile() {
 				}
 			} else {
 				content = fs.readFileSync(filePath, 'utf8');
-				console.log(content)
 			}
 
 			return {
@@ -650,49 +671,399 @@ async function handleImageRequest(event, openDirectoryOrFile) {
 
         if (!result.canceled && result.filePaths.length > 0) {
             const dirPath = result.filePaths[0];
-            const files = fs.readdirSync(dirPath);
-            for (const file of files) {
-                const filePath = path.join(dirPath, file);
-                const stats = fs.statSync(filePath);
-                if (
-                    stats.isFile() &&
-                    imageTypeList.includes(path.extname(file).toLowerCase().slice(1))
-                ) {
-                    imageFiles.push(filePath);
-                }
-            }
+            imageFiles = await collectMediaFiles(dirPath, imageTypeList);
         }
     } else {
         const result = await dialog.showOpenDialog(mainWindow, {
-            properties: ['openFile'],
+            properties: ['openFile', 'multiSelections'],
             filters: [{ name: '图片文件', extensions: imageTypeList }]
         });
         if (!result.canceled && result.filePaths.length > 0) {
-            imageFiles.push(result.filePaths[0]);
+            imageFiles.push(...result.filePaths);
         }
     }
 
-    // 将路径字符串转为 { src } 对象，再批量附加 thumb 字段
-    const imageObjects = imageFiles.map((filePath) => ({ src: filePath }));
-	let imageListWithThumbs = attachThumbs(imageObjects);
-	//	更新配置文件中的图片列表缓存，供幻灯片播放和缓存数据获取使用
-    updateUserConfig(null, { attrName: 'photo.photoLibrary.slideImagesCache', value: imageListWithThumbs }) // 更新配置文件中的图片列表缓存
-	console.log(userConfig)
-	return imageListWithThumbs;
-    // 返回格式：[{ src: '/abs/path/img.jpg', thumb: 'data:image/jpeg;base64,...' }, ...]
+	const selectedPathKeys = new Set(imageFiles.map(getPathKey));
+	const imageObjects = attachThumbs(imageFiles.map((filePath) => ({
+		src: filePath,
+		path: filePath,
+		title: path.basename(filePath, path.extname(filePath)),
+	})));
+	userConfig = upsertMediaRecords(userConfig, 'photo', imageObjects, { markImported: true });
+	persistUserConfig();
+	notifyLibraryUpdated('photo');
+
+	return userConfig.photo.photoLibrary.slideImagesCache.filter((record) => (
+		selectedPathKeys.has(getPathKey(record.path))
+	));
+}
+
+function rememberLibraryFolder(type, folderPath) {
+	const configPath = type === 'music'
+		? 'music.musicLibrary.musicFolders'
+		: type === 'video'
+			? 'video.videoLibrary.videoFolders'
+			: 'photo.photoLibrary.photoFolders';
+	const currentFolders = getUserConfig(null, configPath) || [];
+	if (currentFolders.some((item) => getPathKey(item) === getPathKey(folderPath))) return;
+	updateUserConfig(null, {
+		attrName: configPath,
+		value: [...currentFolders, folderPath],
+	});
+}
+
+async function importMediaFolder(event, type) {
+	const extensionMap = {
+		music: musicFileType,
+		video: videoFileTypeList,
+		photo: imageTypeList,
+	};
+	if (!Object.hasOwn(extensionMap, type)) {
+		throw new TypeError('不支持的媒体文件夹类型');
+	}
+
+	const result = await dialog.showOpenDialog(mainWindow, {
+		title: `添加${type === 'music' ? '音乐' : type === 'video' ? '视频' : '图片'}文件夹`,
+		properties: ['openDirectory'],
+	});
+	if (result.canceled || !result.filePaths[0]) {
+		return { status: 'canceled', count: 0 };
+	}
+
+	const folderPath = result.filePaths[0];
+	const filePaths = await collectMediaFiles(folderPath, extensionMap[type]);
+	let importedCount = 0;
+
+	if (type === 'music') {
+		const musicItems = await getMusicInfo(null, filePaths);
+		addMusicToLibrary(null, musicItems);
+		importedCount = musicItems.length;
+	} else if (type === 'video') {
+		const processedPaths = await processVideoFilePaths(filePaths);
+		const videoItems = await getVideoInfo(null, processedPaths);
+		addVideoToLibrary(null, videoItems);
+		importedCount = videoItems.length;
+	} else {
+		const photoItems = filePaths.map((filePath) => {
+			const stats = fs.statSync(filePath);
+			return {
+				path: filePath,
+				src: filePath,
+				title: path.basename(filePath, path.extname(filePath)),
+				size: stats.size,
+				modified: stats.mtime.toISOString(),
+			};
+		});
+		userConfig = upsertMediaRecords(userConfig, 'photo', photoItems, { markImported: true });
+		persistUserConfig();
+		notifyLibraryUpdated('photo');
+		importedCount = photoItems.length;
+	}
+
+	rememberLibraryFolder(type, folderPath);
+	return { status: 'imported', count: importedCount };
+}
+
+function collectHomeSummaryItems(summary) {
+	const allItems = [
+		summary.nowPlaying,
+		...(summary.continueItems || []),
+		...(summary.recentItems || []),
+		...(summary.recentAdded || []),
+		...Object.values(summary.libraries || {}).flat(),
+	].filter(Boolean);
+	return [...new Map(allItems.map((item) => [item.id, item])).values()];
+}
+
+function getHomeSummaryHandler(event, options = {}) {
+	const summary = buildHomeSummary(userConfig, options || {});
+	hydrateSummariesWithThumbnails(collectHomeSummaryItems(summary));
+	return summary;
+}
+
+function searchLibraryHandler(event, options = {}) {
+	return hydrateSummariesWithThumbnails(searchLibrary(userConfig, options || {}));
+}
+
+function getRecentActivityHandler(event, options = {}) {
+	return hydrateSummariesWithThumbnails(getRecentActivity(userConfig, options || {}));
+}
+
+function getFavoritesHandler(event, options = {}) {
+	return hydrateSummariesWithThumbnails(getFavorites(userConfig, options || {}));
+}
+
+function updatePlaybackProgressHandler(event, payload) {
+	try {
+		userConfig = updatePlaybackProgress(userConfig, payload);
+		persistUserConfig();
+		const record = findMediaRecord(userConfig, payload?.mediaId, payload?.type);
+		return { status: 'updated', media: record ? toMediaSummary(record) : null };
+	} catch (error) {
+		return {
+			status: 'error',
+			code: error.message === 'MEDIA_NOT_FOUND' ? 'MEDIA_NOT_FOUND' : 'INVALID_PLAYBACK_PROGRESS',
+			message: error.message === 'MEDIA_NOT_FOUND' ? '未找到对应媒体' : '无法更新播放进度',
+		};
+	}
+}
+
+function recordMediaActivityHandler(event, payload) {
+	try {
+		userConfig = recordMediaActivity(userConfig, {
+			...payload,
+			mediaId: payload?.mediaId || payload?.path,
+		});
+		persistUserConfig();
+		return { status: 'updated' };
+	} catch (error) {
+		return { status: 'error', code: 'MEDIA_NOT_FOUND', message: '未找到对应媒体' };
+	}
+}
+
+function setMediaFavoriteHandler(event, payload) {
+	try {
+		userConfig = setMediaFavorite(userConfig, {
+			...payload,
+			mediaId: payload?.mediaId || payload?.path,
+		});
+		persistUserConfig();
+		if (payload?.type) notifyLibraryUpdated(payload.type);
+		const record = findMediaRecord(userConfig, payload?.mediaId || payload?.path, payload?.type);
+		return { status: 'updated', media: record ? toMediaSummary(record) : null };
+	} catch (error) {
+		return { status: 'error', code: 'MEDIA_NOT_FOUND', message: '未找到对应媒体' };
+	}
+}
+
+const MAX_EDITED_IMAGE_BYTES = 250 * 1024 * 1024;
+const activeImageSaves = new Set();
+
+function encodeEditedRaster(raster, format) {
+	const inputBuffer = rasterToBuffer(raster);
+	if (!inputBuffer?.length) {
+		const error = new Error('编辑结果为空');
+		error.code = 'EMPTY_RASTER';
+		throw error;
+	}
+	if (inputBuffer.length > MAX_EDITED_IMAGE_BYTES) {
+		const error = new Error('编辑结果超过 250 MB 限制');
+		error.code = 'RASTER_TOO_LARGE';
+		throw error;
+	}
+
+	const image = nativeImage.createFromBuffer(inputBuffer);
+	if (image.isEmpty()) {
+		const error = new Error('无法解码编辑结果');
+		error.code = 'INVALID_RASTER';
+		throw error;
+	}
+	const output = format === 'jpeg' ? image.toJPEG(92) : image.toPNG();
+	if (!output.length || nativeImage.createFromBuffer(output).isEmpty()) {
+		const error = new Error('无法编码编辑结果');
+		error.code = 'ENCODE_FAILED';
+		throw error;
+	}
+	return output;
+}
+
+function inferEditedImageFormat(sourcePath, requestedFormat) {
+	if (requestedFormat === 'png' || requestedFormat === 'jpeg') return requestedFormat;
+	return /^\.jpe?g$/i.test(path.extname(sourcePath)) ? 'jpeg' : 'png';
+}
+
+function saveErrorResult(error) {
+	const knownCodes = new Set([
+		'EMPTY_RASTER',
+		'RASTER_TOO_LARGE',
+		'INVALID_RASTER',
+		'ENCODE_FAILED',
+		'VERIFY_FAILED',
+		'ROLLBACK_FAILED',
+	]);
+	return {
+		status: 'error',
+		code: knownCodes.has(error.code) ? error.code : 'SAVE_FAILED',
+		message: error.message || '图片保存失败',
+	};
+}
+
+async function saveEditedImage(event, payload) {
+	const sourcePath = normalizeFilePathForFs(payload?.sourcePath);
+	const mode = payload?.mode;
+	if (!sourcePath || !path.isAbsolute(sourcePath) || !fs.existsSync(sourcePath)) {
+		return { status: 'error', code: 'SOURCE_NOT_FOUND', message: '找不到原始图片' };
+	}
+	if (!findMediaRecord(userConfig, sourcePath, 'photo')) {
+		return { status: 'error', code: 'SOURCE_NOT_IN_LIBRARY', message: '只能保存媒体库中的图片' };
+	}
+	if (mode !== 'copy' && mode !== 'overwrite') {
+		return { status: 'error', code: 'INVALID_MODE', message: '保存模式无效' };
+	}
+
+	const sourceExtension = path.extname(sourcePath).toLocaleLowerCase();
+	const sourceIsGif = sourceExtension === '.gif';
+	if (sourceIsGif && mode === 'overwrite') {
+		return {
+			status: 'error',
+			code: 'GIF_OVERWRITE_NOT_SUPPORTED',
+			message: 'GIF 动画不能被覆盖，请保存为静态 PNG 副本',
+		};
+	}
+	if (mode === 'overwrite' && !['.jpg', '.jpeg', '.png'].includes(sourceExtension)) {
+		return {
+			status: 'error',
+			code: 'OVERWRITE_FORMAT_NOT_SUPPORTED',
+			message: '该图片格式不能安全覆盖，请保存为 PNG 副本',
+		};
+	}
+	const saveKey = getPathKey(sourcePath);
+	if (activeImageSaves.has(saveKey)) {
+		return { status: 'error', code: 'SAVE_IN_PROGRESS', message: '该图片正在保存' };
+	}
+	activeImageSaves.add(saveKey);
+
+	try {
+		const format = mode === 'overwrite'
+			? inferEditedImageFormat(sourcePath)
+			: (sourceIsGif ? 'png' : inferEditedImageFormat(sourcePath, payload?.format));
+		const extension = format === 'jpeg' ? '.jpg' : '.png';
+		let outputPath = sourcePath;
+
+		if (mode === 'copy') {
+			const defaultName = getEditedCopyDefaultName(sourcePath, format);
+			const saveDialogResult = await dialog.showSaveDialog(mainWindow, {
+				title: '保存图片副本',
+				defaultPath: path.join(path.dirname(sourcePath), defaultName),
+				filters: [{
+					name: format === 'jpeg' ? 'JPEG 图片' : 'PNG 图片',
+					extensions: format === 'jpeg' ? ['jpg', 'jpeg'] : ['png'],
+				}],
+			});
+			if (saveDialogResult.canceled || !saveDialogResult.filePath) return { status: 'canceled' };
+			outputPath = saveDialogResult.filePath;
+			const chosenExtension = path.extname(outputPath).toLocaleLowerCase();
+			const extensionMatches = format === 'jpeg'
+				? ['.jpg', '.jpeg'].includes(chosenExtension)
+				: chosenExtension === '.png';
+			if (!extensionMatches) outputPath += extension;
+			if (getPathKey(outputPath) === getPathKey(sourcePath)) {
+				return {
+					status: 'error',
+					code: 'COPY_TARGET_IS_SOURCE',
+					message: '副本不能覆盖原图，请选择其他文件名',
+				};
+			}
+		} else {
+			const confirmation = await dialog.showMessageBox(mainWindow, {
+				type: 'warning',
+				title: '覆盖原图',
+				message: `确定覆盖“${path.basename(sourcePath)}”吗？`,
+				detail: `${sourcePath}\n\nUtaha Player 会先创建临时备份并验证编辑结果。`,
+				buttons: ['取消', '覆盖原图'],
+				defaultId: 0,
+				cancelId: 0,
+				noLink: true,
+			});
+			if (confirmation.response !== 1) return { status: 'canceled' };
+		}
+
+		const encodedBuffer = encodeEditedRaster(payload?.raster, format);
+		let image;
+		await writeFileAtomically(outputPath, encodedBuffer, {
+			validateFile: async (tempPath) => !nativeImage.createFromPath(tempPath).isEmpty(),
+			afterReplace: async () => {
+				const stats = await fs.promises.stat(outputPath);
+				const thumbnailUrl = generateThumb(outputPath, { force: true });
+				const configBeforeIndexing = userConfig;
+				const nextConfig = upsertMediaRecords(configBeforeIndexing, 'photo', [{
+					path: outputPath,
+					src: outputPath,
+					title: path.basename(outputPath, path.extname(outputPath)),
+					size: stats.size,
+					modified: stats.mtime.toISOString(),
+					thumbnailUrl,
+					thumb: thumbnailUrl,
+				}], { markImported: true });
+				const savedRecord = findMediaRecord(nextConfig, outputPath, 'photo');
+				if (!savedRecord) throw new Error('无法更新图片媒体记录');
+				image = toMediaSummary(savedRecord);
+				try {
+					persistUserConfig(nextConfig);
+				} catch (persistError) {
+					userConfig = configBeforeIndexing;
+					try {
+						store.set('userConfig', configBeforeIndexing);
+					} catch (restoreError) {
+						persistError.code = 'ROLLBACK_FAILED';
+						persistError.message = `媒体库写入失败且无法恢复配置：${restoreError.message}`;
+					}
+					throw persistError;
+				}
+			},
+			onCleanupError: (backupPath, cleanupError) => {
+				console.warn('无法清理图片保存备份文件:', backupPath, cleanupError);
+			},
+		});
+		try {
+			notifyLibraryUpdated('photo');
+		} catch (notificationError) {
+			console.warn('图片已保存，但图库刷新通知发送失败:', notificationError);
+		}
+		return {
+			status: 'saved',
+			mode,
+			outputPath,
+			image,
+			...(sourceIsGif ? { warning: 'GIF_FLATTENED_TO_PNG' } : {}),
+		};
+	} catch (error) {
+		console.error('保存编辑后的图片失败:', error);
+		return saveErrorResult(error);
+	} finally {
+		activeImageSaves.delete(saveKey);
+	}
+}
+
+const PLAYER_PREFERENCE_VALUES = {
+	music: {
+		playerEffect: new Set(['ImmersiveLyrics', 'VinylPlayer']),
+		playMode: new Set(['shuffle', 'sequential play', 'single loop']),
+	},
+	video: {
+		playMode: new Set(['sequential', 'repeat', 'repeat-one', 'shuffle']),
+	},
+};
+
+function setPlayerPreference(event, payload) {
+	const type = payload?.type;
+	const key = payload?.key;
+	if (!['music', 'video'].includes(type)) throw new TypeError('播放器类型无效');
+	if (key === 'volume') {
+		const numericValue = Number(payload?.value);
+		if (!Number.isFinite(numericValue)) throw new TypeError('音量值无效');
+		updateUserConfig(null, { attrName: `${type}.volume`, value: Math.max(0, Math.min(100, numericValue)) });
+		return { status: 'updated' };
+	}
+	const allowedValues = PLAYER_PREFERENCE_VALUES[type]?.[key];
+	if (!allowedValues?.has(payload?.value)) throw new TypeError('播放器偏好值无效');
+	updateUserConfig(null, { attrName: `${type}.${key}`, value: payload.value });
+	return { status: 'updated' };
 }
 
 //  添加事件监听
 function listenEvent() {
-	ipcMain.on('close-window', closeApp) //  shutdown application
-	ipcMain.on('minimize-window', minimizeWindow)    //  listen the event for minimize application window
-	ipcMain.on('maximize-window', maximizeWindow)//  listen the event for maximize or restore application window
-	ipcMain.on('window-move-open', moveWin) //   listen the event for drag window
-
-
 	// 用户配置相关处理程序
-	ipcMain.on('update-userConfig', updateUserConfig)   //  监听更改用户配置的事件，这是临时更改，对于文件修改会在程序关闭前进行修改
+	ipcMain.handle('set-player-preference', setPlayerPreference);
 	ipcMain.handle('get-userConfig', getUserConfig); // 获取用户配置
+	ipcMain.handle('get-home-summary', getHomeSummaryHandler);
+	ipcMain.handle('search-library', searchLibraryHandler);
+	ipcMain.handle('import-media-folder', importMediaFolder);
+	ipcMain.handle('get-recent-activity', getRecentActivityHandler);
+	ipcMain.handle('get-favorites', getFavoritesHandler);
+	ipcMain.handle('update-playback-progress', updatePlaybackProgressHandler);
+	ipcMain.handle('record-media-activity', recordMediaActivityHandler);
+	ipcMain.handle('set-media-favorite', setMediaFavoriteHandler);
 
 	// 添加音频相关处理程序
 	ipcMain.handle('get-music-list', getMusicList)  //  获取播放列表
@@ -700,10 +1071,14 @@ function listenEvent() {
 	ipcMain.handle('select-audio-file', chooseMusicFile); // 选择单个音频文件
 	ipcMain.handle('select-music-files', chooseMusicFiles); // 选择多个音频文件
 	ipcMain.handle('get-music-info', getMusicInfo); // 获取音频信息 
-	ipcMain.on('remove-from-playlist', (event, songId) => {
+	ipcMain.handle('remove-from-playlist', (event, songId) => {
 		removeFromPlaylist(event, songId);
+		return getMusicList();
 	});
-	ipcMain.on('add-music-to-library', addMusicToLibrary)
+	ipcMain.handle('add-music-to-library', (event, musicList) => {
+		addMusicToLibrary(event, musicList);
+		return getMusicList();
+	});
 
 	// 添加歌词相关处理程序
 	ipcMain.handle('load-lyrics', loadLyricsFile); // 加载歌词文件
@@ -713,7 +1088,8 @@ function listenEvent() {
 	// ========视频处理==============
 	ipcMain.handle('check-file-exists', (event, filePath) => {
 		try {
-			return fs.existsSync(normalizeFilePathForFs(filePath));
+			const normalizedPath = normalizeFilePathForFs(filePath);
+			return Boolean(findMediaRecord(userConfig, normalizedPath, 'video')) && fs.existsSync(normalizedPath);
 		} catch (err) {
 			console.error('检查文件存在性失败:', err);
 			return false;
@@ -724,95 +1100,67 @@ function listenEvent() {
 	ipcMain.handle('select-video-file', chooseVideoFile); // 选择单个视频文件
 	ipcMain.handle('select-video-files', chooseVideoFiles); // 选择多个视频文件
 	ipcMain.handle('get-video-info', getVideoInfo); // 获取视频信息
-	// 诊断 ffprobe 二进制
-	ipcMain.handle('diagnose-ffprobe', async () => {
-		const results = {
-			ffmpeg: {
-				exportedPath: ffmpegExport,
-				resolvedPath: ffmpegPathResolved,
-				exists: fs.existsSync(ffmpegPathResolved || ''),
-				isInAsar: (ffmpegPathResolved || '').includes('app.asar') && !(ffmpegPathResolved || '').includes('app.asar.unpacked')
-			},
-			ffprobe: {
-				exportedPath: ffprobeExport,
-				resolvedPath: ffprobePathResolved,
-				exists: fs.existsSync(ffprobePathResolved || ''),
-				isInAsar: (ffprobePathResolved || '').includes('app.asar') && !(ffprobePathResolved || '').includes('app.asar.unpacked')
-			},
-			environment: {
-				isDev: !app.isPackaged,
-				resourcesPath: process.resourcesPath,
-				appPath: app.getAppPath()
-			}
-		};
-		
-		// 尝试手动执行 ffprobe 验证可执行性
-		if (results.ffprobe.exists) {
-			try {
-				const { execFileSync } = require('child_process');
-				const versionOutput = execFileSync(ffprobePathResolved, ['-version'], { encoding: 'utf8' });
-				results.ffprobe.executable = true;
-				results.ffprobe.versionOutput = versionOutput.split('\n')[0];
-			} catch (err) {
-				results.ffprobe.executable = false;
-				results.ffprobe.execError = err.message;
-			}
-		}
-		
-		return results;
-	});
-	ipcMain.on('remove-from-videolist', (event, videoId) => {
+	ipcMain.handle('remove-from-videolist', (event, videoId) => {
 		removeFromVideolist(event, videoId);
+		return getVideoList();
 	});
-	ipcMain.on('add-video-to-library', addVideoToLibrary)
-
-	// 判断是否需要转码
-	ipcMain.handle('video-needs-transcoding', (event, filePath) => {
-		return needsTranscoding(filePath);
+	ipcMain.handle('add-video-to-library', (event, videoList) => {
+		addVideoToLibrary(event, videoList);
+		return getVideoList();
 	});
-	// 获取转码输出路径
-	ipcMain.handle('get-output-path', (event, filePath) => {
-		return getOutputPath(filePath);
-	});
-	// 转码
-	ipcMain.handle('transcode-video', transcodeVideo)
 	// ==========图片处理================
 	ipcMain.handle('get-images', handleImageRequest); // 处理图片和目录
+	ipcMain.handle('save-edited-image', saveEditedImage);
 	// 获取图片列表幻灯片播放配置
 	ipcMain.handle('get-imagelist-show-config', getSlideImagesConfig);
-	ipcMain.on('update-slide-show-config', (event, config) => {
+	ipcMain.handle('update-slide-show-config', (event, config) => {
+		const attrNames = Array.isArray(config?.attrName) ? [...config.attrName] : [];
+		const values = Array.isArray(config?.value) ? [...config.value] : [];
+		const countIndex = attrNames.indexOf('photo.photoPlayCount');
+		if (countIndex !== -1) values[countIndex] = clampPhotoPlayCount(values[countIndex]);
+		const listIndex = attrNames.indexOf('photo.photoLibrary.slideImagesCache');
+		if (listIndex !== -1) values[listIndex] = sanitizePhotoSelection(values[listIndex]);
 		updateUserConfig(null, {
-			attrName: config.attrName,
-			value: config.value
+			attrName: attrNames,
+			value: values
 		})
+		if (listIndex !== -1) notifyLibraryUpdated('photo');
+		return getSlideImagesConfig();
 	})
 	// 从本地删除图片文件
 	ipcMain.handle('delete-image-file', (event, data) => {
-		let { filePath, updatedImageList } = data;
-		try {		
-			fs.unlinkSync(filePath);
-			updateUserConfig(null, {
-				attrName: 'photo.photoLibrary.slideImagesCache',
-				value: updatedImageList
-			})
-			return { success: true, message: '图片删除成功' };	
+		let { filePath } = data;
+		try {
+			const normalizedPath = normalizeFilePathForFs(filePath);
+			if (!findMediaRecord(userConfig, normalizedPath, 'photo')) {
+				return { success: false, message: '只能删除媒体库中的图片' };
+			}
+			fs.unlinkSync(normalizedPath);
+			userConfig = removeMediaRecord(userConfig, 'photo', normalizedPath);
+			persistUserConfig();
+			notifyLibraryUpdated('photo');
+			return { success: true, message: '图片删除成功' };
 		} catch (error) {
 			console.error('删除图片文件失败:', error);
 			return { success: false, message: '图片删除失败' };
 		}
 	})
 	// 处理图片幻灯片播放
-	ipcMain.on('open-slide-show', (event, config) => {
-		userConfig.photo.photoLibrary.slideImagesCache = config.imageList
-		userConfig.photo.photoPlayCount = config.photoPlayCount
+	ipcMain.handle('open-slide-show', (event, config) => {
+		updateUserConfig(null, {
+			attrName: ['photo.photoPlayCount', 'photo.photoLibrary.slideImagesCache'],
+			value: [clampPhotoPlayCount(config?.photoPlayCount), sanitizePhotoSelection(config?.imageList)],
+		});
 		openSlideShowWindow()
+		return { status: 'opened' };
 	})
 	//	关闭图片幻灯片窗口
-	ipcMain.on('close-slide-show', () => {
+	ipcMain.handle('close-slide-show', () => {
 		if (slideWindow) {
 			slideWindow.close()
 			slideWindow = null
 		}
+		return { status: 'closed' };
 	})
 }
 
@@ -861,94 +1209,54 @@ async function chooseVideoFiles() {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile', 'multiSelections'],
         filters: [
-            { name: '视频文件', extensions: ['mp4', 'webm', 'ogg', 'mkv', 'avi'] }
+            { name: '视频文件', extensions: videoFileTypeList }
         ]
     });
 
     if (!result.canceled && result.filePaths.length > 0) {
-        const processedPaths = [];
-        const totalFiles = result.filePaths.length;
-
-        for (let i = 0; i < result.filePaths.length; i++) {
-            const filePath = result.filePaths[i];           
-            try {
-                if (needsTranscoding(filePath)) {
-                    // 通知转码开始
-                    if (mainWindow) {
-                        mainWindow.webContents.send('video-transcode-start', {
-                            file: filePath,
-                            current: i + 1,
-                            total: totalFiles
-                        });
-                    }
-
-                    const outputPath = getOutputPath(filePath);
-                    const convertedPath = await transcodeVideo(null, { 
-                        inputPath: filePath, 
-                        outputPath: outputPath 
-                    });
-                    
-                    // 验证转码后的文件是否存在
-                    if (fs.existsSync(convertedPath)) {
-                        processedPaths.push(convertedPath);
-                        console.log(`转码成功，添加路径: ${convertedPath}`);
-                    } else {
-                        console.error(`转码后文件不存在: ${convertedPath}`);
-                        continue;
-                    }
-                    
-                    // 通知转码成功
-                    if (mainWindow) {
-                        mainWindow.webContents.send('video-transcode-success', {
-                            original: filePath,
-                            converted: convertedPath,
-                            current: i + 1,
-                            total: totalFiles
-                        });
-                    }
-                } else {
-                    // 不需要转码的文件直接添加
-                    if (fs.existsSync(filePath)) {
-                        processedPaths.push(filePath);
-                        console.log(`直接添加路径: ${filePath}`);
-                    }
-                }
-            } catch (err) {
-                console.error(`处理文件 ${filePath} 失败:`, err);
-                
-                // 通知转码失败
-                if (mainWindow) {
-                    mainWindow.webContents.send('video-transcode-error', {
-                        file: filePath,
-                        error: err.message,
-                        current: i + 1,
-                        total: totalFiles
-                    });
-                }
-            }
-        }
-        
-        console.log('最终处理的文件路径:', processedPaths);
-        return processedPaths;
+		return processVideoFilePaths(result.filePaths);
     }
     return [];
 }
-// 修复 transcodeVideo 函数的参数处理
-async function transcodeVideo(event, { inputPath, outputPath }) {
-    try {
-        // 如果没有提供输出路径，则生成一个
-        if (!outputPath) {
-            outputPath = getOutputPath(inputPath);
-        }
 
+async function processVideoFilePaths(filePaths) {
+	const processedPaths = [];
+	const totalFiles = filePaths.length;
+
+	for (let i = 0; i < filePaths.length; i++) {
+		const filePath = filePaths[i];
+		try {
+			if (needsTranscoding(filePath)) {
+				const outputPath = getOutputPath(filePath);
+				const convertedPath = await transcodeVideo(filePath, outputPath, {
+					current: i + 1,
+					total: totalFiles,
+				});
+				if (!fs.existsSync(convertedPath)) {
+					console.error(`转码后文件不存在: ${convertedPath}`);
+					continue;
+				}
+				processedPaths.push(convertedPath);
+			} else if (fs.existsSync(filePath)) {
+				processedPaths.push(filePath);
+			}
+		} catch (error) {
+			console.error(`处理文件 ${filePath} 失败:`, error);
+		}
+	}
+
+	return processedPaths;
+}
+async function transcodeVideo(inputPath, outputPath = getOutputPath(inputPath), batch = { current: 1, total: 1 }) {
+    try {
         console.log(`开始转码: ${inputPath} -> ${outputPath}`);
 
         // 通知渲染进程转码开始
         if (mainWindow) {
             mainWindow.webContents.send('video-transcode-start', {
                 file: inputPath,
-                current: 1,
-                total: 1
+                current: batch.current,
+                total: batch.total
             });
         }
 
@@ -994,8 +1302,8 @@ async function transcodeVideo(event, { inputPath, outputPath }) {
                         mainWindow.webContents.send('video-transcode-success', {
                             original: inputPath,
                             converted: outputPath,
-                            current: 1,
-                            total: 1
+                            current: batch.current,
+                            total: batch.total
                         });
                     }
                     
@@ -1003,15 +1311,6 @@ async function transcodeVideo(event, { inputPath, outputPath }) {
                 })
                 .on('error', (err) => {
                     console.error('视频转码失败:', err.message);
-                    
-                    // 通知渲染进程转码失败
-                    if (mainWindow) {
-                        mainWindow.webContents.send('video-transcode-error', {
-                            file: inputPath,
-                            error: err.message
-                        });
-                    }
-                    
                     reject(err);
                 })
                 .run();
@@ -1023,7 +1322,9 @@ async function transcodeVideo(event, { inputPath, outputPath }) {
         if (mainWindow) {
             mainWindow.webContents.send('video-transcode-error', {
                 file: inputPath || '未知文件',
-                error: err.message
+                error: err.message,
+                current: batch.current,
+                total: batch.total,
             });
         }
         
@@ -1033,17 +1334,10 @@ async function transcodeVideo(event, { inputPath, outputPath }) {
 
 // 获取视频信息 ???
 async function getVideoInfo(event, filePaths) {
-	console.log('=== 开始获取视频信息 ===');
-	console.log('文件路径列表:', filePaths);
-	console.log('当前 ffprobe 解析路径:', ffprobePathResolved);
-	console.log('ffprobe 文件存在性:', fs.existsSync(ffprobePathResolved || ''));
-	
 	try {
 		const videoArr = [];
 
 		for (const filePath of filePaths) {
-			console.log(`\n处理视频文件: ${filePath}`);
-			
 			// 获取文件基本信息
 			const stats = fs.statSync(filePath);
 			const fileName = path.basename(filePath);
@@ -1051,14 +1345,12 @@ async function getVideoInfo(event, filePaths) {
 			// 获取视频元数据：优先使用 fluent-ffmpeg 的 ffprobe，失败则直接调用二进制
 			let metadata = null;
 			try {
-				console.log('尝试使用 fluent-ffmpeg.ffprobe...');
 				metadata = await new Promise((resolve, reject) => {
 					ffmpeg.ffprobe(filePath, (err, data) => {
 						if (err) {
 							console.error('fluent-ffmpeg.ffprobe 返回错误:', err.message);
 							reject(err);
 						} else {
-							console.log('fluent-ffmpeg.ffprobe 成功');
 							resolve(data);
 						}
 					})
@@ -1069,13 +1361,10 @@ async function getVideoInfo(event, filePaths) {
 				try {
 					const { execFileSync } = require('child_process');
 					const ffprobeBin = ffprobePathResolved || ffprobeExport;
-					console.log('检查 ffprobe 二进制路径:', ffprobeBin);
-					console.log('ffprobe 二进制存在:', fs.existsSync(ffprobeBin || ''));
-					
+
 					if (!ffprobeBin || !fs.existsSync(ffprobeBin)) {
 						throw new Error(`ffprobe 二进制不存在: ${ffprobeBin}`);
 					}
-					console.log('直接调用 ffprobe:', ffprobeBin);
 					const args = ['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', filePath];
 					const output = execFileSync(ffprobeBin, args, { 
 						encoding: 'utf8', 
@@ -1083,7 +1372,6 @@ async function getVideoInfo(event, filePaths) {
 						timeout: 30000 
 					});
 					metadata = JSON.parse(output);
-					console.log('直接调用 ffprobe 成功，获取到 metadata');
 				} catch (binErr) {
 					console.error('直接调用 ffprobe 二进制也失败:', binErr.message);
 					console.error('完整错误:', binErr);
@@ -1123,8 +1411,6 @@ async function getVideoInfo(event, filePaths) {
 			};
 			videoArr.push(videoInfoObj);
 		}
-		console.log('=== 成功获取所有视频信息 ===');
-		console.log('返回视频数量:', videoArr.length);
 		return videoArr;
 	} catch (error) {
 		console.error('=== 获取视频信息失败 ===');
@@ -1137,31 +1423,9 @@ async function getVideoInfo(event, filePaths) {
 // 添加视频到播放列表
 function addVideoToLibrary(event, videoList) {
 	try {
-		// console.log('userConfig:', userConfig);
-		// if (!userConfig) {
-		//     console.error('userConfig未初始化！');
-		//     return;
-		// }
-		if (!userConfig.video) userConfig.video = {};
-		if (!userConfig.video.videoLibrary) userConfig.video.videoLibrary = {};
-		if (!Array.isArray(userConfig.video.videoLibrary.videoList)) userConfig.video.videoLibrary.videoList = [];
-
-		console.log('userConfig:', userConfig);//输出了
-
-		// 合并视频列表
-		userConfig.video.videoLibrary.videoList = [
-			...userConfig.video.videoLibrary.videoList,
-			...videoList
-		];
-		updateSavedUserConfig();
-
-		// 通知渲染进程视频列表更新
-		if (mainWindow) {
-			mainWindow.webContents.send(
-				'video-list-updated',
-				userConfig.video.videoLibrary.videoList
-			);
-		}
+		userConfig = upsertMediaRecords(userConfig, 'video', videoList, { markImported: true });
+		persistUserConfig();
+		notifyLibraryUpdated('video');
 	} catch (err) {
 		console.error('添加视频到播放列表失败:', err);
 	}
@@ -1170,20 +1434,11 @@ function addVideoToLibrary(event, videoList) {
 // 音视频在一个播放列表还是分开？
 // 从播放列表中移除视频
 function removeFromVideolist(event, videoId) {
-	const index = userConfig.video.videoLibrary.videoList.findIndex(
-		video => video.id === videoId
-	);
-	if (index !== -1) {
-		userConfig.video.videoLibrary.videoList.splice(index, 1);
-		updateSavedUserConfig();
-
-		// 通知渲染进程更新
-		if (mainWindow) {
-			mainWindow.webContents.send(
-				'video-list-updated',
-				userConfig.video.videoLibrary.videoList
-			);
-		}
+	const existing = findMediaRecord(userConfig, videoId, 'video');
+	if (existing) {
+		userConfig = removeMediaRecord(userConfig, 'video', videoId);
+		persistUserConfig();
+		notifyLibraryUpdated('video');
 	}
 }
 /**
@@ -1191,10 +1446,37 @@ function removeFromVideolist(event, videoId) {
  * 
  */
 function getSlideImagesConfig() {
+	let changed = false;
+	for (const record of userConfig.mediaLibrary?.records || []) {
+		if (record.type === 'photo') changed = updateMediaThumbnail(record) || changed;
+	}
+	if (changed) persistUserConfig();
 	return {
 		photoPlayCount: userConfig.photo?.photoPlayCount || 4,
 		slideImagesCache: userConfig.photo?.photoLibrary?.slideImagesCache || []
 	}
+}
+
+function clampPhotoPlayCount(value) {
+	const count = Number(value);
+	return Number.isFinite(count) ? Math.max(1, Math.min(12, Math.round(count))) : 4;
+}
+
+function sanitizePhotoSelection(items) {
+	const safeItems = [];
+	const seen = new Set();
+	for (const item of Array.isArray(items) ? items : []) {
+		const identifier = item?.id || item?.path || item?.src;
+		const record = findMediaRecord(userConfig, identifier, 'photo');
+		if (!record || seen.has(record.id)) continue;
+		seen.add(record.id);
+		safeItems.push({
+			...record,
+			rows: Number(item?.rows) === 2 ? 2 : 1,
+			cols: Number(item?.cols) === 2 ? 2 : 1,
+		});
+	}
+	return safeItems;
 }
 /**
  * @description 打开图片幻灯片窗口
@@ -1217,7 +1499,7 @@ function openSlideShowWindow() {
 		autoHideMenuBar: true,
 		webPreferences: {
 			preload: path.join(__dirname, 'config/preload.js'),
-			nodeIntegration: true,
+			nodeIntegration: false,
 			contextIsolation: true,
 			webSecurity: false
 		},
@@ -1241,24 +1523,19 @@ function openSlideShowWindow() {
 
 
 function createWindow() {   //  创建窗口
-	const windowOptions = {
-		width: 1200,
-		minWidth: 1200,
-		height: 700,
-		minHeight: 700,
-		show: false,
-		frame: false,//  是否创建无边框窗口
-		devTools: true,
-		webPreferences: {
-			preload: path.join(__dirname, 'config/preload.js'),
-			nodeIntegration: true,
-			contextIsolation: true,
-			webSecurity: false
-		},
-		icon: path.join(__dirname, 'component/icon/utaha_min.png'),
-	}
+	const windowOptions = createMainWindowOptions({
+		platform: process.platform,
+		isPackaged: app.isPackaged,
+		preloadPath: path.join(__dirname, 'config/preload.js'),
+	});
 	mainWindow = new BrowserWindow(windowOptions);
-	mainWindow.title = 'Utaha Music';
+	if (process.platform === 'win32' && typeof mainWindow.setBackgroundMaterial === 'function') {
+		try {
+			mainWindow.setBackgroundMaterial('mica');
+		} catch (error) {
+			console.warn('Mica 背景不可用，已回退到纯色背景:', error.message);
+		}
+	}
 	
 	// 判断是开发环境还是生产环境
 	if (app.isPackaged) {
@@ -1279,17 +1556,6 @@ function createWindow() {   //  创建窗口
 	}
 }
 
-function createTray() {     //  创建系统通知区图标和菜单
-	let iconPath = path.join(__dirname, '/component/icon/utaha_min.png')
-	let appTrayIcon = new Tray(iconPath)
-	const contextMenu = Menu.buildFromTemplate([
-		{ label: '设置', type: 'normal' },
-		{ label: '退出', type: 'normal', click: closeApp }
-	])
-	appTrayIcon.setToolTip('Utaha Music');
-	appTrayIcon.setContextMenu(contextMenu);
-}
-
 // 应用启动时创建窗口
 app.on('ready', async () => {
 	await initStore(); // 初始化配置存储
@@ -1300,13 +1566,14 @@ app.on('ready', async () => {
 app.whenReady().then(() => {
     // 注册 file 协议
     protocol.registerFileProtocol('file', (request, callback) => {
-        const pathname = decodeURI(request.url.replace('file:///', ''));
-        callback(pathname);
+		try {
+			callback(fileURLToPath(request.url));
+		} catch (error) {
+			console.warn('无法解析本地媒体 URL:', request.url, error.message);
+			callback({ error: -6 });
+		}
     });
-
-    console.log('协议和处理程序注册完成');
     listenEvent();
-	// createTray(); // 取消注释以启用系统托盘
 });
 
 // 所有窗口关闭时退出应用（macOS除外）

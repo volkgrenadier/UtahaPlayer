@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Utaha Player</title>
+  <rect x="3" y="3" width="58" height="58" rx="16" fill="#342441"/>
+  <path d="M17 17v18c0 9 5.7 14 15 14s15-5 15-14V17h-7v17.5c0 5.3-2.5 8-8 8s-8-2.7-8-8V17h-7Z" fill="#fff6fb"/>
+  <path d="M19 30h5l2.5-6 4.2 15 3.4-10 2.7 6H45" fill="none" stroke="#d45c7b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

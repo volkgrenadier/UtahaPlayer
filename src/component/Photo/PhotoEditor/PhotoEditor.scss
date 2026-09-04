@@ -1,83 +1,565 @@
-@import '../../../style/public.scss';
-@import '../PhotoPublic.scss';
 .PhotoEditor_container {
-    display: flex;
-    flex-direction: column;
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
     overflow: hidden;
+    color: var(--utaha-text);
+    background: var(--utaha-bg);
+}
+
+.PhotoEditor_header {
+    min-height: 54px;
+    padding: 8px 12px 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--utaha-border);
+    background: var(--utaha-surface);
+}
+
+.PhotoEditor_identity {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.PhotoEditor_backButton {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-sm);
+    color: var(--utaha-text-muted);
+    background: var(--utaha-bg-soft);
+    cursor: pointer;
+    transition:
+        color var(--utaha-motion-fast),
+        background var(--utaha-motion-fast),
+        border-color var(--utaha-motion-fast),
+        transform var(--utaha-motion-fast);
+
+    &:hover {
+        border-color: var(--utaha-border-strong);
+        color: var(--utaha-text);
+        background: var(--utaha-surface-hover);
+    }
+
+    &:active { transform: scale(.95); }
+
+    &:focus-visible {
+        outline: 2px solid var(--utaha-accent);
+        outline-offset: 2px;
+    }
+
+    svg { font-size: 19px; }
+}
+
+.PhotoEditor_fileInfo {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    strong {
+        max-width: min(36vw, 420px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    > span:not(.PhotoEditor_dirtyBadge) {
+        color: var(--utaha-text-subtle);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+}
+
+.PhotoEditor_fileInfo > .PhotoEditor_modeLabel {
+    color: var(--utaha-accent);
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: .1em;
+}
+
+.PhotoEditor_dirtyBadge {
+    padding: 3px 7px;
+    border: 1px solid color-mix(in srgb, var(--utaha-warning) 38%, transparent);
+    border-radius: 999px;
+    color: var(--utaha-warning);
+    background: color-mix(in srgb, var(--utaha-warning) 10%, transparent);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.PhotoEditor_saveGroup {
+    height: 34px;
+    display: inline-flex;
+    flex: 0 0 auto;
+
+    button {
+        border: 0;
+        color: var(--utaha-inverse-text);
+        background: var(--utaha-ink);
+        cursor: pointer;
+        transition:
+            background var(--utaha-motion-fast),
+            opacity var(--utaha-motion-fast),
+            transform var(--utaha-motion-fast);
+
+        &:hover:not(:disabled) {
+            background: var(--utaha-accent);
+        }
+
+        &:active:not(:disabled) {
+            transform: scale(.98);
+        }
+
+        &:disabled {
+            cursor: default;
+            opacity: .48;
+        }
+    }
+}
+
+.PhotoEditor_savePrimary {
+    min-width: 112px;
+    padding: 0 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: var(--utaha-radius-sm) 0 0 var(--utaha-radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+
+    svg {
+        font-size: 18px;
+    }
+}
+
+.PhotoEditor_saveMore {
+    width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid rgba(246, 240, 229, .22) !important;
+    border-radius: 0 var(--utaha-radius-sm) var(--utaha-radius-sm) 0;
+}
+
+.PhotoEditor_overwriteMenuItem {
+    color: var(--utaha-danger) !important;
 }
 
 .PhotoEditor_toolbar {
-    display: flex;
-    align-items: center;
-    height: $photoImageListHeaderHeight;
-    padding: 0;
-    background: $color_main_sidebar_bg;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-}
-
-.PhotoEditor_toolBtn {
-    @include photoButtonColor;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 4px 8px;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.PhotoEditor_drawOptions {
+    min-height: 48px;
+    padding: 7px 12px;
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 8px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--utaha-border);
+    background: var(--utaha-bg-soft);
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }
 
-.PhotoEditor_cropOptions {
-    display: flex;
-    gap: 6px;
-    margin-left: 8px;
+.PhotoEditor_toolGroup {
+    height: 32px;
+    padding-right: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border-right: 1px solid var(--utaha-border);
+
+    &:last-child {
+        padding-right: 0;
+        border-right: 0;
+    }
 }
 
-.PhotoEditor_filterPanel {
+.PhotoEditor_historyTools {
+    margin-left: auto;
+}
+
+.PhotoEditor_toolButtonWrap {
+    display: inline-flex;
+}
+
+.PhotoEditor_toolBtn,
+.PhotoEditor_resetEdits {
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: var(--utaha-radius-sm);
+    color: var(--utaha-text-muted);
+    background: transparent;
+    cursor: pointer;
+    transition:
+        color var(--utaha-motion-fast),
+        background var(--utaha-motion-fast),
+        border-color var(--utaha-motion-fast),
+        transform var(--utaha-motion-fast);
+
+    &:hover:not(:disabled) {
+        color: var(--utaha-text);
+        background: var(--utaha-surface-hover);
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(.95);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--utaha-accent);
+        outline-offset: 1px;
+    }
+
+    &:disabled {
+        cursor: default;
+        opacity: .34;
+    }
+}
+
+.PhotoEditor_toolBtn {
+    width: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &.active {
+        border-color: color-mix(in srgb, var(--utaha-accent) 34%, transparent);
+        color: var(--utaha-accent);
+        background: var(--utaha-accent-soft);
+    }
+
+    svg {
+        font-size: 19px;
+    }
+}
+
+.PhotoEditor_flipVertical {
+    transform: rotate(90deg);
+}
+
+.PhotoEditor_resetEdits {
+    padding: 0 9px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.PhotoEditor_optionsBar {
+    min-height: 46px;
+    padding: 7px 14px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 6px 16px;
-    background: #f9f9fb;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
+    gap: 18px;
+    border-bottom: 1px solid var(--utaha-border);
+    color: var(--utaha-text-muted);
+    background: var(--utaha-surface-raised);
+    font-size: 12px;
+}
 
-    label { color: #aaa; font-size: 12px; white-space: nowrap; }
+.PhotoEditor_colorField,
+.PhotoEditor_sliderField {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
 
-    .MuiSlider-root { 
-        width: 120px; 
-        color: $color_main; 
+.PhotoEditor_colorField input {
+    width: 28px;
+    height: 26px;
+    padding: 2px;
+    border: 1px solid var(--utaha-border-strong);
+    border-radius: 6px;
+    background: var(--utaha-surface);
+    cursor: pointer;
+}
+
+.PhotoEditor_sliderField {
+    min-width: 190px;
+
+    > span:first-child {
+        min-width: 68px;
+        white-space: nowrap;
+    }
+
+    .MuiSlider-root {
+        width: 126px;
+        color: var(--utaha-accent);
+    }
+}
+
+.PhotoEditor_filterBar {
+    justify-content: center;
+    gap: 34px;
+}
+
+.PhotoEditor_cropBar {
+    justify-content: space-between;
+
+    > div {
+        display: flex;
+        gap: 8px;
+    }
+
+    button {
+        height: 30px;
+        padding: 0 12px;
+        border: 1px solid var(--utaha-border-strong);
+        border-radius: var(--utaha-radius-sm);
+        color: var(--utaha-text);
+        background: var(--utaha-surface);
+        cursor: pointer;
+
+        &.confirm {
+            border-color: var(--utaha-accent);
+            color: var(--utaha-on-accent);
+            background: var(--utaha-accent);
+        }
     }
 }
 
 .PhotoEditor_canvas {
-    flex: 1;
-    overflow: hidden;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
     position: relative;
-    background: #e8e8e8;
-    cursor: grab;
-    &:active { 
-        cursor: grabbing; 
-    }
+    overflow: hidden;
+    background-color: #0d0f14;
+    background-image:
+        linear-gradient(45deg, rgba(255, 255, 255, .018) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, .018) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, .018) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, .018) 75%);
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-size: 16px 16px;
 }
 
-.PhotoEditor_placeholder {
+.PhotoEditor_canvasMessage,
+.PhotoEditor_empty {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
-    color: #aaa;
-    font-size: 16px;
+    gap: 10px;
+    color: var(--utaha-text-subtle);
+    background: var(--utaha-bg);
+    font-size: 13px;
+
+    &.error {
+        color: var(--utaha-danger);
+    }
+}
+
+.PhotoEditor_spinner {
+    width: 17px;
+    height: 17px;
+    border: 2px solid var(--utaha-border-strong);
+    border-top-color: var(--utaha-accent);
+    border-radius: 50%;
+    animation: PhotoEditor_spin .8s linear infinite;
+}
+
+@keyframes PhotoEditor_spin {
+    to { transform: rotate(360deg); }
+}
+
+.PhotoEditor_compareBadge,
+.PhotoEditor_zoomBadge {
+    position: absolute;
+    bottom: 14px;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, .8);
+    background: rgba(12, 14, 19, .82);
+    box-shadow: var(--utaha-shadow-sm);
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.PhotoEditor_compareBadge {
+    left: 14px;
+    color: #fff;
+    background: var(--utaha-accent);
+}
+
+.PhotoEditor_zoomBadge {
+    right: 14px;
+}
+
+.PhotoEditor_notice {
+    position: absolute;
+    right: 16px;
+    bottom: 18px;
+    z-index: 8;
+    max-width: min(440px, calc(100% - 32px));
+    min-height: 38px;
+    padding: 9px 38px 9px 12px;
+    border: 1px solid var(--utaha-border-strong);
+    border-radius: var(--utaha-radius-md);
+    color: var(--utaha-text);
+    background: var(--utaha-surface-raised);
+    box-shadow: var(--utaha-shadow-lg);
+    font-size: 12px;
+
+    &.success { border-color: color-mix(in srgb, var(--utaha-success) 48%, var(--utaha-border)); }
+    &.warning { border-color: color-mix(in srgb, var(--utaha-warning) 48%, var(--utaha-border)); }
+    &.error { border-color: color-mix(in srgb, var(--utaha-danger) 48%, var(--utaha-border)); }
+    &.info { border-color: color-mix(in srgb, var(--utaha-info) 48%, var(--utaha-border)); }
+
+    button {
+        position: absolute;
+        top: 5px;
+        right: 6px;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        color: var(--utaha-text-muted);
+        background: transparent;
+        cursor: pointer;
+        font-size: 20px;
+    }
+}
+
+.PhotoEditor_overwriteDialog {
+    .MuiPaper-root {
+        color: var(--utaha-text);
+        background: var(--utaha-surface-raised);
+        background-image: none;
+        border: 1px solid var(--utaha-border);
+        border-radius: var(--utaha-radius-lg);
+    }
+
+    .MuiDialogTitle-root {
+        font-size: 18px;
+        font-weight: 650;
+    }
+
+    .MuiDialogActions-root {
+        padding: 10px 24px 20px;
+
+        button {
+            height: 34px;
+            padding: 0 14px;
+            border: 1px solid var(--utaha-border-strong);
+            border-radius: var(--utaha-radius-sm);
+            color: var(--utaha-text);
+            background: var(--utaha-surface);
+            cursor: pointer;
+
+            &.danger {
+                border-color: var(--utaha-danger);
+                color: #fff;
+                background: var(--utaha-danger);
+            }
+
+            &:disabled {
+                cursor: default;
+                opacity: .5;
+            }
+        }
+    }
+}
+
+.PhotoEditor_warningLead {
+    padding: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid color-mix(in srgb, var(--utaha-warning) 36%, transparent);
+    border-radius: var(--utaha-radius-md);
+    color: var(--utaha-text);
+    background: color-mix(in srgb, var(--utaha-warning) 9%, transparent);
+    font-size: 13px;
+    line-height: 1.55;
+
+    svg {
+        flex: 0 0 auto;
+        color: var(--utaha-warning);
+    }
+}
+
+.PhotoEditor_pathLabel {
+    margin: 18px 0 7px;
+    color: var(--utaha-text-subtle);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.PhotoEditor_sourcePath {
+    padding: 10px 12px;
+    display: block;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-sm);
+    color: var(--utaha-text-muted);
+    background: var(--utaha-bg-soft);
+    font-family: Consolas, monospace;
+    font-size: 12px;
+}
+
+.PhotoEditor_metadataWarning {
+    margin: 14px 0 0;
+    color: var(--utaha-text-subtle);
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+@media (max-width: 1180px) {
+    .PhotoEditor_header {
+        padding-left: 12px;
+    }
+
+    .PhotoEditor_fileInfo > span:not(.PhotoEditor_dirtyBadge) {
+        display: none;
+    }
+
+    .PhotoEditor_toolbar {
+        gap: 5px;
+    }
+
+    .PhotoEditor_resetEdits {
+        width: 32px;
+        overflow: hidden;
+        padding: 0;
+        color: transparent;
+
+        &::before {
+            content: '×';
+            color: var(--utaha-text-muted);
+            font-size: 18px;
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .PhotoEditor_spinner {
+        animation-duration: 1.8s;
+    }
+
+    .PhotoEditor_toolBtn,
+    .PhotoEditor_resetEdits,
+    .PhotoEditor_saveGroup button {
+        transition-duration: 0.01ms;
+    }
 }

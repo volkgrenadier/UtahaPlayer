@@ -1,9 +1,54 @@
-//  颜色类
-$color_main: #2563eb;
-$color_main_bg: #F9F9FC;
-$color_main_sidebar_bg: #f2f2f5;
-//  动画/渐变类
-$custom_transition: all .3s ease-in-out;
+:root {
+    color-scheme: light;
+    --utaha-font-sans: "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --utaha-font-editorial: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif;
+    --utaha-paper: #f4eff4;
+    --utaha-paper-bright: #fffaff;
+    --utaha-ink: #281f2b;
+    --utaha-ink-soft: #3a2941;
+    --utaha-inverse-text: #fff6fb;
+    --utaha-inverse-muted: #d5c8d4;
+    --utaha-bg: var(--utaha-paper);
+    --utaha-bg-soft: #ece4eb;
+    --utaha-surface: #fbf8fb;
+    --utaha-surface-raised: var(--utaha-paper-bright);
+    --utaha-surface-hover: #e5dae4;
+    --utaha-border: rgba(45, 31, 49, .13);
+    --utaha-border-strong: rgba(45, 31, 49, .25);
+    --utaha-text: var(--utaha-ink);
+    --utaha-text-muted: #685e6b;
+    --utaha-text-subtle: #8e8191;
+    --utaha-accent: #9d2f5c;
+    --utaha-accent-hover: #7c2348;
+    --utaha-accent-bright: #d45c7b;
+    --utaha-accent-soft: rgba(157, 47, 92, .13);
+    --utaha-on-accent: #fff7fb;
+    --utaha-success: #416b56;
+    --utaha-warning: #93601e;
+    --utaha-danger: #a33e32;
+    --utaha-info: #49677c;
+    --utaha-music-tint: #dec4d3;
+    --utaha-video-tint: #ccc9dc;
+    --utaha-photo-tint: #d8cadc;
+    --utaha-music-ink: #6f4564;
+    --utaha-radius-sm: 6px;
+    --utaha-radius-md: 10px;
+    --utaha-radius-lg: 14px;
+    --utaha-shadow-sm: 0 5px 18px rgba(57, 35, 61, .08);
+    --utaha-shadow-lg: 0 18px 50px rgba(57, 35, 61, .14);
+    --utaha-motion-fast: 120ms;
+    --utaha-motion-normal: 180ms;
+    --utaha-motion-slow: 240ms;
+    --utaha-titlebar-height: 48px;
+    --utaha-sidebar-width: 208px;
+    --utaha-player-height: 76px;
+}
+
+// 兼容现有 SCSS，同时将旧页面纳入统一色彩系统。
+$color_main: #9d2f5c;
+$color_main_bg: #ece4eb;
+$color_main_sidebar_bg: #e9e0e8;
+$custom_transition: transform .18s ease, opacity .18s ease, color .18s ease, background-color .18s ease, border-color .18s ease;
 //  字体类
 $fontSize_small: .8rem;
 $fontSize: 1rem;
@@ -20,14 +65,14 @@ $borderRadius: 8px;
 //  滚动条样式
 @mixin scrollStyle {
     &::-webkit-scrollbar {
-        width: 4px;
+        width: 6px;
     }
     &:hover::-webkit-scrollbar-thumb {
-        background-color: rgba(#666, .5);
-        // background-color: rgba(178, 185, 196, 1);
+        border-radius: 999px;
+        background-color: rgba(104, 94, 107, .42);
     }
     &:hover::-webkit-scrollbar-track {
-        background-color: rgba(178, 185, 196, 1);
+        background-color: transparent;
     }
 }
 //  悬浮显示滚动条
@@ -51,7 +96,7 @@ $borderRadius: 8px;
 @mixin customButtonBasic {
     padding: 8px 16px;
     background-color: $color_main;
-    color: white;
+    color: var(--utaha-on-accent);
     border: none;
     border-radius: $borderRadius;
     cursor: pointer;
@@ -63,5 +108,28 @@ $borderRadius: 8px;
     
     &:active {
         background-color: darken($color_main, 15%);
+    }
+}
+
+@mixin focusRing {
+    outline: 2px solid var(--utaha-accent);
+    outline-offset: 2px;
+}
+
+@mixin surfacePanel {
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-lg);
+    background: var(--utaha-surface);
+    box-shadow: var(--utaha-shadow-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
     }
 }

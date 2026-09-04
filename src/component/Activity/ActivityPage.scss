@@ -1,0 +1,236 @@
+@import '../../style/public.scss';
+
+@mixin ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.Activity_page {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    color: var(--utaha-text);
+    @include hoverShowScrollBar;
+}
+
+.Activity_content {
+    width: min(100%, 1480px);
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 34px clamp(24px, 3.4vw, 52px) calc(var(--utaha-player-safe-area, 0px) + 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.Activity_header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+
+    h1 {
+        margin: 6px 0 0;
+        font-size: clamp(36px, 4vw, 56px);
+        font-weight: 780;
+        letter-spacing: -.052em;
+        line-height: 1;
+    }
+
+    p { margin: 12px 0 0; color: var(--utaha-text-muted); font-family: var(--utaha-font-editorial); font-size: 15px; }
+
+    > button {
+        height: 38px;
+        padding: 0 12px;
+        border: 1px solid var(--utaha-border);
+        border-radius: 10px;
+        background: var(--utaha-surface);
+        color: var(--utaha-text-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font: inherit;
+        font-size: 12px;
+
+        &:hover { border-color: var(--utaha-border-strong); color: var(--utaha-text); }
+        &:disabled { opacity: .55; cursor: wait; }
+        svg { font-size: 18px; }
+    }
+}
+
+.Activity_eyebrow {
+    color: var(--utaha-accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .18em;
+}
+
+.Activity_notice {
+    padding: 11px 14px;
+    border: 1px solid color-mix(in srgb, var(--utaha-danger) 34%, transparent);
+    border-radius: var(--utaha-radius-md);
+    background: color-mix(in srgb, var(--utaha-danger) 8%, transparent);
+    color: var(--utaha-danger);
+    font-size: 12px;
+}
+
+.Activity_loading {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+
+    span {
+        height: 86px;
+        border: 1px solid var(--utaha-border);
+        border-radius: var(--utaha-radius-md);
+        background: linear-gradient(100deg, var(--utaha-surface) 10%, var(--utaha-surface-raised) 45%, var(--utaha-surface) 80%);
+        background-size: 220% 100%;
+        animation: Activity_shimmer 1.6s linear infinite;
+    }
+}
+
+@keyframes Activity_shimmer { to { background-position-x: -220%; } }
+
+.Activity_empty {
+    min-height: 390px;
+    padding: 40px;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-lg);
+    background: var(--utaha-surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+    > svg { color: var(--utaha-accent); font-size: 42px; }
+    h2 { margin: 16px 0 0; font-size: 21px; }
+    p { max-width: 470px; margin: 8px 0 20px; color: var(--utaha-text-muted); font-size: 13px; line-height: 1.6; }
+    a {
+        padding: 10px 15px;
+        border-radius: 10px;
+        background: var(--utaha-ink);
+        color: var(--utaha-inverse-text);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+}
+
+.Activity_group { min-width: 0; }
+
+.Activity_groupTitle {
+    margin-bottom: 11px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+    span { color: var(--utaha-text-subtle); font-size: 10px; }
+}
+
+.Activity_grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.Activity_card {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-md);
+    background: var(--utaha-surface);
+    color: var(--utaha-text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    transition: transform var(--utaha-motion-normal), background-color var(--utaha-motion-normal), border-color var(--utaha-motion-normal);
+
+    &:hover {
+        border-color: var(--utaha-border-strong);
+        background: var(--utaha-surface-raised);
+        transform: translateY(-1px);
+    }
+
+    > button {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--utaha-text-subtle);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+
+        &:hover { background: var(--utaha-surface-hover); color: var(--utaha-text); }
+        &.is-favorite { color: var(--utaha-danger); }
+        &:disabled { opacity: .55; cursor: wait; }
+        svg { font-size: 19px; }
+    }
+}
+
+.Activity_artwork {
+    width: 62px;
+    height: 62px;
+    overflow: hidden;
+    border-radius: 11px;
+    background: var(--utaha-surface-hover);
+    color: var(--utaha-text-subtle);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    position: relative;
+
+    > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    > svg { font-size: 25px; }
+    > small {
+        padding: 2px 5px;
+        border-radius: 5px;
+        background: rgba(52, 36, 65, .86);
+        color: var(--utaha-inverse-text);
+        font-size: 8px;
+        font-weight: 700;
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+    }
+}
+
+.Activity_artwork_music { background: var(--utaha-music-tint); color: var(--utaha-music-ink); }
+.Activity_artwork_video { background: var(--utaha-video-tint); color: var(--utaha-info); }
+.Activity_artwork_photo { background: var(--utaha-photo-tint); color: var(--utaha-success); }
+
+.Activity_meta {
+    min-width: 0;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
+
+    strong,
+    > span { @include ellipsis; }
+    strong { font-size: 12px; font-weight: 680; }
+    > span { color: var(--utaha-text-muted); font-size: 10px; }
+    small { color: var(--utaha-text-subtle); font-size: 9px; }
+}
+
+@media (max-width: 1180px) {
+    .Activity_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .Activity_loading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+    .Activity_content { padding-inline: 16px; }
+    .Activity_header { align-items: flex-start; }
+    .Activity_grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .Activity_loading span { animation: none; }
+}

@@ -1,99 +1,123 @@
 @import '../../style/public.scss';
 
 .sideBar_container {
-	$sideBarWidth: 60px;
-	width: $sideBarWidth;
-	background-color: $color_main_sidebar_bg;
-	position: relative;
-	z-index: 500;
-	@mixin navItemBasic {
-		font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-		width: 100%;
-		height: 40px;
-		padding: 5px 0;
-		color: #252020;
-		text-decoration: none;
-		transition: $custom_transition;
-		display: flex;
-		&:hover {
-			background-color: #ffc58b57;
-		}
-		.nav-icon{
-			color: gray;
-			position: relative;
-			margin-top: 5px;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			width: $sideBarWidth;
-		}
-		.nav-txt{
-			display: inline-block;
-			position: relative;
-			margin-top: 5px;
-			margin-bottom: 5px;
-			display: none;
-			overflow: hidden;
-			text-overflow: clip;
-			white-space: nowrap;
-		}
-		.nav-txt-show {
-			display: block;
-		}
-	}
-	.sideBar {
-		width: 100%;
-		height: 100%;
-		background-color: #f2f2f5;
-		display: flex;
-		flex-direction: column;
-		transition: $custom_transition;
-		.nav-expandButton {
-			@include navItemBasic;
-			width: $sideBarWidth;
-			height: 40px;
-			.nav-icon {
-				transition: transform .05s ease-in-out;
-				transition: color .1s ease-in-out;
-			}
-			&:active {
-				.nav-icon {
-					transform-origin: 50% 50%;
-					transform: scaleX(.75);
-				}
-			}
-		}
-		.nav-expandButton-expanded {
-			.nav-icon {
-				color: #ffb265;
-			}
-		}
-		.nav-item {
-			@include navItemBasic;
-		}
-		
-		.active { // 点击之后背景色和图标颜色设置
-			background-color: #ffc58b57; 
-			color: #ffb265; 
-			.nav-icon{
-				color: #ffb265;
-				position: relative;
-				margin-top: 5px;
-			}
-		}
-	}
-	.sideBar-expand{
-		background-color: $color_main_bg;
-		box-shadow: 2px 0px 5px 1px rgba(0, 0, 0, 0.1);
-		width: 200px;
-		.nav-item {
-			.nav-txt {
-				display: block;
-			}
-		}
-	}
+    width: var(--utaha-sidebar-width);
+    min-width: 0;
+    min-height: 0;
+    padding: 18px 12px 12px;
+    border-right: 1px solid var(--utaha-border);
+    background: #e9e0e8;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    user-select: none;
+    -webkit-user-drag: none;
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+    transition: width var(--utaha-motion-slow) ease;
 }
 
+.sideBar {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
 
+.sideBar_sectionLabel {
+    padding: 0 12px 9px;
+    color: var(--utaha-text-subtle);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
 
+.nav-item {
+    min-width: 0;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: var(--utaha-radius-md);
+    color: var(--utaha-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    position: relative;
+    user-select: none;
+    -webkit-user-drag: none;
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+    transition: color var(--utaha-motion-normal) ease, background-color var(--utaha-motion-normal) ease, border-color var(--utaha-motion-normal) ease, transform var(--utaha-motion-fast) ease;
 
+    &::before {
+        content: '';
+        width: 3px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--utaha-accent);
+        opacity: 0;
+        transform: scaleY(.4);
+        position: absolute;
+        left: -5px;
+        transition: opacity var(--utaha-motion-normal) ease, transform var(--utaha-motion-normal) ease;
+    }
+
+    &:hover {
+        color: var(--utaha-text);
+        background: var(--utaha-surface-hover);
+    }
+
+    &:active {
+        transform: scale(.985);
+    }
+
+    &.active {
+        border-color: var(--utaha-ink);
+        background: var(--utaha-ink);
+        color: var(--utaha-inverse-text);
+
+        &::before {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        .nav-icon {
+            color: var(--utaha-accent-bright);
+        }
+    }
+}
+
+.nav-icon {
+    width: 21px !important;
+    height: 21px !important;
+    color: var(--utaha-text-subtle);
+    flex: 0 0 auto;
+}
+
+.nav-txt {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+@media (max-width: 1120px) {
+    .sideBar_container {
+        padding-inline: 10px;
+    }
+
+    .sideBar_sectionLabel,
+    .nav-txt {
+        display: none;
+    }
+
+    .nav-item {
+        padding: 0;
+        justify-content: center;
+        gap: 0;
+    }
+}

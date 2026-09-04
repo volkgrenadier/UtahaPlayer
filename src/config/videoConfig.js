@@ -25,8 +25,6 @@ function needsTranscoding(filePath) {
 		// ✅ 只有不在支持列表中的格式才需要转码
 		const shouldTranscode = !supportedExtensions.includes(ext);
 		
-		console.log(`文件: ${path.basename(filePath)}, 扩展名: ${ext}, 需要转码: ${shouldTranscode}`);
-		
 		return shouldTranscode;
 	} catch (error) {
 		console.error('检查文件转码需求失败:', error);

@@ -1,20 +1,64 @@
 @import './public.scss';
+
+.Notification_toast {
+    min-width: 280px !important;
+    border: 1px solid var(--utaha-border-strong) !important;
+    border-left: 3px solid var(--utaha-info) !important;
+    border-radius: var(--utaha-radius-md) !important;
+    background: rgba(255, 250, 255, .98) !important;
+    color: var(--utaha-text) !important;
+    box-shadow: var(--utaha-shadow-lg) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+
+.Notification_toast_success { border-left-color: var(--utaha-success) !important; }
+.Notification_toast_warning { border-left-color: var(--utaha-warning) !important; }
+.Notification_toast_error { border-left-color: var(--utaha-danger) !important; }
+
+.Notification_popover {
+    max-width: 320px;
+    border: 1px solid var(--utaha-border-strong);
+    border-radius: var(--utaha-radius-md) !important;
+    background: rgba(255, 250, 255, .98) !important;
+    color: var(--utaha-text) !important;
+    box-shadow: var(--utaha-shadow-lg) !important;
+}
+
 .Notification_popover_message {
     @include forbiddenSelect;
+    color: var(--utaha-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
 }
+
 .Notification_popover_buttons_container {
     display: flex;
     justify-content: flex-end;
     align-items: center;
+
     .Notification_popover_button_comfirm {
         margin-right: 8px;
     }
+
     .Notification_popover_button_comfirm,
     .Notification_popover_button_cancel {
-        @include customButtonBasic;
-        font-size: $fontSize_small*0.9;
-        padding: 3px 8px;
-        border-radius: $borderRadius*0.5;
+        min-height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--utaha-border);
+        border-radius: var(--utaha-radius-sm);
+        background: var(--utaha-surface-hover);
+        color: var(--utaha-text-muted);
+        cursor: pointer;
+        font-size: 11px;
+
+        &:hover { border-color: var(--utaha-border-strong); color: var(--utaha-text); }
+    }
+
+    .Notification_popover_button_comfirm {
+        border-color: transparent;
+        background: var(--utaha-accent);
+        color: var(--utaha-on-accent);
     }
 }
 

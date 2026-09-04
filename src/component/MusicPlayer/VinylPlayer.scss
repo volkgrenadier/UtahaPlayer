@@ -1,49 +1,375 @@
 @import '../../style/public.scss';
+
+@keyframes utaha-vinyl-spin {
+	from { transform: translateY(-50%) rotate(0deg); }
+	to { transform: translateY(-50%) rotate(360deg); }
+}
+
+@keyframes utaha-status-pulse {
+	0%, 100% { box-shadow: 0 0 0 0 rgba(212, 92, 123, .12); }
+	50% { box-shadow: 0 0 0 6px rgba(212, 92, 123, 0); }
+}
+
 .VinylPlayer_container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    user-select: none;
-    cursor: pointer;
-    background-color: $color_main_bg;
-    -webkit-tap-highlight-color: transparent; /* 去除移动设备上的点击高亮 */
-    outline: none; /* 去除点击时的轮廓 */
-    overflow: hidden;
-    svg {
-        width: auto; /* 自动宽度 */
-        height: calc(100% - 20px);  // 留出一些内边距
-        max-width: 100%; /* 避免溢出父容器 */
-        object-fit: contain; /* 保持宽高比 */
-        transition: all 0.3s ease; /* 平滑过渡 */
-    }
-    
-    &:hover {
-        opacity: 1;
-    }
-    
-    &:active {
-        opacity: 1;
-        background-color: transparent; /* 确保点击时背景不会变化 */
-    }
-    
-    /* 去除所有可能的默认交互效果 */
-    &::selection {
-        background: transparent;
-    }
-    
-    &:focus {
-        outline: none;
-    }
-    
-    /* 阻止元素内部可能的选择操作 */
-    * {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-    }
+	position: relative;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: #eee5ee;
+	color: var(--utaha-text);
+	user-select: none;
+	isolation: isolate;
+
+	&[role='button'] { cursor: pointer; }
+
+	&:focus-visible {
+		@include focusRing;
+		outline-offset: -4px;
+	}
+}
+
+.VinylPlayer_ambient {
+	position: absolute;
+	inset: -30% -10% auto 34%;
+	height: 88%;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgba(157, 47, 92, .18), rgba(157, 47, 92, 0) 66%);
+	filter: blur(14px);
+	pointer-events: none;
+}
+
+.VinylPlayer_stage {
+	position: relative;
+	z-index: 1;
+	width: min(100%, 1040px);
+	height: 100%;
+	margin: 0 auto;
+	padding: clamp(22px, 4vh, 42px) clamp(24px, 5vw, 64px);
+	display: grid;
+	grid-template-columns: minmax(190px, .65fr) minmax(460px, 1.35fr);
+	align-items: center;
+	gap: clamp(28px, 5vw, 70px);
+}
+
+.VinylPlayer_caption {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+
+	> strong {
+		max-width: 280px;
+		margin-top: 11px;
+		color: var(--utaha-ink);
+		font-size: clamp(24px, 3vw, 38px);
+		font-weight: 770;
+		letter-spacing: -.045em;
+		line-height: 1.08;
+	}
+
+	> p {
+		max-width: 270px;
+		margin: 18px 0 0;
+		color: var(--utaha-text-muted);
+		font-family: var(--utaha-font-editorial);
+		font-size: 13px;
+		line-height: 1.65;
+	}
+}
+
+.VinylPlayer_eyebrow {
+	color: var(--utaha-accent);
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: .18em;
+}
+
+.VinylPlayer_state {
+	margin-top: 14px;
+	color: var(--utaha-text-subtle);
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: .1em;
+
+	> i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--utaha-text-subtle);
+		transition: background-color var(--utaha-motion-normal) ease, box-shadow var(--utaha-motion-normal) ease;
+	}
+}
+
+.VinylPlayer_deck {
+	position: relative;
+	width: min(100%, 540px);
+	aspect-ratio: 1.38;
+	justify-self: end;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, .12);
+	border-radius: 26px;
+	background:
+		linear-gradient(145deg, rgba(255, 255, 255, .07), transparent 44%),
+		#35273e;
+	box-shadow:
+		0 28px 58px rgba(53, 39, 62, .22),
+		inset 0 1px rgba(255, 255, 255, .1);
+
+	&::after {
+		content: '';
+		position: absolute;
+		inset: 12px;
+		border: 1px solid rgba(255, 255, 255, .06);
+		border-radius: 18px;
+		pointer-events: none;
+	}
+}
+
+.VinylPlayer_deckBrand {
+	position: absolute;
+	top: 19px;
+	left: 22px;
+	z-index: 5;
+	color: rgba(255, 246, 251, .48);
+	font-size: 9px;
+	font-weight: 800;
+	letter-spacing: .18em;
+}
+
+.VinylPlayer_platter,
+.VinylPlayer_record {
+	position: absolute;
+	top: 52%;
+	left: 8%;
+	width: 58%;
+	aspect-ratio: 1;
+	border-radius: 50%;
+}
+
+.VinylPlayer_platter {
+	width: 61%;
+	left: 6.5%;
+	border: 2px solid rgba(255, 255, 255, .14);
+	background: #241c2a;
+	box-shadow:
+		0 12px 28px rgba(15, 10, 19, .42),
+		inset 0 0 0 8px rgba(255, 255, 255, .025);
+	transform: translateY(-50%);
+}
+
+.VinylPlayer_record {
+	z-index: 2;
+	background:
+		repeating-radial-gradient(circle at center, transparent 0 3px, rgba(255, 255, 255, .035) 3.4px 4px),
+		radial-gradient(circle at 32% 27%, #3e3942 0, #18151b 34%, #0d0b0f 72%, #211b24 100%);
+	box-shadow:
+		0 10px 24px rgba(8, 5, 10, .5),
+		inset 0 0 0 1px rgba(255, 255, 255, .1);
+	animation: utaha-vinyl-spin 4.8s linear infinite;
+	animation-play-state: paused;
+	will-change: transform;
+}
+
+.VinylPlayer_recordShine {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: conic-gradient(from 18deg, transparent 0 17%, rgba(255, 255, 255, .08) 22%, transparent 28% 62%, rgba(255, 255, 255, .045) 69%, transparent 75%);
+}
+
+.VinylPlayer_label {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 35%;
+	aspect-ratio: 1;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, .22);
+	border-radius: 50%;
+	background: var(--vinyl-label, var(--utaha-accent));
+	box-shadow: 0 0 0 3px rgba(0, 0, 0, .2);
+	transform: translate(-50%, -50%);
+
+	> img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+}
+
+.VinylPlayer_monogram {
+	width: 100%;
+	height: 100%;
+	color: var(--utaha-on-accent);
+	display: grid;
+	place-items: center;
+
+	> b {
+		font-size: clamp(18px, 3vw, 34px);
+		font-weight: 760;
+		line-height: 1;
+	}
+
+	> i {
+		position: absolute;
+		right: 19%;
+		bottom: 23%;
+		display: flex;
+		align-items: flex-end;
+		gap: 2px;
+
+		> span {
+			width: 2px;
+			height: 5px;
+			border-radius: 999px;
+			background: currentColor;
+
+			&:nth-child(2) { height: 10px; }
+			&:nth-child(3) { height: 7px; }
+			&:nth-child(4) { height: 12px; }
+		}
+	}
+}
+
+.VinylPlayer_spindle {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 8px;
+	height: 8px;
+	border: 2px solid #ece3ed;
+	border-radius: 50%;
+	background: #817586;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+	transform: translate(-50%, -50%);
+}
+
+.VinylPlayer_tonearm {
+	position: absolute;
+	top: 14%;
+	right: 8%;
+	z-index: 4;
+	width: 31%;
+	height: 68%;
+	transform: rotate(-8deg);
+	transform-origin: 80% 12%;
+	transition: transform 720ms cubic-bezier(.22, .8, .24, 1);
+}
+
+.VinylPlayer_pivot {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 44px;
+	height: 44px;
+	border: 6px solid #8c8290;
+	border-radius: 50%;
+	background: #d8d0d9;
+	box-shadow: 0 8px 16px rgba(12, 8, 15, .28), inset 0 0 0 2px #5d5263;
+}
+
+.VinylPlayer_counterweight {
+	position: absolute;
+	top: 10px;
+	right: -14px;
+	width: 30px;
+	height: 18px;
+	border-radius: 7px;
+	background: linear-gradient(90deg, #756b7a, #d4cdd6 52%, #756b7a);
+	box-shadow: 0 5px 9px rgba(12, 8, 15, .22);
+}
+
+.VinylPlayer_arm {
+	position: absolute;
+	top: 28px;
+	right: 21px;
+	width: 8px;
+	height: 77%;
+	border: 1px solid rgba(255, 255, 255, .46);
+	border-radius: 999px;
+	background: linear-gradient(90deg, #8b818f, #eee7ef 44%, #8b818f);
+	box-shadow: 4px 6px 10px rgba(12, 8, 15, .24);
+	transform: rotate(22deg);
+	transform-origin: top center;
+}
+
+.VinylPlayer_head {
+	position: absolute;
+	left: 22%;
+	bottom: -1%;
+	width: 34px;
+	height: 18px;
+	border-radius: 5px 5px 8px 8px;
+	background: var(--utaha-accent-bright);
+	box-shadow: 0 7px 12px rgba(12, 8, 15, .3);
+	transform: rotate(22deg);
+
+	&::after {
+		content: '';
+		position: absolute;
+		left: 6px;
+		bottom: -7px;
+		width: 1px;
+		height: 8px;
+		background: #d7cfd8;
+	}
+}
+
+.VinylPlayer_speedControl {
+	position: absolute;
+	right: 23px;
+	bottom: 22px;
+	z-index: 5;
+	color: rgba(255, 246, 251, .48);
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 9px;
+	font-weight: 700;
+}
+
+.VinylPlayer_statusLight {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #756b79;
+	transition: background-color var(--utaha-motion-normal) ease;
+}
+
+.VinylPlayer_container.is-playing {
+	.VinylPlayer_record { animation-play-state: running; }
+	.VinylPlayer_tonearm { transform: rotate(18deg); }
+	.VinylPlayer_state > i,
+	.VinylPlayer_statusLight {
+		background: var(--utaha-accent-bright);
+		animation: utaha-status-pulse 1.8s ease-out infinite;
+	}
+}
+
+@media (max-width: 900px) {
+	.VinylPlayer_stage {
+		grid-template-columns: minmax(150px, .52fr) minmax(400px, 1.48fr);
+		gap: 24px;
+		padding-inline: 28px;
+	}
+
+}
+
+@media (max-height: 660px) {
+	.VinylPlayer_stage { padding-block: 16px; }
+	.VinylPlayer_deck { width: min(100%, 470px); }
+	.VinylPlayer_caption > strong { font-size: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.VinylPlayer_record { animation: none; transform: translateY(-50%); }
+	.VinylPlayer_tonearm { transition: none; }
+	.VinylPlayer_state > i,
+	.VinylPlayer_statusLight { animation: none !important; }
 }

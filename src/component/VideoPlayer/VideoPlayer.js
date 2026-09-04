@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import "./VideoPlayer.scss";
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import RepeatIcon from '@mui/icons-material/Repeat';
@@ -19,6 +20,9 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import { useNotification } from '../../utils/NotificationProvider';
 import { MAXVOLUME } from '../../config/reactConfig';
+import { useMusicPlayer } from '../../context/MusicPlayerContext';
+import { toFileUrl } from '../../utils/mediaUrl';
+import { findRequestedMedia } from '../../utils/mediaSelection';
 
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -27,12 +31,36 @@ const isSameVideo = (left, right) => Boolean(left && right && (
 	(left.path && right.path && left.path === right.path)
 ));
 
+const browserFallbackFeatures = {
+	getVideoList: async () => [],
+	getUserConfig: async () => ({ videoLibrary: { videoList: [] }, volume: 25 }),
+	onMessage: () => undefined,
+	getBaseName: (filePath = '') => filePath.split(/[\\/]/).pop() || '',
+	setVideoVolume: () => undefined,
+	setVideoPlaybackMode: () => undefined,
+	selectVideoFiles: async () => [],
+	getVideoInfo: async () => [],
+	addVideoToLibrary: async () => undefined,
+	removeVideoFromLibrary: () => undefined
+};
+
+const electronFeatures = typeof window !== 'undefined' && window.electronFeatures
+	? window.electronFeatures
+	: browserFallbackFeatures;
+
 const VideoPlayer = () => {
+	const location = useLocation();
 	// 视频播放器引用
 	const playerContainerRef = useRef(null);
 	const videoRef = useRef(null);
 	const progressBarRef = useRef(null);
 	const volumeContainerRef = useRef(null);
+	const currentVideoRef = useRef(null);
+	const activePlaybackVideoRef = useRef(null);
+	const restoredPlaybackKeyRef = useRef(null);
+	const isSwitchingSourceRef = useRef(false);
+	const routeRequestRef = useRef(location.state || {});
+	const routeAutoplayRef = useRef(false);
 	// 视频状态管理
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [totalTime, setTotalTime] = useState(0);
@@ -56,9 +84,11 @@ const VideoPlayer = () => {
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	// 错误提示框
 	const notifyContext = useNotification();
+	const { pause: pauseMusic } = useMusicPlayer();
 	const notifyRef = useRef(notifyContext.notify);
 	// 新增播放列表引用
 	const playlistRef = useRef(null);
+	currentVideoRef.current = currentVideo;
 
 	useEffect(() => {
 		notifyRef.current = notifyContext.notify;
@@ -74,29 +104,27 @@ const VideoPlayer = () => {
 	// 监听视频元素事件
 	const handleError = (error) => {
 		const videoElement = videoRef.current;
-		console.error('视频播放错误:', error);
-		console.error('视频路径:', currentVideo?.path);
-		console.error('视频元素错误代码:', videoElement?.error?.code);
-
 		// 如果视频的 src 为空，跳过错误提示
 		if (!videoElement?.src || videoElement.src === '') {
-			console.log('视频 src 为空，跳过错误提示');
 			return;
 		}
 
 		// 如果当前没有视频，跳过错误提示
 		if (!currentVideo) {
-			console.log('当前没有视频，跳过错误提示');
 			return;
 		}
+
+		console.error('视频播放错误:', error);
+		console.error('视频路径:', currentVideo.path);
+		console.error('视频元素错误代码:', videoElement?.error?.code);
 
 		setIsPlaying(false);
 
 		// 只有在确实是播放状态时才显示文件不存在错误
 		if (videoElement?.error?.code === 4) {
 			// 异步检查文件是否真的不存在
-			if (window.electronFeatures?.checkFileExists && currentVideo?.path) {
-				window.electronFeatures.checkFileExists(currentVideo.path)
+			if (electronFeatures?.checkFileExists && currentVideo?.path) {
+				electronFeatures.checkFileExists(currentVideo.path)
 					.then(exists => {
 						console.log('异步检查文件存在性结果:', exists);
 						if (!exists) {
@@ -141,11 +169,38 @@ const VideoPlayer = () => {
 		console.log('视频数据加载完成');
 	};
 
+	const persistPlaybackProgress = useCallback(async (track = activePlaybackVideoRef.current || currentVideoRef.current) => {
+		const updatePlaybackProgress = electronFeatures?.updatePlaybackProgress;
+		const videoElement = videoRef.current;
+		if (!track || !videoElement || typeof updatePlaybackProgress !== 'function') return;
+
+		const positionMs = Math.max(0, Math.round((videoElement.currentTime || 0) * 1000));
+		const durationMs = Number.isFinite(videoElement.duration)
+			? Math.max(0, Math.round(videoElement.duration * 1000))
+			: Math.max(0, Math.round((track.playback?.durationMs || track.duration * 1000 || 0)));
+
+		try {
+			const result = await updatePlaybackProgress({
+				mediaId: track.id || track.path,
+				type: 'video',
+				positionMs,
+				durationMs
+			});
+			if (result?.status === 'error') {
+				console.warn('保存视频播放进度失败:', result.code, result.message);
+			}
+		} catch (error) {
+			console.warn('保存视频播放进度失败:', error);
+		}
+	}, []);
+
 	const handlePlay = () => {
+		pauseMusic();
 		setIsPlaying(true);
 	};
 	const handlePause = () => {
 		setIsPlaying(false);
+		if (!isSwitchingSourceRef.current) persistPlaybackProgress();
 	};
 
 	const updateVideoTiming = useCallback(() => {
@@ -162,6 +217,42 @@ const VideoPlayer = () => {
 			setProgress(clamp((current / duration) * 100, 0, 100));
 		}
 	}, []);
+
+	const handleLoadedMetadata = useCallback(() => {
+		const videoElement = videoRef.current;
+		const track = currentVideoRef.current;
+		if (!videoElement || !track) {
+			updateVideoTiming();
+			return;
+		}
+
+		activePlaybackVideoRef.current = track;
+		isSwitchingSourceRef.current = false;
+		const playbackKey = track.id || track.path;
+		const playback = track.playback;
+		const restoreSeconds = Number(playback?.positionMs) / 1000;
+		const canRestore = (
+			playbackKey &&
+			restoredPlaybackKeyRef.current !== playbackKey &&
+			!playback?.completed &&
+			Number.isFinite(restoreSeconds) &&
+			restoreSeconds > 0 &&
+			Number.isFinite(videoElement.duration) &&
+			restoreSeconds < videoElement.duration
+		);
+
+		if (canRestore) {
+			videoElement.currentTime = restoreSeconds;
+			restoredPlaybackKeyRef.current = playbackKey;
+		}
+		updateVideoTiming();
+		if (routeAutoplayRef.current) {
+			routeAutoplayRef.current = false;
+			videoElement.play().catch((error) => {
+				console.warn('无法自动继续视频播放:', error);
+			});
+		}
+	}, [updateVideoTiming]);
 
 
 	// useEffect(() => {
@@ -189,24 +280,45 @@ const VideoPlayer = () => {
 		return () => {
 			if (!videoElement) return;
 
-			// 停止播放并释放资源
+			persistPlaybackProgress();
 			videoElement.pause();
 			videoElement.src = ''; // 清空视频源
 
 		};
-	}, []);
+	}, [persistPlaybackProgress]);
+
+	useEffect(() => {
+		const intervalId = window.setInterval(() => {
+			if (videoRef.current && !videoRef.current.paused) persistPlaybackProgress();
+		}, 5000);
+		const persistBeforeExit = () => persistPlaybackProgress();
+		window.addEventListener('pagehide', persistBeforeExit);
+		window.addEventListener('beforeunload', persistBeforeExit);
+
+		return () => {
+			window.clearInterval(intervalId);
+			window.removeEventListener('pagehide', persistBeforeExit);
+			window.removeEventListener('beforeunload', persistBeforeExit);
+		};
+	}, [persistPlaybackProgress]);
+
+	useEffect(() => {
+		isSwitchingSourceRef.current = Boolean(currentVideo);
+	}, [currentVideo]);
 
 
 	// 初始化加载视频列表
 	useEffect(() => {
 		const loadVideoList = async () => {
 			try {
-				const list = await window.electronFeatures.getVideoList();
+				const list = await electronFeatures.getVideoList();
 				if (list && Array.isArray(list)) {
 					setVideoList(list);
 					if (list.length > 0) {
-						const index = 0;
-						setCurrentVideo(list[index]);
+						const request = routeRequestRef.current;
+						const requestedVideo = findRequestedMedia(list, request);
+						setCurrentVideo(requestedVideo || list[0]);
+						routeAutoplayRef.current = Boolean(requestedVideo && request.resume);
 						setCurrentTime(0);
 						setTotalTime(0);
 						setProgress(0);
@@ -220,21 +332,21 @@ const VideoPlayer = () => {
 		loadVideoList();
 
 		// 监听视频列表更新事件
-		const videoListUpdateListener = window.electronFeatures.onMessage('video-list-updated', (newList) => {
+		const videoListUpdateListener = electronFeatures.onMessage('video-list-updated', (newList) => {
 			if (newList && Array.isArray(newList)) {
 				setVideoList(newList);
 			}
 		});
 
 		// 监听转码开始事件
-		const transcodeStartListener = window.electronFeatures.onMessage('video-transcode-start', (data) => {
-			const fileName = window.electronFeatures.getBaseName(data.file);
+		const transcodeStartListener = electronFeatures.onMessage('video-transcode-start', (data) => {
+			const fileName = electronFeatures.getBaseName(data.file);
 			notifyRef.current.info(`开始转码视频 ${fileName} (${data.current}/${data.total})`, 2000);
 		});
 
 		// 监听转码成功事件
-		const transcodeSuccessListener = window.electronFeatures.onMessage('video-transcode-success', (data) => {
-			const fileName = window.electronFeatures.getBaseName(data.original);
+		const transcodeSuccessListener = electronFeatures.onMessage('video-transcode-success', (data) => {
+			const fileName = electronFeatures.getBaseName(data.original);
 			if (data.total && data.current) {
 				notifyRef.current.success(`视频 ${fileName} 转码完成！(${data.current}/${data.total})`);
 			} else {
@@ -243,14 +355,14 @@ const VideoPlayer = () => {
 		});
 
 		// 监听转码进度事件
-		const transcodeProgressListener = window.electronFeatures.onMessage('video-transcode-progress', (data) => {
-			const fileName = window.electronFeatures.getBaseName(data.file);
+		const transcodeProgressListener = electronFeatures.onMessage('video-transcode-progress', (data) => {
+			const fileName = electronFeatures.getBaseName(data.file);
 			notifyRef.current.info(`正在转码 ${fileName}: ${data.percent}%`, 1000);
 		});
 
 		// 监听转码失败事件
-		const transcodeErrorListener = window.electronFeatures.onMessage('video-transcode-error', (data) => {
-			const fileName = window.electronFeatures.getBaseName(data.file);
+		const transcodeErrorListener = electronFeatures.onMessage('video-transcode-error', (data) => {
+			const fileName = electronFeatures.getBaseName(data.file);
 			const errorMsg = data.error || '未知错误';
 			notifyRef.current.error(`视频 ${fileName} 转码失败: ${errorMsg}`, 5000);
 			console.error('转码失败详情:', data);
@@ -336,7 +448,7 @@ const VideoPlayer = () => {
 
 	useLayoutEffect(() => {
 		const getUserConfig = async () => {
-			let config = await window.electronFeatures.getUserConfig('video')
+			let config = await electronFeatures.getUserConfig('video')
 			setVideoList(config.videoLibrary.videoList || []);
 
 			const initialVolume = config.volume || 25;
@@ -397,6 +509,7 @@ const VideoPlayer = () => {
 	// 播放选中视频
 	const playSelectedVideo = (video) => {
 		console.log('播放选中视频:', video);
+		persistPlaybackProgress();
 
 		// 重置时间状态
 		setCurrentTime(0);
@@ -496,7 +609,7 @@ const VideoPlayer = () => {
 			videoRef.current.volume = ((nextVolume / 100) * MAXVOLUME) / 100;
 		}
 
-		window.electronFeatures.updateUserConfig('video.volume', nextVolume);
+		electronFeatures.setVideoVolume(nextVolume);
 	};
 
 	const toggleFullscreen = async () => {
@@ -614,25 +727,25 @@ const VideoPlayer = () => {
 			notifyContext.notify.info('正在选择视频文件...');
 
 			// 主进程已经处理了转码逻辑，返回的是处理后的文件路径
-			const filePaths = await window.electronFeatures.selectVideoFiles();
+			const filePaths = await electronFeatures.selectVideoFiles();
 			console.log('从主进程获取的文件路径:', filePaths);
 
 			if (filePaths && filePaths.length > 0) {
 				notifyContext.notify.info('正在处理视频文件信息...');
 
 				// 获取视频信息（主进程返回的路径已经是转码后的路径）
-				const info = await window.electronFeatures.getVideoInfo(filePaths);
+				const info = await electronFeatures.getVideoInfo(filePaths);
 				console.log('获取的视频信息:', info);
 
 				if (info && info.length > 0) {
 					// 先通知主进程添加到视频库
-					await window.electronFeatures.sendMessage('add-video-to-library', info);
+					await electronFeatures.addVideoToLibrary(info);
 
 					// 等待一下，确保主进程处理完成
 					await new Promise(resolve => setTimeout(resolve, 200));
 
 					// 重新获取完整的视频列表
-					const updatedList = await window.electronFeatures.getVideoList();
+					const updatedList = await electronFeatures.getVideoList();
 					console.log('更新后的视频列表:', updatedList);
 
 					if (updatedList && Array.isArray(updatedList) && updatedList.length > 0) {
@@ -685,7 +798,7 @@ const VideoPlayer = () => {
 	// 从播放列表中删除视频
 	const removeFromVideolist = (e, video) => {
 		// 通知主进程从列表中删除视频
-		window.electronFeatures.sendMessage('remove-from-videolist', video.id);
+		electronFeatures.removeVideoFromLibrary(video.id);
 		// 判断删除的是否是当前正在播放的视频
 		const isDeletingCurrentVideo = isSameVideo(currentVideo, video);
 
@@ -693,6 +806,7 @@ const VideoPlayer = () => {
 			// 删除的是当前播放的视频
 			console.log('删除当前播放的视频');
 
+			persistPlaybackProgress(video);
 			// 停止播放
 			setIsPlaying(false);
 
@@ -726,7 +840,7 @@ const VideoPlayer = () => {
 	// 只更新视频列表，不影响当前播放
 	const updateVideoListOnly = async () => {
 		try {
-			const list = await window.electronFeatures.getVideoList();
+			const list = await electronFeatures.getVideoList();
 			if (list && Array.isArray(list)) {
 				setVideoList(list);
 				// 不改变 currentVideo 和 isPlaying 状态
@@ -830,6 +944,7 @@ const VideoPlayer = () => {
 	// 处理视频播放结束
 	const handleVideoEnded = () => {
 		setIsPlaying(false);
+		persistPlaybackProgress();
 		
 		// 根据当前播放模式决定下一步操作
 		if (currentMode === 'repeat-one') {
@@ -872,14 +987,6 @@ const VideoPlayer = () => {
 			// 如果列表中只有一个视频或当前视频不在列表中
 			playSelectedVideo(videoList[0]);
 		}
-	};
-
-	// 添加缺失的 toFileUrl 函数
-	const toFileUrl = (filePath) => {
-		if (!filePath) return '';
-		// 将 Windows 路径的反斜杠替换为正斜杠，并进行 URL 编码
-		const normalizedPath = filePath.replace(/\\/g, '/');
-		return `file:///${encodeURI(normalizedPath)}`;
 	};
 
 	// 格式化时间显示
@@ -974,7 +1081,7 @@ const VideoPlayer = () => {
 	// 保存更新音量
 	const updateVolumeSave = (e) => {
 		const newVolume = clamp(parseInt(e.target.value, 10) || 0, 0, 100);
-		window.electronFeatures.updateUserConfig('video.volume', newVolume);
+		electronFeatures.setVideoVolume(newVolume);
 	}
 	// 切换静音状态
 	const toggleMute = () => {
@@ -988,7 +1095,7 @@ const VideoPlayer = () => {
 			setVolumeLevel(restoreVolume);
 			videoRef.current.muted = false;
 			videoRef.current.volume = ((restoreVolume / 100) * MAXVOLUME) / 100;
-			window.electronFeatures.updateUserConfig('video.volume', restoreVolume);
+			electronFeatures.setVideoVolume(restoreVolume);
 			// console.log('恢复音量:', restoreVolume);
 		} else {
 			// 🔥 当前不是静音，设置为静音
@@ -997,7 +1104,7 @@ const VideoPlayer = () => {
 			setVolumeLevel(0);
 			videoRef.current.muted = true;
 			videoRef.current.volume = 0;
-			window.electronFeatures.updateUserConfig('video.volume', 0);
+			electronFeatures.setVideoVolume(0);
 			// console.log('设置静音');
 		}
 
@@ -1019,10 +1126,7 @@ const VideoPlayer = () => {
 		animateButton('mode');
 
 		// 可选：保存用户播放模式配置
-		window.electronFeatures.sendMessage('update-userconfig-video', {
-			attrName: ['playMode'],
-			value: [newMode]
-		});
+		electronFeatures.setVideoPlaybackMode(newMode);
 	};
 
 	const getVideoMetaText = (video) => {
@@ -1059,7 +1163,7 @@ const VideoPlayer = () => {
 			<div className="VideoPlayer_diaplay_container">
 				<video
 					ref={videoRef}
-					src={currentVideo?.path ? toFileUrl(currentVideo.path) : ''}
+					src={currentVideo?.path ? toFileUrl(currentVideo.path) : undefined}
 					controls={false}
 					preload="metadata"
 					onPlay={handlePlay}
@@ -1067,7 +1171,7 @@ const VideoPlayer = () => {
 					onError={handleError}
 					onCanPlay={handleCanPlay}
 					onLoadedData={handleLoadedData}
-					onLoadedMetadata={updateVideoTiming}
+					onLoadedMetadata={handleLoadedMetadata}
 					onDurationChange={updateVideoTiming}
 					style={{ display: currentVideo ? 'block' : 'none' }}
 					onEnded={handleVideoEnded}
@@ -1259,6 +1363,7 @@ const VideoPlayer = () => {
 					<button
 						className="VideoPlayer_playlist_close_btn"
 						type="button"
+						aria-label="关闭视频列表"
 						onClick={togglePlaylist}
 					>
 						<CloseIcon fontSize="small" />

@@ -1,56 +1,65 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const path = require('path');
 
-// 需要返回值的消息列表
-let channelsWithResponse = [
-    'check-file-exists',
-    'getSlideImages'
-]
+const ALLOWED_RENDERER_EVENTS = new Set([
+    'library-updated',
+    'music-list-updated',
+    'video-list-updated',
+    'photo-list-updated',
+    'video-transcode-start',
+    'video-transcode-success',
+    'video-transcode-progress',
+    'video-transcode-error',
+])
+const ALLOWED_CONFIG_SECTIONS = new Set(['music', 'video'])
 
 // 向主进程发送信息
 // 将electron API暴露给渲染进程
 contextBridge.exposeInMainWorld('electronFeatures', {
     // 获取用户配置
-    getUserConfig: (attrName) => ipcRenderer.invoke('get-userConfig', attrName),
-    // 更新用户配置
-    updateUserConfig: (attrName, value) => ipcRenderer.send('update-userConfig', { attrName, value }),
+    getUserConfig: (attrName) => {
+        if (!ALLOWED_CONFIG_SECTIONS.has(attrName)) throw new TypeError('不允许读取该配置分区')
+        return ipcRenderer.invoke('get-userConfig', attrName)
+    },
+    // 播放器偏好仅暴露固定字段，避免渲染层写入任意配置路径
+    setMusicVolume: (value) => ipcRenderer.invoke('set-player-preference', { type: 'music', key: 'volume', value }),
+    setMusicPlayerEffect: (value) => ipcRenderer.invoke('set-player-preference', { type: 'music', key: 'playerEffect', value }),
+    setMusicPlaybackMode: (value) => ipcRenderer.invoke('set-player-preference', { type: 'music', key: 'playMode', value }),
+    setVideoVolume: (value) => ipcRenderer.invoke('set-player-preference', { type: 'video', key: 'volume', value }),
+    setVideoPlaybackMode: (value) => ipcRenderer.invoke('set-player-preference', { type: 'video', key: 'playMode', value }),
+    // 统一媒体库（有界摘要，不返回整库 Base64）
+    getHomeSummary: (options = {}) => ipcRenderer.invoke('get-home-summary', options),
+    searchLibrary: (options = {}) => ipcRenderer.invoke('search-library', options),
+    importMusicFolder: () => ipcRenderer.invoke('import-media-folder', 'music'),
+    importVideoFolder: () => ipcRenderer.invoke('import-media-folder', 'video'),
+    importPhotoFolder: () => ipcRenderer.invoke('import-media-folder', 'photo'),
+    getRecentActivity: (options = {}) => ipcRenderer.invoke('get-recent-activity', options),
+    getFavorites: (options = {}) => ipcRenderer.invoke('get-favorites', options),
+    updatePlaybackProgress: (payload) => ipcRenderer.invoke('update-playback-progress', payload),
+    recordMediaActivity: (payload) => ipcRenderer.invoke('record-media-activity', payload),
+    setFavorite: (payload) => ipcRenderer.invoke('set-media-favorite', payload),
     // 选择音频文件
     selectAudioFiles: () => ipcRenderer.invoke('select-music-files'),
     
     // 获取音频信息 向主进程发送响应，告诉文件信息
     getAudioInfo: (filePath) => ipcRenderer.invoke('get-music-info', filePath),
     
-    // 发送消息到主进程
-    // sendMessage: (channel, data) => {
-    //     if (!channel) {
-    //         console.warn('消息类型不可缺少');
-    //         return;
-    //     }
-    //     return ipcRenderer.send(channel, data);
-    // },
-	
-	sendMessage: (channel, data) => {
-        if (!channel) {
-            console.warn('消息类型不可缺少');
-            return Promise.resolve();
-        }
-        // 对于需要返回值的操作，使用 invoke
-        if (channelsWithResponse.includes(channel)) {
-            return ipcRenderer.invoke(channel, data);
-        }
-        // 对于不需要返回值的操作，使用 send 但返回 Promise
-        ipcRenderer.send(channel, data);
-        return Promise.resolve();
-    },
+    addMusicToLibrary: (items) => ipcRenderer.invoke('add-music-to-library', items),
+    removeMusicFromLibrary: (mediaId) => ipcRenderer.invoke('remove-from-playlist', mediaId),
+    addVideoToLibrary: (items) => ipcRenderer.invoke('add-video-to-library', items),
+    removeVideoFromLibrary: (mediaId) => ipcRenderer.invoke('remove-from-videolist', mediaId),
     
     // 添加接收主进程消息的功能
     onMessage: (channel, callback) => {
-        ipcRenderer.on(channel, (event, ...args) => callback(...args));
+        if (!ALLOWED_RENDERER_EVENTS.has(channel) || typeof callback !== 'function') {
+            throw new TypeError('不允许订阅该主进程事件')
+        }
+        const listener = (event, ...args) => callback(...args)
+        ipcRenderer.on(channel, listener)
         
         // 返回一个清理函数，用于移除监听器
         return () => {
-            ipcRenderer.removeAllListeners(channel);
-        };
+            ipcRenderer.removeListener(channel, listener)
+        }
     },
     
     // 获取音乐列表
@@ -74,22 +83,16 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     getVideoInfo: (filePath) => ipcRenderer.invoke('get-video-info', filePath),
 	// 获取视频列表
 	getVideoList:()=>ipcRenderer.invoke('get-video-list'),
-	// 判断是否需要转码
-	needsTranscoding:(filePath)=>ipcRenderer.invoke('video-needs-transcoding', filePath),
-	// 获取输出路径
-	getOutputPath: (filePath) => ipcRenderer.invoke('get-output-path', filePath),
-	// 执行转码
-	transcodeVideo: (inputPath, outputPath) => ipcRenderer.invoke('transcode-video', { inputPath, outputPath }),
-	// 诊断 ffprobe
-	diagnoseFfprobe: () => ipcRenderer.invoke('diagnose-ffprobe'),
-
     // 工具函数
     /**
      * @description 获取文件名（不含路径）
      * @param {string} filePath 文件路径
      * @returns {string} 文件名
      */
-    getBaseName: (filePath) => path.basename(filePath),
+    getBaseName: (filePath) => String(filePath || '')
+        .replace(/\\/g, '/')
+        .split('/')
+        .pop() || '',
 
     // 图片
     /**
@@ -124,7 +127,7 @@ contextBridge.exposeInMainWorld('electronFeatures', {
             valueList.push(imageList);
         }
 
-        return ipcRenderer.send('update-slide-show-config',
+        return ipcRenderer.invoke('update-slide-show-config',
             { 
                 attrName: attrList,
                 value: valueList
@@ -134,7 +137,8 @@ contextBridge.exposeInMainWorld('electronFeatures', {
     /**
      * @description 关闭图片幻灯片窗口
      */
-    closeSlideShow: () => ipcRenderer.send('close-slide-show'),
+    openSlideShow: (imageList, photoPlayCount) => ipcRenderer.invoke('open-slide-show', { imageList, photoPlayCount }),
+    closeSlideShow: () => ipcRenderer.invoke('close-slide-show'),
     /**
      * @description 从本地删除图片文件
      */
@@ -143,11 +147,10 @@ contextBridge.exposeInMainWorld('electronFeatures', {
             filePath,
             updatedImageList
         });
-    }
+    },
+    saveEditedImage: (payload) => ipcRenderer.invoke('save-edited-image', payload)
 
 
 });
-
-console.log('Preload script has been loaded');
 
 // 在windows下挂载

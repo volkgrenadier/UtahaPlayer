@@ -1,7 +1,6 @@
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNotification } from '../../../utils/NotificationProvider.js';
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
+import { toFileUrl } from '../../../utils/mediaUrl';
 import "./PhotoSlideShow.scss";
 
 const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -76,6 +75,11 @@ const PhotoSlideShow = ({ interval = 5000 }) => {
 	const [tiles, setTiles] = useState([]);
 	const [layout, setLayout] = useState([]);
 	const notifyContext = useNotification()
+	const notifyRef = useRef(notifyContext.notify)
+
+	useEffect(() => {
+		notifyRef.current = notifyContext.notify
+	}, [notifyContext.notify])
 
 	/**
 	 * @description 设置窗口标题
@@ -105,7 +109,10 @@ const PhotoSlideShow = ({ interval = 5000 }) => {
 			.getImageListShowConfig()
 			.then((data) => {
 				if (!data) return;
-				const images = data.slideImagesCache;
+				const images = (data.slideImagesCache || []).map((image) => ({
+					...image,
+					src: toFileUrl(image.src || image.path),
+				}));
 				const count = Math.max(1, Math.min(12, data.photoPlayCount));
 				setImageList(images);
 				setDisplayCount(count);
@@ -178,7 +185,7 @@ const PhotoSlideShow = ({ interval = 5000 }) => {
 	 * @description 显示提示信息的弹出框
 	 */
 	useEffect(() => {
-		notifyContext.notify.regularNotify.info('按 Esc 键退出播放')
+		notifyRef.current.regularNotify.info('按 Esc 键退出播放')
 	}, []);
 
 	/**

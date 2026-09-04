@@ -5,6 +5,7 @@
 /.pnp
 .pnp.js
 /.npm-cache
+**/.npm-cache
 /.electron-cache
 /.tmp
 

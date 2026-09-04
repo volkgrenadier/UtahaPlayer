@@ -175,7 +175,7 @@ class KrcParser {
    */
     static parseLyricLine(line) {
         // 提取歌词内容（不包括时间标签）
-        const contentMatch = line.match(/\]([^\[]*)/);
+        const contentMatch = line.match(/\]([^[]*)/);
         const mainContent = contentMatch ? contentMatch[1] : '';
         
         // 提取行开始时间

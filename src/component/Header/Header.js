@@ -1,61 +1,23 @@
 import React from 'react'
-import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined';
-import FullscreenOutlinedIcon from '@mui/icons-material/FullscreenOutlined';
-import FullscreenExitOutlinedIcon from '@mui/icons-material/FullscreenExitOutlined';
-import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import './Header.scss'
 
-const Header = () => {
-    //  功能按钮列表
-    const buttons = [
-        {
-            label: '最小化',
-            value: 'minimize-window',
-            icon: <RemoveOutlinedIcon />
-        },
-        {
-            label: '全屏',
-            value: 'maximize-window',
-            icon: <FullscreenOutlinedIcon />
-        },
-        {
-            label: '关闭',
-            value: 'close-window',
-            icon: <CloseOutlinedIcon />
-        },
-    ]
+const BrandMark = () => (
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M8 7v10.2c0 5 3.1 7.8 8 7.8s8-2.8 8-7.8V7" />
+        <path d="M5 15h4l2.2-4 3.2 9 3-7 2 4H27" />
+    </svg>
+)
 
-    //  按钮点击事件
-    const handleClick = (type, data) => {
-        if (!type) {
-            return;
-        }
-        window.electronFeatures.sendMessage(type, data)
-    }
-    return (
-        <div className='Header_container'>
-            <div className="Header_info_container">
-                <div className="Header_info_logo_container"></div>
-                <div className="Header_info_title_container">Utaha Player</div>
-            </div>
-            <div className="Header_buttons_container">
-                {
-                    buttons.map((it, ind) => (
-                        <div 
-                            className="Header_button"
-                            key={it.value}
-                            onClick={() => {handleClick(it.value)}}
-                        >
-                            {
-                                it.icon
-                            }
-                        </div>
-                    ))
-                }
-            </div>
-            
+const Header = () => (
+    <header className="Header_container">
+        <div className="Header_brand">
+            <span className="Header_mark"><BrandMark /></span>
+            <span className="Header_title">Utaha Player</span>
+            <span className="Header_divider" aria-hidden="true" />
+            <span className="Header_subtitle">本地媒体中心</span>
         </div>
-    )
-}
+        <div className="Header_dragSurface" aria-hidden="true" />
+    </header>
+)
 
 export default Header

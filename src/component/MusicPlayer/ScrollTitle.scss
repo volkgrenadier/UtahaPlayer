@@ -1,33 +1,37 @@
 @import '../../style/public.scss';
-@mixin textEllipsis {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+@keyframes utaha-title-scroll {
+	from { transform: translateX(0); }
+	to { transform: translateX(var(--scroll-distance)); }
 }
+
 .ScrollTitle_container {
-    --scroll-distance: 10px;
-    --scroll-duration: 1s;
-    @keyframes titleScroll {
-        0%{
-            transform: translateX(0);
-        }
-        100%{
-            transform: translateX(var(--scroll-distance));
-        }
-    }
-    
-    @include forbiddenSelect;
-    cursor: pointer;
-    overflow: hidden;
-    .ScrollTitle_content {
-        display: flex;
-        align-items: center;
-        white-space: nowrap;
-        // transition: transform var(--scroll-duration) linear;
-    }
-    .ScrollTitle_content_scrolling,
-    .ScrollTitle_content_hoverScroll:hover {
-        animation: titleScroll var(--scroll-duration) linear 0s 1 forwards;
-        // transform: translateX(var(--scroll-distance));     
-    }
+	--scroll-distance: 0;
+	--scroll-duration: 1s;
+	min-width: 0;
+	overflow: hidden;
+	user-select: none;
+
+	.ScrollTitle_content {
+		display: flex;
+		align-items: center;
+		width: max-content;
+		min-width: 100%;
+		white-space: nowrap;
+	}
+
+	.ScrollTitle_content_scrolling,
+	.ScrollTitle_content_hoverScroll:hover {
+		animation: utaha-title-scroll var(--scroll-duration) linear 0s 1 forwards;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ScrollTitle_container {
+		.ScrollTitle_content_scrolling,
+		.ScrollTitle_content_hoverScroll:hover {
+			animation: none;
+			transform: none;
+		}
+	}
 }

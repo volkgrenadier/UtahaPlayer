@@ -1,338 +1,478 @@
 @import '../../style/public.scss';
-@import './PhotoPublic.scss';
 
 .Photo_container {
-    @include flexCenter;
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
     overflow: hidden;
-    .Photo_imageListContainer {
-        @include flexCenter;
-        flex-direction: column;
-        width: 33%;
-        height: 100%;
-        flex: 0 0 auto;
-        .Photo_imageListHeader {
-            width: 100%;
-            height: $photoImageListHeaderHeight;
-            flex: 1 0 auto;
-            display: flex;
-            align-items: stretch;
-            background: $color_main_sidebar_bg;
-            border-bottom: 1px solid #e0e0e0;
-            position: relative;
-            gap: 4px;
-            .Photo_button {
-                @include customButtonBasic;
-                @include photoButtonColor;
-                padding: 4px 8px;
-                border-radius: 0;
-                height: 100%;
-            }
-            .Photo_secondaryButton_container {
-                position: relative;
-                display: inline-flex;
-                height: 100%;
-                // flex-direction: row;
-                align-items: stretch;
-                .photo_secondaryButton {
-                    height: 100%;
-                    position: relative;
-                    
-                }
-                .Photo_subButton_sideAttach {
-                    @include flexCenter;
-                    min-width: unset;
-                    width: 18px;
-                    height: 100%;
-                    &::before {
-                        content: '';
-                        position: absolute;
-                        left: 0;
-                        top: 6px;        // 控制上边距
-                        bottom: 6px;     // 控制下边距
-                        width: 1px;
-                        background: rgba(25,25,25,.3);
-                    }
-                }
-                .Photo_subButton_playCount {
-                    svg {
-                        transition: $custom_transition;
-                    }
-                    &.active {
-                        &:hover {
-                            background-color: darken(#e4e4e8, 10%);
-                            color: $color_main;
-                        }
-                        &:active {
-                            background-color: lighten($color_main, 35%);
-                            color: $color_main;
-                        }
-                        svg{
-                            transform: rotate(180deg);
-                        }
-                    }
-                }
-                .Photo_playCountMenu {
-                    position: absolute;
-                    top: 100%;
-                    right: 0;
-                    width: 80px;
-                    max-height: 0;
-                    overflow-y: auto;
-                    background-color: #ffffff;
-                    border: 1px solid #e6e6e6;
-                    border-radius: 6px;
-                    padding: 0;
-                    z-index: 1000;
-                    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-                    opacity: 0;
-                    transform: translateY(-8px) scale(0.95);
-                    pointer-events: none;
-                    transition: $custom_transition;
-                    @include scrollStyle;
-                    .Photo_playCountItem {
-                        padding: 6px 0;
-                        text-align: center;
-                        cursor: pointer;
-                        color: #444;
-                        font-size: 14px;
-                        transition: all 0.2s;
-                    }
+    color: var(--utaha-text);
+    background: var(--utaha-bg);
+}
 
-                    .Photo_playCountItem:hover {
-                        background: #f5f7fa;
-                        color: $color_main;
-                    }
+.Photo_libraryPanel {
+    width: clamp(320px, 36%, 430px);
+    min-width: 320px;
+    height: 100%;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    overflow: visible;
+    border-right: 1px solid var(--utaha-border);
+    background: var(--utaha-bg-soft);
+}
 
-                    .Photo_playCountItem.active {
-                        background: #e3f2fd;
-                        color: $color_main;
-                        font-weight: 500;
-                    }
-                }
-                .Photo_playCountMenu.open {
-                    max-height: 200px;
-                    opacity: 1;
-                    transform: translateY(0) scale(1);
-                    pointer-events: auto;
-                    padding: 4px 0;
-                }
+.Photo_libraryTitle {
+    min-height: 60px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--utaha-border);
+    background: var(--utaha-surface);
 
-                
-            }
-            
-        }
-        .Photo_imageList {
-            @include scrollStyle;
-            width: 100%;
-            height: calc(100% - $photoImageListHeaderHeight);
-            flex: 0 0 auto;
-            overflow-x: hidden;
-            margin: 0;
-            padding-bottom: 4px;
-            .Photo_imageListItem {
-                transition: $custom_transition;
-                transition-duration: .15s;
-                &:hover {
-                    transform: scale(1.05);
-                }
-                &:active {
-                    transform: scale(0.95);
-                }                
-            }
-        }
+    > div {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 9px;
     }
 
-    .Photo_displayArea {
-        @include flexCenter;
-        flex: 1 1 auto;
-        width: 100%;
-        height: 100%;
-        background-color: #272727;
-        overflow: hidden;
-        position: relative;
-        &>img {
-            max-width: 80%;
-            max-height: 80%;
-            object-fit: contain;
-            user-select: none;
-        }
-        .Photo_placeholder {
-            font-size: $fontSize_large;
-            color: rgba(255, 255, 255, 0.5);
-            text-align: center;
-            user-select: none;
+    svg {
+        color: var(--utaha-accent);
+        font-size: 20px;
+    }
+
+    > span {
+        min-width: 26px;
+        height: 22px;
+        padding: 0 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--utaha-border);
+        border-radius: 999px;
+        color: var(--utaha-text-muted);
+        background: var(--utaha-bg-soft);
+        font-size: 11px;
+    }
+}
+
+.Photo_libraryTitleText {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+
+    strong {
+        color: var(--utaha-text);
+        font-size: 14px;
+        font-weight: 680;
+    }
+
+    small {
+        color: var(--utaha-text-subtle);
+        font-size: 9px;
+        letter-spacing: .08em;
+    }
+}
+
+.Photo_imageListHeader {
+    min-height: 50px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--utaha-border);
+    background: var(--utaha-bg-soft);
+}
+
+.Photo_toolbarButtons {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.Photo_buttonGroup {
+    height: 32px;
+    display: inline-flex;
+    align-items: stretch;
+
+    &.combo {
+        border: 1px solid var(--utaha-border);
+        border-radius: var(--utaha-radius-sm);
+        background: var(--utaha-surface);
+
+        > span .Photo_button {
+            border: 0;
+            border-radius: calc(var(--utaha-radius-sm) - 1px) 0 0 calc(var(--utaha-radius-sm) - 1px);
         }
     }
 }
 
-.Photo_container {
-    .Photo_imageListContainer {
-        .Photo_imageListHeader {
-            height: 48px;
-            padding: 6px;
-            align-items: center;
-            background: #f7f8fb;
-            border-bottom: 1px solid #e5e7eb;
-            gap: 0;
+.Photo_button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-sm);
+    color: var(--utaha-text-muted);
+    background: var(--utaha-surface);
+    cursor: pointer;
+    transition:
+        color var(--utaha-motion-fast),
+        background var(--utaha-motion-fast),
+        border-color var(--utaha-motion-fast),
+        transform var(--utaha-motion-fast);
 
-            .Photo_toolbar {
-                width: 100%;
-                min-width: 0;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-            }
+    &:hover:not(:disabled) {
+        border-color: var(--utaha-border-strong);
+        color: var(--utaha-text);
+        background: var(--utaha-surface-hover);
+    }
 
-            .Photo_toolbarButtons {
-                min-width: 0;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
+    &:active:not(:disabled) {
+        transform: scale(.95);
+    }
 
-            .Photo_buttonGroup {
-                height: 32px;
-                display: inline-flex;
-                align-items: center;
-            }
+    &:focus-visible {
+        outline: 2px solid var(--utaha-accent);
+        outline-offset: 1px;
+    }
 
-            .Photo_buttonGroup_combo {
-                border: 1px solid #dfe3ea;
-                border-radius: 8px;
-                background-color: #fff;
-                overflow: visible;
+    &:disabled {
+        cursor: default;
+        opacity: .32;
+    }
 
-                > .Photo_button {
-                    border-radius: 7px 0 0 7px;
-                    border: none;
-                }
-            }
+    &.danger:hover:not(:disabled) {
+        border-color: color-mix(in srgb, var(--utaha-danger) 44%, transparent);
+        color: var(--utaha-danger);
+        background: color-mix(in srgb, var(--utaha-danger) 10%, transparent);
+    }
 
-            .Photo_button {
-                min-width: 32px;
-                width: 32px;
-                height: 32px;
-                padding: 0;
-                border: 1px solid #dfe3ea;
-                border-radius: 8px;
-                background-color: #fff;
-                color: #4b5563;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-                transition: $custom_transition;
+    svg {
+        font-size: 19px;
+    }
+}
 
-                &:hover {
-                    border-color: rgba($color_main, .35);
-                    background-color: rgba($color_main, .06);
-                    color: $color_main;
-                    transform: translateY(-1px);
-                }
+.Photo_secondaryButtonContainer {
+    height: 30px;
+    position: relative;
+}
 
-                &:active {
-                    transform: scale(.96);
-                }
+.Photo_countButton {
+    width: 27px;
+    min-width: 27px;
+    height: 30px;
+    border-width: 0 0 0 1px;
+    border-radius: 0 calc(var(--utaha-radius-sm) - 1px) calc(var(--utaha-radius-sm) - 1px) 0;
 
-                svg {
-                    font-size: 19px;
-                }
-            }
+    &.active {
+        color: var(--utaha-accent);
+        background: var(--utaha-accent-soft);
 
-            .Photo_button_danger {
-                &:hover {
-                    border-color: rgba(#ef4444, .32);
-                    background-color: rgba(#ef4444, .08);
-                    color: #dc2626;
-                }
-            }
+        svg { transform: rotate(180deg); }
+    }
 
-            .Photo_secondaryButton_container {
-                height: 32px;
+    svg {
+        transition: transform var(--utaha-motion-normal);
+    }
+}
 
-                .photo_secondaryButton {
-                    width: 28px;
-                    min-width: 28px;
-                    border-width: 0 0 0 1px;
-                    border-color: #e5e7eb;
-                    border-radius: 0 7px 7px 0;
-                    box-shadow: none;
-                }
+.Photo_playCountMenu {
+    width: 146px;
+    max-height: 0;
+    padding: 0;
+    position: absolute;
+    top: 37px;
+    right: 0;
+    z-index: 12;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: var(--utaha-radius-md);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px) scale(.98);
+    background: var(--utaha-surface-raised);
+    box-shadow: var(--utaha-shadow-lg);
+    transition:
+        opacity var(--utaha-motion-fast),
+        transform var(--utaha-motion-fast),
+        max-height var(--utaha-motion-normal);
 
-                .Photo_subButton_sideAttach {
-                    width: 28px;
+    &.open {
+        max-height: 118px;
+        padding: 8px;
+        border-color: var(--utaha-border);
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+    }
 
-                    &::before {
-                        display: none;
-                    }
-                }
+    button {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        color: var(--utaha-text-muted);
+        background: transparent;
+        cursor: pointer;
+        font-size: 11px;
 
-                .Photo_subButton_playCount.active {
-                    background-color: rgba($color_main, .08);
-                    color: $color_main;
-                }
-
-                .Photo_playCountMenu {
-                    right: 0;
-                    width: 138px;
-                    border-radius: 8px;
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 4px;
-                    overflow: hidden;
-                    box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
-
-                    .Photo_playCountItem {
-                        width: 28px;
-                        height: 28px;
-                        padding: 0;
-                        border: none;
-                        border-radius: 6px;
-                        background-color: transparent;
-                        color: #4b5563;
-                        cursor: pointer;
-                        font-size: 12px;
-                        line-height: 1;
-
-                        &:hover {
-                            background-color: rgba($color_main, .08);
-                            color: $color_main;
-                        }
-
-                        &.active {
-                            background-color: $color_main;
-                            color: #fff;
-                            font-weight: 600;
-                        }
-                    }
-                }
-
-                .Photo_playCountMenu.open {
-                    max-height: 128px;
-                    padding: 8px;
-                }
-            }
-
-            .Photo_toolbarMeta {
-                min-width: 74px;
-                display: flex;
-                flex-direction: column;
-                align-items: flex-end;
-                gap: 2px;
-                color: #6b7280;
-                font-size: 11px;
-                line-height: 1.15;
-                user-select: none;
-
-                span {
-                    max-width: 100%;
-                    white-space: nowrap;
-                }
-            }
+        &:hover {
+            color: var(--utaha-text);
+            background: var(--utaha-surface-hover);
         }
+
+        &.active {
+            color: var(--utaha-on-accent);
+            background: var(--utaha-accent);
+            font-weight: 650;
+        }
+    }
+}
+
+.Photo_playCountMeta {
+    color: var(--utaha-text-subtle);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.Photo_libraryContent {
+    @include scrollStyle;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.Photo_imageList {
+    width: 100%;
+    height: auto;
+    margin: 0 !important;
+    padding: 12px;
+    overflow: visible !important;
+}
+
+.Photo_imageListItem {
+    position: relative;
+    overflow: visible !important;
+    border-radius: var(--utaha-radius-md);
+    background: transparent;
+    isolation: isolate;
+}
+
+.Photo_imageCard {
+    width: 100%;
+    padding: 0;
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: var(--utaha-radius-md);
+    color: inherit;
+    background: var(--utaha-surface);
+    box-shadow: var(--utaha-shadow-sm);
+    cursor: pointer;
+    transition:
+        border-color var(--utaha-motion-fast),
+        box-shadow var(--utaha-motion-fast),
+        transform var(--utaha-motion-fast);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
+        pointer-events: none;
+    }
+
+    &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(57, 35, 61, .16);
+
+        img { transform: scale(1.025); }
+        .Photo_itemLabel { opacity: 1; }
+    }
+
+    &:active { transform: scale(.985); }
+
+    &:focus-visible {
+        outline: 2px solid var(--utaha-accent);
+        outline-offset: 2px;
+
+        .Photo_itemLabel { opacity: 1; }
+    }
+
+    img {
+        width: 100%;
+        height: auto;
+        min-height: 74px;
+        display: block;
+        object-fit: cover;
+        background: var(--utaha-bg-soft);
+        transition: transform var(--utaha-motion-normal);
+        user-select: none;
+    }
+}
+
+.Photo_imageListItem.selected .Photo_imageCard {
+    border-color: var(--utaha-accent);
+    box-shadow:
+        0 0 0 2px var(--utaha-accent-soft),
+        0 12px 28px rgba(57, 35, 61, .14);
+}
+
+.Photo_itemLabel {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    padding: 28px 9px 8px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    color: rgba(255, 255, 255, .9);
+    background: linear-gradient(transparent, rgba(20, 11, 23, .84));
+    opacity: 0;
+    transition: opacity var(--utaha-motion-fast);
+    pointer-events: none;
+
+    strong {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 10px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.Photo_libraryMessage,
+.Photo_emptyLibrary {
+    min-height: 100%;
+    padding: 30px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.Photo_libraryMessage {
+    gap: 10px;
+    color: var(--utaha-text-subtle);
+    font-size: 12px;
+
+    &.error { color: var(--utaha-danger); }
+}
+
+.Photo_loadingDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--utaha-accent);
+    box-shadow: 0 0 0 0 var(--utaha-accent-soft);
+    animation: Photo_loadingPulse 1.2s ease-out infinite;
+}
+
+@keyframes Photo_loadingPulse {
+    60%, 100% { box-shadow: 0 0 0 10px transparent; }
+}
+
+.Photo_emptyLibrary {
+    .Photo_emptyIcon {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 17px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--utaha-border);
+        border-radius: var(--utaha-radius-lg);
+        color: var(--utaha-accent);
+        background: var(--utaha-accent-soft);
+
+        svg { font-size: 27px; }
+    }
+
+    strong {
+        margin-bottom: 8px;
+        color: var(--utaha-text);
+        font-size: 14px;
+        font-weight: 650;
+    }
+
+    p {
+        max-width: 250px;
+        margin: 0 0 20px;
+        color: var(--utaha-text-subtle);
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    button {
+        width: min(210px, 100%);
+        height: 36px;
+        margin-bottom: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid var(--utaha-accent);
+        border-radius: var(--utaha-radius-sm);
+        color: var(--utaha-on-accent);
+        background: var(--utaha-accent);
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+
+        &.secondary {
+            border-color: var(--utaha-border-strong);
+            color: var(--utaha-text-muted);
+            background: var(--utaha-surface);
+        }
+
+        svg { font-size: 18px; }
+    }
+}
+
+.Photo_displayArea {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    background: var(--utaha-bg);
+}
+
+@media (max-width: 1120px) {
+    .Photo_libraryPanel {
+        width: 320px;
+    }
+
+    .Photo_playCountMeta {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .Photo_loadingDot {
+        animation: none;
     }
 }

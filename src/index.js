@@ -1,18 +1,24 @@
+import './runtimeSetup'
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import store from './component/store/store';
-import { Provider } from 'react-redux';
-import { HashRouter } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
+import { CssBaseline, ThemeProvider } from '@mui/material'
+import theme from './theme'
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+const router = createHashRouter([
+  { path: '*', element: <App /> }
+], {
+  future: { v7_relativeSplatPath: true }
+})
+
 root.render(
   <React.StrictMode>
-    <Provider store={store}>
-      <HashRouter>
-        <App />
-      </HashRouter>
-    </Provider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <RouterProvider router={router} future={{ v7_startTransition: true }} />
+    </ThemeProvider>
     
   </React.StrictMode>
 );

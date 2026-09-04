@@ -1,8 +1,8 @@
 {
-  "name": "utaha-music",
-  "productName": "Utaha Music",
-  "version": "0.1.0",
-  "description": "Desktop Music & Video Player",
+  "name": "utaha-player",
+  "productName": "Utaha Player",
+  "version": "0.2.0",
+  "description": "Local-first desktop music, video and photo media center",
   "author": "Utaha Team",
   "private": true,
   "homepage": ".",
@@ -65,6 +65,7 @@
     ]
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@electron-forge/cli": "^7.10.2",
     "@electron-forge/maker-deb": "^7.10.2",
     "@electron-forge/maker-rpm": "^7.10.2",

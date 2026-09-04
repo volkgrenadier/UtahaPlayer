@@ -1,652 +1,482 @@
 @import '../../style/public.scss';
 
-$home-accent: #5C5CE2;
-$home-accent-hover: #4545C2;
-$home-accent-soft: #EEEFFF;
-$home-page-bg: #F7F7FB;
-$home-surface: #FFF;
-$home-subtle: #F1F2F8;
-$home-border: #E4E7EF;
-$home-heading: #171C2A;
-$home-text: #566174;
-$home-video: #B85C42;
-$home-video-soft: #FFF0EB;
-$home-photo: #167A67;
-$home-photo-soft: #E7F6F1;
-
-@mixin HomeGuide_textEllipsis {
+@mixin ellipsis {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.HomeGuide_container {
+.Home_container {
     width: 100%;
     height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    background: $home-page-bg;
-    color: $home-heading;
-    font-family: "Microsoft YaHei", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    @include scrollStyle;
+    overflow: auto;
+    color: var(--utaha-text);
+    @include hoverShowScrollBar;
+}
 
-    *,
-    *::before,
-    *::after {
-        box-sizing: border-box;
-    }
+.Home_content {
+    width: min(100%, 1480px);
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 34px clamp(24px, 3.4vw, 52px) calc(var(--utaha-player-safe-area, 0px) + 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
 
-    button {
-        font: inherit;
-    }
+.Home_hero {
+    min-width: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid var(--utaha-border-strong);
+}
 
-    .HomeGuide_content {
-        width: min(100%, 1440px);
-        margin: 0 auto;
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
+.Home_heroCopy {
+    min-width: 240px;
 
-    .HomeGuide_header {
-        min-width: 0;
-        padding: 20px 24px;
-        border: 1px solid $home-border;
-        border-radius: 16px;
-        background: linear-gradient(115deg, $home-surface 0%, #FAFAFF 100%);
-        box-shadow: 0 8px 24px rgba(23, 28, 42, .04);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 24px;
-    }
-
-    .HomeGuide_headerCopy {
-        min-width: 0;
-
-        h1 {
-            margin: 0;
-            color: $home-heading;
-            font-size: clamp(24px, 2.4vw, 30px);
-            font-weight: 700;
-            letter-spacing: -.025em;
-            line-height: 1.2;
-        }
-
-        p {
-            margin: 8px 0 0;
-            color: $home-text;
-            font-size: 14px;
-            line-height: 1.55;
-        }
-    }
-
-    .HomeGuide_headerStats {
-        flex: 0 0 auto;
-        margin: 0;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(58px, 1fr));
-        gap: 12px;
-    }
-
-    .HomeGuide_headerStat {
-        min-width: 0;
-        margin: 0;
-        padding-left: 12px;
-        border-left: 1px solid $home-border;
-
-        &:first-child {
-            padding-left: 0;
-            border-left: 0;
-        }
-
-        dt {
-            margin: 0;
-            color: $home-text;
-            font-size: 12px;
-            font-weight: 500;
-            line-height: 1.25;
-            white-space: nowrap;
-        }
-
-        dd {
-            margin: 5px 0 0;
-            color: $home-heading;
-            display: flex;
-            align-items: baseline;
-            gap: 3px;
-            font-variant-numeric: tabular-nums;
-            line-height: 1;
-
-            strong {
-                font-size: 20px;
-                font-weight: 700;
-            }
-
-            span {
-                color: $home-text;
-                font-size: 12px;
-            }
-        }
-    }
-
-    .HomeGuide_notice {
-        min-height: 44px;
-        padding: 11px 14px;
-        border: 1px solid $home-border;
-        border-radius: 10px;
-        background: $home-surface;
-        color: $home-text;
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        font-size: 13px;
-        line-height: 1.45;
-
-        svg {
-            color: $home-accent;
-            font-size: 19px;
-            flex: 0 0 auto;
-        }
-    }
-
-    .HomeGuide_collectionGrid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 16px;
-    }
-
-    .HomeGuide_collectionCard {
-        width: 100%;
-        min-width: 0;
-        min-height: 336px;
-        padding: 20px;
-        border: 1px solid $home-border;
-        border-radius: 16px;
-        background: $home-surface;
-        color: $home-heading;
-        box-shadow: 0 6px 18px rgba(23, 28, 42, .035);
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        text-align: left;
-        text-decoration: none;
-        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
-
-        &:hover {
-            border-color: rgba($home-accent, .42);
-            box-shadow: 0 12px 28px rgba(23, 28, 42, .09);
-            transform: translateY(-2px);
-        }
-
-        &:focus-visible {
-            border-color: $home-accent;
-            outline: 2px solid $home-accent;
-            outline-offset: 3px;
-            box-shadow: 0 12px 28px rgba(23, 28, 42, .09);
-            transform: translateY(-2px);
-        }
-
-        &:active {
-            transition-duration: 100ms;
-            transform: translateY(0);
-        }
-    }
-
-    .HomeGuide_cardTop {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-    }
-
-    .HomeGuide_cardIcon {
-        width: 44px;
-        height: 44px;
-        border: 1px solid rgba($home-accent, .14);
-        border-radius: 12px;
-        background: $home-accent-soft;
-        color: $home-accent;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-
-        svg {
-            font-size: 23px;
-        }
-    }
-
-    .HomeGuide_cardCount {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 3px;
-        color: $home-heading;
-        font-variant-numeric: tabular-nums;
+    h1 {
+        margin: 8px 0 0;
+        color: var(--utaha-text);
+        font-size: clamp(36px, 4.2vw, 60px);
+        font-weight: 780;
+        letter-spacing: -.052em;
         line-height: 1;
-
-        strong {
-            font-size: 27px;
-            font-weight: 700;
-            letter-spacing: -.035em;
-        }
-
-        em {
-            color: $home-text;
-            font-size: 13px;
-            font-style: normal;
-        }
     }
 
-    .HomeGuide_cardHeading {
-        margin-top: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
+    p {
+        max-width: 560px;
+        margin: 13px 0 0;
+        color: var(--utaha-text-muted);
+        font-family: var(--utaha-font-editorial);
+        font-size: 16px;
+        line-height: 1.62;
+    }
+}
+
+.Home_eyebrow {
+    color: var(--utaha-accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .18em;
+}
+
+.Home_commands {
+    min-width: min(100%, 510px);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.Home_searchWrap {
+    min-width: 220px;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-md);
+    background: var(--utaha-surface-raised);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    position: relative;
+    flex: 1 1 320px;
+    transition: border-color var(--utaha-motion-normal), background-color var(--utaha-motion-normal);
+
+    &:focus-within {
+        border-color: var(--utaha-accent);
+        background: var(--utaha-surface-raised);
     }
 
-    .HomeGuide_cardTitle {
-        color: $home-heading;
-        font-size: 17px;
-        font-weight: 700;
-        line-height: 1.3;
+    > svg {
+        color: var(--utaha-text-subtle);
+        font-size: 20px;
     }
 
-    .HomeGuide_cardStatus {
-        color: $home-text;
-        font-size: 13px;
-        line-height: 1.45;
-    }
-
-    .HomeGuide_cardPreview {
+    input {
         min-width: 0;
-        min-height: 128px;
-        margin-top: 16px;
-        padding-top: 14px;
-        border-top: 1px solid $home-border;
-        display: flex;
-        flex: 1 1 auto;
-    }
-
-    .HomeGuide_previewList {
         width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 9px;
-    }
+        height: 100%;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--utaha-text);
+        font-size: 13px;
 
-    .HomeGuide_previewItem {
+        &::placeholder { color: var(--utaha-text-subtle); }
+        &::-webkit-search-cancel-button { opacity: .5; }
+    }
+}
+
+.Home_searchResults {
+    width: min(460px, calc(100vw - 48px));
+    max-height: 390px;
+    padding: 7px;
+    overflow: auto;
+    border: 1px solid var(--utaha-border-strong);
+    border-radius: var(--utaha-radius-md);
+    background: var(--utaha-surface-raised);
+    box-shadow: var(--utaha-shadow-lg);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 100;
+    @include hoverShowScrollBar;
+
+    > a {
         min-width: 0;
+        padding: 8px;
+        border-radius: 9px;
+        color: var(--utaha-text);
         display: flex;
         align-items: center;
-        gap: 9px;
-    }
+        gap: 10px;
+        text-decoration: none;
 
-    .HomeGuide_previewCover {
-        width: 32px;
-        height: 32px;
-        overflow: hidden;
-        border-radius: 10px;
-        background: $home-accent-soft;
-        color: $home-accent;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
+        &:hover { background: var(--utaha-surface-hover); }
 
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
+        > span:last-child {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
-
-        svg {
-            font-size: 18px;
-        }
-    }
-
-    .HomeGuide_previewCover_video {
-        background: $home-video-soft;
-        color: $home-video;
-    }
-
-    .HomeGuide_previewText {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
 
         strong,
-        span {
-            display: block;
-            min-width: 0;
-            @include HomeGuide_textEllipsis;
-        }
-
-        strong {
-            color: $home-heading;
-            font-size: 13px;
-            font-weight: 600;
-            line-height: 1.35;
-        }
-
-        span {
-            color: $home-text;
-            font-size: 12px;
-            line-height: 1.3;
-        }
+        small { @include ellipsis; }
+        strong { font-size: 13px; }
+        small { color: var(--utaha-text-subtle); font-size: 11px; }
     }
+}
 
-    .HomeGuide_imagePreviewGrid {
+.Home_searchState {
+    padding: 20px;
+    color: var(--utaha-text-muted);
+    text-align: center;
+    font-size: 12px;
+}
+
+.Home_importWrap { position: relative; flex: 0 0 auto; }
+
+.Home_importButton,
+.Home_empty > button {
+    height: 42px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: var(--utaha-radius-md);
+    background: var(--utaha-ink);
+    color: var(--utaha-inverse-text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    transition: transform var(--utaha-motion-fast), background-color var(--utaha-motion-normal);
+
+    &:hover { background: var(--utaha-accent); }
+    &:active { transform: scale(.98); }
+    &:disabled { opacity: .62; cursor: wait; }
+
+    svg { font-size: 19px; }
+}
+
+.Home_importMenu {
+    width: 206px;
+    padding: 7px;
+    border: 1px solid var(--utaha-border-strong);
+    border-radius: var(--utaha-radius-md);
+    background: var(--utaha-surface-raised);
+    box-shadow: var(--utaha-shadow-lg);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 90;
+
+    button {
         width: 100%;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-auto-rows: 54px;
-        gap: 8px;
-    }
-
-    .HomeGuide_imagePreviewItem {
-        overflow: hidden;
-        border-radius: 10px;
-        background: $home-photo-soft;
-        color: $home-photo;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        svg {
-            font-size: 22px;
-        }
-    }
-
-    .HomeGuide_cardEmpty,
-    .HomeGuide_previewLoading {
-        width: 100%;
-        min-height: 112px;
-        border-radius: 10px;
-        background: $home-subtle;
-        color: $home-text;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .HomeGuide_cardEmpty {
-        padding: 16px;
-        border: 1px dashed $home-border;
-        flex-direction: column;
-        gap: 8px;
-        text-align: center;
-        font-size: 13px;
-        line-height: 1.45;
-
-        svg {
-            color: $home-accent;
-            font-size: 22px;
-        }
-    }
-
-    .HomeGuide_previewLoading {
-        padding: 16px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-    .HomeGuide_loadingLine {
-        width: 62%;
-        height: 9px;
-        border-radius: 999px;
-        background: #E2E4EE;
-    }
-
-    .HomeGuide_loadingLine_wide {
-        width: 90%;
-    }
-
-    .HomeGuide_loadingLine_short {
-        width: 42%;
-    }
-
-    .HomeGuide_loadingText {
-        margin-top: 1px;
-        color: $home-text;
-        font-size: 12px;
-    }
-
-    .HomeGuide_cardAction {
-        margin-top: 16px;
-        color: $home-accent;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 1.2;
-
-        svg {
-            font-size: 17px;
-        }
-    }
-
-    .HomeGuide_collectionCard_video {
-        .HomeGuide_cardIcon {
-            border-color: rgba($home-video, .14);
-            background: $home-video-soft;
-            color: $home-video;
-        }
-
-        .HomeGuide_cardAction {
-            color: $home-video;
-        }
-    }
-
-    .HomeGuide_collectionCard_photo {
-        .HomeGuide_cardIcon {
-            border-color: rgba($home-photo, .14);
-            background: $home-photo-soft;
-            color: $home-photo;
-        }
-
-        .HomeGuide_cardAction {
-            color: $home-photo;
-        }
-    }
-
-    .HomeGuide_emptyLibrary {
-        min-height: 292px;
-        padding: 36px 24px;
-        border: 1px solid $home-border;
-        border-radius: 16px;
-        background: $home-surface;
-        box-shadow: 0 6px 18px rgba(23, 28, 42, .035);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-    }
-
-    .HomeGuide_emptyLibraryIcon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        background: $home-accent-soft;
-        color: $home-accent;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-
-        svg {
-            font-size: 25px;
-        }
-    }
-
-    .HomeGuide_emptyLibrary {
-        h2 {
-            margin: 14px 0 0;
-            color: $home-heading;
-            font-size: 19px;
-            line-height: 1.3;
-        }
-
-        p {
-            max-width: 440px;
-            margin: 7px 0 0;
-            color: $home-text;
-            font-size: 14px;
-            line-height: 1.55;
-        }
-    }
-
-    .HomeGuide_emptyActions {
-        width: min(100%, 760px);
-        margin-top: 20px;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-    }
-
-    .HomeGuide_emptyAction {
-        min-width: 0;
-        min-height: 44px;
-        padding: 10px 12px;
-        border: 1px solid $home-border;
-        border-radius: 10px;
-        background: $home-surface;
-        color: $home-heading;
+        height: 39px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--utaha-text-muted);
         cursor: pointer;
-        display: grid;
-        grid-template-columns: 19px minmax(0, 1fr) 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+        font-size: 12px;
+
+        &:hover { background: var(--utaha-surface-hover); color: var(--utaha-text); }
+        svg { color: var(--utaha-accent); font-size: 19px; }
+    }
+}
+
+.Home_notice {
+    padding: 11px 14px;
+    border: 1px solid color-mix(in srgb, var(--utaha-danger) 34%, transparent);
+    border-radius: var(--utaha-radius-md);
+    background: color-mix(in srgb, var(--utaha-danger) 8%, transparent);
+    color: var(--utaha-danger);
+    font-size: 12px;
+}
+
+.Home_loading {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+
+    span {
+        height: 210px;
+        border: 1px solid var(--utaha-border);
+        border-radius: var(--utaha-radius-lg);
+        background: linear-gradient(100deg, var(--utaha-surface) 10%, var(--utaha-surface-raised) 45%, var(--utaha-surface) 80%);
+        background-size: 220% 100%;
+        animation: Home_shimmer 1.6s linear infinite;
+    }
+}
+
+@keyframes Home_shimmer { to { background-position-x: -220%; } }
+
+.Home_empty {
+    min-height: 390px;
+    padding: 46px 28px;
+    border: 1px solid var(--utaha-ink);
+    border-radius: var(--utaha-radius-lg);
+    background: var(--utaha-ink);
+    color: var(--utaha-inverse-text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+    h2 { margin: 18px 0 0; font-size: 25px; letter-spacing: -.025em; }
+    p { max-width: 510px; margin: 10px 0 22px; color: var(--utaha-inverse-muted); font-family: var(--utaha-font-editorial); font-size: 15px; line-height: 1.65; }
+
+    > button {
+        background: var(--utaha-accent);
+
+        &:hover { background: var(--utaha-accent-bright); }
+    }
+}
+
+.Home_emptyIcon {
+    width: 58px;
+    height: 58px;
+    border: 1px solid rgba(246, 240, 229, .18);
+    border-radius: 16px;
+    background: rgba(246, 240, 229, .08);
+    color: var(--utaha-accent-bright);
+    display: grid;
+    place-items: center;
+    svg { font-size: 29px; }
+}
+
+.Home_emptyShortcuts {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+
+    button {
+        min-height: 36px;
+        padding: 0 11px;
+        border: 1px solid rgba(246, 240, 229, .18);
+        border-radius: 9px;
+        background: transparent;
+        color: var(--utaha-inverse-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        &:hover { border-color: rgba(246, 240, 229, .38); color: var(--utaha-inverse-text); }
+        svg { font-size: 17px; }
+    }
+}
+
+.Home_shelf,
+.Home_libraries { min-width: 0; }
+
+.Home_sectionHeader {
+    margin-bottom: 13px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+
+    h2 {
+        margin: 0;
+        color: var(--utaha-text);
+        display: flex;
         align-items: center;
         gap: 7px;
-        text-align: left;
-        text-decoration: none;
-        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
-
-        &:hover {
-            border-color: rgba($home-accent, .42);
-            background: #FAFAFF;
-            box-shadow: 0 8px 18px rgba(23, 28, 42, .07);
-            transform: translateY(-1px);
-        }
-
-        &:focus-visible {
-            border-color: $home-accent;
-            outline: 2px solid $home-accent;
-            outline-offset: 3px;
-        }
-
-        &:active {
-            transition-duration: 100ms;
-            transform: translateY(0);
-        }
-
-        > svg {
-            color: $home-accent;
-            font-size: 19px;
-        }
-
-        span {
-            min-width: 0;
-            color: $home-heading;
-            font-size: 13px;
-            font-weight: 600;
-            @include HomeGuide_textEllipsis;
-        }
+        font-size: 18px;
+        font-weight: 720;
+        letter-spacing: -.02em;
+        svg { color: var(--utaha-accent); font-size: 20px; }
     }
 
-    .HomeGuide_emptyAction_video {
-        > svg {
-            color: $home-video;
-        }
+    p { margin: 4px 0 0; color: var(--utaha-text-subtle); font-size: 11px; }
+}
+
+.Home_mediaRow {
+    min-width: 0;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(170px, 1fr);
+    grid-template-rows: 1fr;
+    gap: 12px;
+    @include hoverShowScrollBar;
+}
+
+.Home_mediaRow_continue { grid-auto-columns: minmax(280px, 360px); }
+
+.Home_mediaItem {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-md);
+    background: var(--utaha-surface);
+    color: var(--utaha-text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    position: relative;
+    transition: transform var(--utaha-motion-normal), background-color var(--utaha-motion-normal), border-color var(--utaha-motion-normal);
+
+    &:hover {
+        border-color: var(--utaha-border-strong);
+        background: var(--utaha-surface-raised);
+        transform: translateY(-1px);
+    }
+}
+
+.Home_mediaItem_continue {
+    min-height: 104px;
+    padding: 12px;
+    border-color: var(--utaha-ink);
+    background: var(--utaha-ink);
+    color: var(--utaha-inverse-text);
+
+    &:hover {
+        border-color: var(--utaha-ink-soft);
+        background: var(--utaha-ink-soft);
     }
 
-    .HomeGuide_emptyAction_photo {
-        > svg {
-            color: $home-photo;
-        }
-    }
+    .Home_mediaMeta > span { color: var(--utaha-inverse-muted); }
+    .Home_resumeIcon { color: var(--utaha-accent-bright); }
+    .Home_progressTrack { background: rgba(246, 240, 229, .16); }
+    .Home_progressTrack span { background: var(--utaha-accent-bright); }
+}
 
-    @media (min-width: 1120px) {
-        .HomeGuide_collectionGrid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
+.Home_artwork {
+    width: 54px;
+    height: 54px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--utaha-surface-hover);
+    color: var(--utaha-text-subtle);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    position: relative;
 
-    @media (min-width: 760px) and (max-width: 1119px) {
-        .HomeGuide_collectionGrid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    &.Home_artwork_large { width: 78px; height: 78px; border-radius: 13px; }
 
-        .HomeGuide_collectionCard_photo {
-            grid-column: 1 / -1;
-        }
-    }
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    > svg { font-size: 24px; }
+}
 
-    @media (max-width: 759px) {
-        .HomeGuide_content {
-            padding: 16px;
-            gap: 20px;
-        }
+.Home_artwork_music { background: var(--utaha-music-tint); color: var(--utaha-music-ink); }
+.Home_artwork_video { background: var(--utaha-video-tint); color: var(--utaha-info); }
+.Home_artwork_photo { background: var(--utaha-photo-tint); color: var(--utaha-success); }
 
-        .HomeGuide_header {
-            padding: 18px;
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 18px;
-        }
+.Home_typeBadge {
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: rgba(52, 36, 65, .86);
+    color: var(--utaha-inverse-text);
+    font-size: 8px;
+    font-weight: 700;
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+}
 
-        .HomeGuide_headerStats {
-            width: 100%;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 16px;
-        }
+.Home_mediaMeta {
+    min-width: 0;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
 
-        .HomeGuide_headerStat {
-            padding-left: 0;
-            border-left: 0;
-        }
+    strong,
+    > span:not(.Home_progressTrack) { @include ellipsis; }
+    strong { font-size: 12px; font-weight: 680; }
+    > span { color: var(--utaha-text-subtle); font-size: 10px; }
+}
 
-        .HomeGuide_collectionGrid,
-        .HomeGuide_emptyActions {
-            grid-template-columns: 1fr;
-        }
+.Home_progressTrack {
+    width: 100%;
+    height: 3px;
+    margin-top: 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(52, 36, 65, .12);
+    span { height: 100%; display: block; border-radius: inherit; background: var(--utaha-accent-hover); }
+}
 
-        .HomeGuide_collectionCard_photo {
-            grid-column: auto;
-        }
+.Home_resumeIcon { color: var(--utaha-accent-hover); font-size: 22px !important; flex: 0 0 auto; }
 
-        .HomeGuide_emptyLibrary {
-            min-height: 0;
-            padding: 28px 18px;
-        }
-    }
+.Home_libraryGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 13px;
+}
 
-    @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            scroll-behavior: auto !important;
-            transition-duration: 0ms !important;
-            transition-delay: 0ms !important;
-        }
+.Home_libraryCard {
+    min-width: 0;
+    min-height: 190px;
+    padding: 16px;
+    border: 1px solid var(--utaha-border);
+    border-radius: var(--utaha-radius-lg);
+    background: var(--utaha-surface);
+    color: var(--utaha-text);
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    transition: transform var(--utaha-motion-normal), border-color var(--utaha-motion-normal), background-color var(--utaha-motion-normal);
+    &:hover { border-color: var(--utaha-border-strong); background: var(--utaha-surface-raised); transform: translateY(-2px); }
+}
 
-        .HomeGuide_collectionCard,
-        .HomeGuide_emptyAction {
-            &:hover,
-            &:focus-visible,
-            &:active {
-                transform: none;
-            }
-        }
-    }
+.Home_libraryTop { display: flex; align-items: center; justify-content: space-between; }
+.Home_libraryIcon { width: 38px; height: 38px; border-radius: 10px; background: var(--utaha-music-tint); color: var(--utaha-music-ink); display: grid; place-items: center; svg { font-size: 21px; } }
+.Home_libraryIcon_video { background: var(--utaha-video-tint); color: var(--utaha-info); }
+.Home_libraryIcon_photo { background: var(--utaha-photo-tint); color: var(--utaha-success); }
+.Home_libraryCount { color: var(--utaha-text-subtle); font-size: 10px; strong { margin-right: 3px; color: var(--utaha-text); font-size: 21px; font-variant-numeric: tabular-nums; } }
+.Home_libraryTitle { margin-top: 13px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; svg { color: var(--utaha-text-subtle); font-size: 17px; } }
+.Home_libraryPreview { min-width: 0; margin-top: 13px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; .Home_artwork { width: 100%; height: auto; aspect-ratio: 1; border-radius: 7px; } .Home_typeBadge { display: none; } small { grid-column: 1 / -1; padding: 18px 0; color: var(--utaha-text-subtle); text-align: center; font-size: 10px; } }
+
+@media (max-width: 980px) {
+    .Home_hero { align-items: stretch; flex-direction: column; gap: 18px; }
+    .Home_commands { width: 100%; max-width: none; }
+    .Home_libraryGrid { grid-template-columns: 1fr; }
+    .Home_libraryCard { min-height: 150px; }
+}
+
+@media (max-width: 680px) {
+    .Home_content { padding: 24px 16px calc(var(--utaha-player-safe-area, 0px) + 28px); }
+    .Home_commands { align-items: stretch; flex-direction: column; }
+    .Home_searchWrap { flex-basis: 42px; }
+    .Home_importButton { width: 100%; }
+    .Home_importMenu { width: 100%; }
+    .Home_loading { grid-template-columns: 1fr; }
+    .Home_emptyShortcuts { flex-direction: column; }
 }

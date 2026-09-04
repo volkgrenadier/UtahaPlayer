@@ -1,9 +1,6 @@
 import React from 'react'
+import ActivityPage from '../Activity/ActivityPage'
 
-const Collect = () => {
-	return (
-		<div>Collect</div>
-	)
-}
+const Collect = () => <ActivityPage mode="favorites" />
 
 export default Collect
