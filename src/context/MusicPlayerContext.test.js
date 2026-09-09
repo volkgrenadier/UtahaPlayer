@@ -35,12 +35,13 @@ class MockAudio extends EventTarget {
 }
 
 const PlayerProbe = ({ route }) => {
-	const { currentMusic, isPlaying, togglePlay } = useMusicPlayer();
+	const { currentMusic, isPlaying, hasPlaybackStarted, togglePlay } = useMusicPlayer();
 	return (
 		<div data-testid="route-probe">
 			<span>{route}</span>
 			<span>{currentMusic?.title || 'empty'}</span>
 			<span>{isPlaying ? 'playing' : 'paused'}</span>
+			<span data-testid="has-playback-started">{String(hasPlaybackStarted)}</span>
 			<button type="button" onClick={togglePlay}>toggle</button>
 		</div>
 	);
@@ -91,16 +92,46 @@ describe('MusicPlayerProvider', () => {
 		render(<TestShell />);
 
 		await screen.findByText('First song');
+		expect(screen.getByTestId('has-playback-started')).toHaveTextContent('false');
 		fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
 		await screen.findByText('playing');
 		expect(audioInstances).toHaveLength(1);
 		expect(audioInstances[0].playCalls).toBe(1);
+		expect(screen.getByTestId('has-playback-started')).toHaveTextContent('true');
 
 		fireEvent.click(screen.getByRole('button', { name: 'change route' }));
 		await waitFor(() => expect(screen.getByTestId('route-probe')).toHaveTextContent('photo'));
 		expect(screen.getByTestId('route-probe')).toHaveTextContent('First song');
 		expect(screen.getByTestId('route-probe')).toHaveTextContent('playing');
 		expect(audioInstances).toHaveLength(1);
+		fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
+		await screen.findByText('paused');
+		expect(screen.getByTestId('has-playback-started')).toHaveTextContent('true');
+	});
+
+	it('starts a fresh playback visibility session when the provider remounts', async () => {
+		const { unmount } = render(<TestShell />);
+		await screen.findByText('First song');
+		fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
+		await screen.findByText('playing');
+		unmount();
+		render(<TestShell />);
+		await screen.findByText('First song');
+		expect(screen.getByTestId('has-playback-started')).toHaveTextContent('false');
+	});
+
+	it('does not enable the tile when the first play attempt fails', async () => {
+		const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			render(<TestShell />);
+			await screen.findByText('First song');
+			jest.spyOn(audioInstances[0], 'play').mockRejectedValueOnce(new Error('Cannot decode audio'));
+			fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
+			await waitFor(() => expect(logError).toHaveBeenCalled());
+			expect(screen.getByTestId('has-playback-started')).toHaveTextContent('false');
+		} finally {
+			logError.mockRestore();
+		}
 	});
 
 	it('restores persisted progress once metadata becomes available', async () => {

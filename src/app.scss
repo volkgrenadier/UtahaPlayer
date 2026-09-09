@@ -38,18 +38,12 @@ textarea:focus-visible {
 }
 
 .app_container {
-    --utaha-player-safe-area: 0px;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
     display: grid;
     grid-template-rows: var(--utaha-titlebar-height) minmax(0, 1fr);
     background: var(--utaha-bg);
-
-    &.has-mini-player {
-        --utaha-player-safe-area: var(--utaha-player-height);
-        grid-template-rows: var(--utaha-titlebar-height) minmax(0, 1fr) var(--utaha-player-height);
-    }
 
     .main_container {
         min-width: 0;

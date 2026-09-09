@@ -1,4 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol, nativeImage } = require('electron');
+const isInstallerStartup = require('electron-squirrel-startup');
+if (isInstallerStartup) app.quit();
 const { parseFile } = require('music-metadata') //node.js的库
 const path = require('path');
 const fs = require('fs');
@@ -9,6 +11,7 @@ const { needsTranscoding, getOutputPath } = require("./config/videoConfig.js");
 const { imageTypeList } = require('./config/photoConfig.js');
 const { createMainWindowOptions } = require('./main/windowOptions.js');
 const { collectMediaFiles } = require('./main/mediaImportHelpers.js');
+const { resolveBinaryPath } = require('./main/binaryPaths.js');
 
 const ffmpeg = require('fluent-ffmpeg');
 const ffprobeStatic = require('ffprobe-static');
@@ -47,36 +50,11 @@ function normalizeFilePathForFs(filePath) {
 	return filePath;
 }
 
-// 更鲁棒的二进制解析：优先使用导出路径，其次尝试 resourcesPath 下的 asar.unpacked 路径
-function resolveBinary(pkgName, exportedPath) {
-	try {
-		if (!exportedPath) return null;
-
-		// 1) 导出的路径（开发模式或已解析的路径）
-		if (fs.existsSync(exportedPath)) return exportedPath;
-
-		// 2) 打包后常见位置：resources/app.asar.unpacked/node_modules/<pkg>/basename
-		const baseName = path.basename(exportedPath);
-		const unpackedCandidate = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', pkgName, baseName);
-		if (fs.existsSync(unpackedCandidate)) return unpackedCandidate;
-
-		// 3) 有时在 resources/app/node_modules 下（极少数情况）
-		const appNodeCandidate = path.join(process.resourcesPath, 'app', 'node_modules', pkgName, baseName);
-		if (fs.existsSync(appNodeCandidate)) return appNodeCandidate;
-
-		// 4) 最后回退到原始导出路径（可能不可用，但尽量不返回 undefined）
-		return exportedPath;
-	} catch (err) {
-		console.error('resolveBinary 失败:', err);
-		return exportedPath;
-	}
-}
-
 const ffmpegExport = ffmpegStatic; // ffmpeg-static 通常直接导出路径字符串
 const ffprobeExport = ffprobeStatic && ffprobeStatic.path ? ffprobeStatic.path : ffprobeStatic;
 
-const ffmpegPathResolved = resolveBinary('ffmpeg-static', ffmpegExport);
-const ffprobePathResolved = resolveBinary('ffprobe-static', ffprobeExport);
+const ffmpegPathResolved = resolveBinaryPath(ffmpegExport);
+const ffprobePathResolved = resolveBinaryPath(ffprobeExport);
 
 ffmpeg.setFfmpegPath(ffmpegPathResolved);
 ffmpeg.setFfprobePath(ffprobePathResolved);
@@ -1558,12 +1536,14 @@ function createWindow() {   //  创建窗口
 
 // 应用启动时创建窗口
 app.on('ready', async () => {
+	if (isInstallerStartup) return;
 	await initStore(); // 初始化配置存储
 	createWindow();
 });
 
 // 应用准备就绪后设置协议和监听器
 app.whenReady().then(() => {
+	if (isInstallerStartup) return;
     // 注册 file 协议
     protocol.registerFileProtocol('file', (request, callback) => {
 		try {

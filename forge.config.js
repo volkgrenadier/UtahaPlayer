@@ -3,12 +3,16 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
   packagerConfig: {
-    asar: true,
+    // Electron Packager uses asar.unpack; media executables must live outside the archive.
+    asar: {
+      unpack: '**/node_modules/{ffmpeg-static,ffprobe-static}/**',
+    },
     prune: true,
-    // 确保 ffmpeg/ffprobe 二进制不会被打包进 asar（fluent-ffmpeg 需要可执行文件路径）
-    asarUnpack: [
-      '**/node_modules/ffmpeg-static/**',
-      '**/node_modules/ffprobe-static/**'
+    ignore: [
+      /^\/(?:\.agents|\.codex|\.tmp|\.electron-cache|\.npm-cache|coverage|out)(?:\/|$)/,
+      /^\/(?:\.npmrc|\.env(?:\..*)?)$/,
+      /^\/node_modules\/\.cache(?:\/|$)/,
+      /^\/src\/.*\.(?:test|spec)\.[cm]?jsx?$/,
     ],
   },
   rebuildConfig: {},

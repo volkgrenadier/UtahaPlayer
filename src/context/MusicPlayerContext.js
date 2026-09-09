@@ -40,6 +40,7 @@ export const MusicPlayerProvider = ({ children }) => {
 	const [musicList, setMusicList] = useState([]);
 	const [currentMusic, setCurrentMusic] = useState(null);
 	const [isPlaying, setIsPlaying] = useState(false);
+	const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [totalTime, setTotalTime] = useState(0);
 	const [progress, setProgress] = useState(0);
@@ -298,6 +299,7 @@ export const MusicPlayerProvider = ({ children }) => {
 		const handlePlay = () => {
 			isSwitchingSourceRef.current = false;
 			setIsPlaying(true);
+			setHasPlaybackStarted(true);
 			persistMusicProgress();
 			document.querySelectorAll('video').forEach((video) => {
 				try { video.pause(); } catch (_) { /* best effort */ }
@@ -452,6 +454,7 @@ export const MusicPlayerProvider = ({ children }) => {
 		musicList,
 		currentMusic,
 		isPlaying,
+		hasPlaybackStarted,
 		currentTime,
 		totalTime,
 		progress,
@@ -479,6 +482,7 @@ export const MusicPlayerProvider = ({ children }) => {
 		currentMusic,
 		currentTime,
 		hasLyrics,
+		hasPlaybackStarted,
 		isMuted,
 		isPlaying,
 		loadLyricsForTrack,

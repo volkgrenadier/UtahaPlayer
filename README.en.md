@@ -5,7 +5,7 @@ Utaha Player is a local-first Electron media center for music, video, and photos
 ## Highlights
 
 - Content-first home with Continue, Recently Used, and Recently Added sections
-- Global music session and persistent mini player
+- Global music session with a floating vinyl player at the sidebar boundary; appears after the first playback, remains when paused, and collapses three seconds after interaction ends
 - Video progress restore and completion tracking
 - Source-pixel photo editing with full undo/redo
 - Save Copy by default, verified and rollback-safe overwrite when explicitly selected

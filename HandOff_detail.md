@@ -1,10 +1,10 @@
 # Utaha Player Detailed HandOff
 
-更新时间：2026-08-23（Asia/Singapore）
+更新时间：2026-09-09（Asia/Singapore）
 
 ## 1. Product and Stack
 
-Utaha Player 0.1.0 是本地优先的 Electron 桌面媒体中心，统一管理音乐、视频与图片，不依赖账号或云服务。
+Utaha Player 0.2.1 是本地优先的 Electron 桌面媒体中心，统一管理音乐、视频与图片，不依赖账号或云服务。
 
 - Electron 34
 - React 19 / React Router 6 data router
@@ -18,6 +18,8 @@ Utaha Player 0.1.0 是本地优先的 Electron 桌面媒体中心，统一管理
 ## 2. Startup and Window Model
 
 主进程入口是 `src/main.js`。`initStore()` 初始化 electron-store、迁移统一媒体库并设置 `userData/thumbnails` 缓存目录；随后创建主窗口并注册固定 IPC。
+
+Windows 安装/更新/卸载事件交由 `electron-squirrel-startup` 处理，避免安装过程中启动主界面。FFmpeg 与 FFprobe 使用 `asar.unpack` 保留为独立可执行文件，`src/main/binaryPaths.js` 保留原有子目录并优先解析物理解包路径。打包排除 `.tmp`、开发缓存、代理配置和源码测试，版本号以 `package.json` 及锁文件为准。
 
 窗口参数集中在 `src/main/windowOptions.js`：
 
@@ -76,7 +78,11 @@ Utaha Player 0.1.0 是本地优先的 Electron 桌面媒体中心，统一管理
 
 ## 6. Playback Sessions
 
-`src/context/MusicPlayerContext.js` 拥有唯一的全局 `<audio>` 会话。切换首页、视频、图片、最近或收藏不会停止音乐；`src/component/Player/MiniPlayer.js` 始终提供封面、标题、上一首、播放/暂停、下一首、进度和音量。
+`src/context/MusicPlayerContext.js` 拥有唯一的全局 `<audio>` 会话。切换首页、视频、图片、最近或收藏不会停止音乐。会话标记 `hasPlaybackStarted` 在实际播放事件发生后置为 true，暂停时保留，应用重启后重置，不写入配置。
+
+`src/component/Player/MiniPlayer.js` 使用深梅色悬浮唱片磁贴：首次播放后在音乐页外显示，无当前歌曲或进入音乐页、幻灯片窗口时隐藏。64px 唱片圆心位于侧栏交界处、距窗口底部 136px；有封面时圆形裁切，缺失或加载失败时回退默认黑胶。播放时 12 秒旋转一圈，暂停保持角度，悬停或键盘聚焦时显示下一次点击执行的播放/暂停动作。
+
+右箭头在 240ms 内展开 420×112px 控制磁贴，保留标题、艺术家、上一首、播放/暂停、下一首、进度、时间和音量；歌曲信息按钮进入音乐页。鼠标离开整个区域、没有键盘焦点且没有滑块拖动时，3 秒后自动收起；重新进入会取消计时。左箭头或 Escape 立即收起，键盘收起返回展开按钮。普通页面切换时恢复收起，关闭状态的控制区域禁用且 inert，不截获鼠标或键盘焦点。页面布局不再预留底栏高度，系统减少动态效果时停用旋转和过渡。
 
 视频仍由视频页拥有：
 

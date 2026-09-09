@@ -10,15 +10,15 @@ import './app.scss'
 
 export const PlayerAwareLayout = () => {
 	const location = useLocation()
-	const { currentMusic, isPlaying } = useMusicPlayer()
+	const { currentMusic, hasPlaybackStarted } = useMusicPlayer()
 	const showMiniPlayer = shouldShowGlobalMiniPlayer({
 		pathname: location.pathname,
 		currentMusic,
-		isPlaying
+		hasPlaybackStarted
 	})
 
 	return (
-		<div className={`app_container${showMiniPlayer ? ' has-mini-player' : ''}`} data-testid="app-shell">
+		<div className="app_container" data-testid="app-shell">
 			<Header />
 			<div className='main_container'>
 				<LeftNav />

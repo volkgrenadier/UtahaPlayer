@@ -1,7 +1,7 @@
 {
   "name": "utaha-player",
   "productName": "Utaha Player",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local-first desktop music, video and photo media center",
   "author": "Utaha Team",
   "private": true,

@@ -18,7 +18,7 @@
     width: min(100%, 1480px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 34px clamp(24px, 3.4vw, 52px) calc(var(--utaha-player-safe-area, 0px) + 40px);
+    padding: 34px clamp(24px, 3.4vw, 52px) 40px;
     display: flex;
     flex-direction: column;
     gap: 30px;
@@ -472,7 +472,7 @@
 }
 
 @media (max-width: 680px) {
-    .Home_content { padding: 24px 16px calc(var(--utaha-player-safe-area, 0px) + 28px); }
+    .Home_content { padding: 24px 16px 28px; }
     .Home_commands { align-items: stretch; flex-direction: column; }
     .Home_searchWrap { flex-basis: 42px; }
     .Home_importButton { width: 100%; }
